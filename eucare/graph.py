@@ -17,9 +17,9 @@ class NEFGraph:
 
     def __init__(self):
         self.nef = nx.DiGraph()
-        self.faces = []
-        self.edges = []
-        self.nodes = []
+        self.faces = set()
+        self.edges = set()
+        self.nodes = set()
 
     def __getitem__(self, n):
         return self.nef.__getitem__(n)
@@ -123,18 +123,18 @@ class NEFGraph:
     def add_node(self, node):
         if node in self.nodes:
             return
-        self.nodes.append(node)
+        self.nodes.add(node)
         self.nef.add_node(node)
 
     def add_nodes_from(self, nodes):
         self.nef.add_nodes_from(nodes)
-        self.nodes.extend([n for n in nodes if n not in self.nodes])
+        [self.nodes.add(n) for n in nodes if n not in self.nodes]
 
     def add_edge(self, nodes, e=None):
         e = frozenset(nodes) if e is None else e
         if e in self.edges:
             return
-        self.edges.append(e)
+        self.edges.add(e)
         # add the nodes
         self.add_nodes_from(nodes)
         # add the two corresponding edges to the nef
@@ -160,7 +160,7 @@ class NEFGraph:
         else:
             # add only the nodes
             self.add_nodes_from(nodes)
-        self.faces.append(f)
+        self.faces.add(f)
         # add connections from nodes to face to nef
         self.nef.add_edges_from([[n, f] for n in nodes])
         # add connections from face to edges to nef
@@ -284,6 +284,10 @@ class NEFGraph:
     #     self.add_nodes_from([(node, {'position': pos}) for node, pos in nx.spring_layout(self, dim=3).items()])
     #     return self
     #
+
+    def compute_face_midpoints(self):
+        # TODO: give all faces the 'face midpoint' property
+        raise NotImplementedError
 
     def dual(self):
         result = NEFGraph()
