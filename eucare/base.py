@@ -56,3 +56,48 @@ def nearest_neighbor(data, query, return_index=True):
         query = query[None]
     index = np.argmin(np.linalg.norm(data - query, axis=-1))
     return data[index], index if return_index else data[index]
+
+
+class Geometry:
+    @staticmethod
+    def translation(p1, p2):
+        # should return a translation (acting on points) from p1 to p2
+        raise NotImplementedError
+
+    @staticmethod
+    def rotation(p1, a1):
+        # should return a rotation of angle a1 around p1
+        raise NotImplementedError
+
+    @staticmethod
+    def angle(p1, p2, p3):
+        # should return the angle between p1 and p3 with apex p2
+        raise NotImplementedError
+
+
+# TODO: test
+
+class EuclideanGeometry(Geometry):
+    @staticmethod
+    def translation(p1, p2):
+        diff = p2 - p1
+
+        def translate(p):
+            return p + diff
+
+        return translate
+
+    @staticmethod
+    def rotation(p1, a1):
+        line1 = [p1, p1 + unit_vector(0)]
+        line2 = [p1, p1 + unit_vector(a1)]
+        matrix = find_affine(line1, line2)
+
+        def rotate(p):
+            return apply_affine(p, matrix)
+
+        return rotate
+
+    @staticmethod
+    def angle(p1, p2, p3):
+        return angle_to_axis(p3 - p2) - angle_to_axis(p1 - p2)
