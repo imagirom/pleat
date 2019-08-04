@@ -1,0 +1,422 @@
+from itertools import chain
+import matplotlib.pyplot as plt
+import networkx as nx
+from copy import copy
+
+# TODO: the big ones
+# - add consistency checks
+# - add conway operations in general way (Idea: disjoint triangles -> join them e2e -> delete unwanted edges)
+# - add geometry, in particular to place tiles next to each other
+# - add rendering, maybe with pycairo
+# - add instructions on edges to generate tilings. add functions to expand tilings, e.g. all border edges / vertices,
+#   or until a certain region (rectangle or sphere or more general..) is filled with the tiling.
+
+# TODO: optional stuff
+# - add functionality to select parts of the tiling (all borders with pentagons adjacent to them)
+
+# TODO: cleanup stuff
+# - make up mind about e or h for halfedges
+
+
+class AttributeObject:
+    def __init__(self):
+        super(AttributeObject, self).__init__()
+        self.attributes = dict()
+
+    def has_attributes(self):
+        return bool(self.attributes)
+
+    def __getitem__(self, attr):
+        return self.attributes[attr]
+
+    def __setitem__(self, attr, value):
+        self.attributes[attr] = value
+
+    def __iter__(self):
+        return iter(self.attributes)
+
+    def __delitem__(self, key):
+        del self.attributes[key]
+
+    def __contains__(self, item):
+        return item in self.attributes
+
+    def keys(self):
+        return self.attributes.keys()
+
+    def values(self):
+        return self.attributes.values()
+
+    def items(self):
+        return self.attributes.items()
+
+
+# TODO: remove this or solve in a better way
+class IdObject(AttributeObject):
+    current_ids = dict()
+
+    def __init__(self):
+        super(IdObject, self).__init__()
+        cls = type(self)
+        IdObject.current_ids[cls] = IdObject.current_ids.get(cls, 0) + 1
+        self['id'] = IdObject.current_ids[cls]
+
+    def __repr__(self):
+        cls = type(self)
+        clspre = cls.printname if hasattr(cls, 'printname') else cls.__name__
+        return f'{clspre}{self["id"]}'
+
+    @classmethod
+    def reset_ids(cls):
+        if cls is IdObject:
+            print('resetting all ids')
+            IdObject.current_ids = dict()
+        else:
+            IdObject.current_ids[cls] = 0
+
+
+def check_cyclic_iterator_consitency(iterator):
+    items = set()
+    for item in iterator:
+        assert item not in items, f'{item}, items'
+        items.add(item)
+
+
+class HalfEdge(IdObject):
+    printname = 'HE'
+
+    def __init__(self, rev=None, nex=None, pre=None, orig=None, dest=None, face=None):
+        super(HalfEdge, self).__init__()
+        # HalfEdge references
+        self.rev = rev
+        self.nex = nex
+        self.pre = pre
+
+        # Vertex references
+        self.orig = orig
+        self.dest = dest
+
+        # Face reference
+        self.face = face
+
+    def __repr__(self):
+        return f'{self}({self.orig},{self.dest})'
+
+    def __str__(self):
+        return f'H{self["id"]}'
+
+    def on_border(self):
+        return self.face is None
+
+    def check_consistency(self):
+        assert self.rev.rev is self, f'{self}, {self.rev}, {self.rev.rev}'
+
+
+class Vertex(IdObject):
+    printname = 'V'
+
+    def __init__(self, any_outgoing=None):
+        super(Vertex, self).__init__()
+        self.any_outgoing = any_outgoing
+
+    def outgoing_iter(self):
+        initial = self.any_outgoing
+        current = initial
+        while True:
+            yield current
+            current = current.pre.rev
+            if current is initial:
+                break
+
+    def reverse_outgoing_iter(self):
+        initial = self.any_outgoing
+        current = initial
+        while True:
+            yield current
+            current = current.rev.nex
+            if current is initial:
+                break
+
+    def incoming_iter(self):
+        for h in self.outgoing_iter():
+            yield h.rev
+
+    def face_iter(self):
+        for h in self.outgoing_iter():
+            yield h.face
+
+    def vertex_iter(self):
+        for h in self.outgoing_iter():
+            yield h.dest
+
+    def on_border(self):
+        return any(h.on_border() for h in self.outgoing_iter())
+
+    def get_outgoing_border(self):
+        # search for borders
+        border_edges = [h for h in self.outgoing_iter() if h.face is None]
+        assert len(border_edges) > 0, f'Vertex {self} does not lie on a border.'
+        assert len(border_edges) < 2, f'Vertex {self} has multiple adjacent border edges. Please specify one.'
+        return border_edges[0]
+
+    def combine_with(self, other):
+        # This method might be used in subclasses to e.g. average positions when vertices are combined.
+        # For now, just use one of them.
+        return self
+
+    def check_consistency(self):
+        check_cyclic_iterator_consitency(self.outgoing_iter())
+        check_cyclic_iterator_consitency(self.reverse_outgoing_iter())
+        for e in self.outgoing_iter():
+            assert e.orig is self, f'{self}, {e.orig}, {e}'
+        for e in self.incoming_iter():
+            assert e.dest is self, f'{self}, {e.dest}, {e}'
+
+
+class Face:
+    def __init__(self, any_side=None):
+        self.any_side = any_side
+
+    def halfedge_iter(self):
+        initial = self.any_side
+        current = initial
+        while True:
+            yield current
+            current = current.nex
+            if current is initial:
+                break
+
+    def reverse_halfedge_iter(self):
+        for h in self.halfedge_iter():
+            yield h.rev
+
+    def vertex_iter(self):
+        for h in self.halfedge_iter():
+            yield h.orig
+
+    def face_iter(self):
+        for h in self.halfedge_iter():
+            yield h.rev.face
+
+    def check_consistency(self):
+        check_cyclic_iterator_consitency(self.halfedge_iter())
+        check_cyclic_iterator_consitency(self.reverse_halfedge_iter())
+        for e in self.halfedge_iter():
+            assert e.face is self, f'{self}, {e.face}, {e}'
+
+
+class HalfEdgeGraph:
+    def __init__(self, other=None):
+        if other is not None:
+            if isinstance(other, HalfEdgeGraph):
+                self.halfedges = copy(other.halfedges)
+                self.vertices = copy(other.vertices)
+                self.faces = copy(other.faces)
+            else:
+                raise NotImplementedError
+        else:
+            self.halfedges = set()
+            self.vertices = set()
+            self.faces = set()
+
+    def add_graph(self, other):
+        if not isinstance(other, HalfEdgeGraph):
+            raise TypeError('other must be a HalfEdgeGraph.')
+        self.add_halfedges(other.halfedges)
+        self.add_vertices(other.vertices)
+        self.add_faces(other.faces)
+
+    @property
+    def order(self):
+        return len(self.vertices)
+
+    @property
+    def size(self):
+        return len(self.halfedges) // 2
+
+    def add_vertex(self, v):
+        self.vertices.add(v)
+
+    def add_vertices(self, vs):
+        self.vertices.update(vs)
+
+    def add_face(self, f):
+        self.faces.add(f)
+
+    def add_faces(self, fs):
+        self.faces.update(fs)
+
+    def add_halfedge(self, h):
+        self.halfedges.add(h)
+
+    def add_halfedges(self, hs):
+        self.halfedges.update(hs)
+
+    def to_networkx_undirected(self):
+        result = nx.Graph()
+        result.add_edges_from([(h.orig, h.dest) for h in self.halfedges])
+        return result
+
+    def get_any_border(self):
+        for h in self.halfedges:
+            if h.on_border():
+                return h
+        raise LookupError('No border found.')
+
+    def border_edge_iter(self):
+        initial = self.get_any_border()
+        current = initial
+        while True:
+            yield current
+            current = current.nex
+            if current is initial:
+                break
+
+    def border_edges(self):
+        return list(self.border_edge_iter())
+
+    def border_vertex_iter(self):
+        for h in self.border_edge_iter():
+            yield h.orig
+
+    def border_vertices(self):
+        return list(self.border_vertex_iter())
+
+    def glue_v2v(self, v1=None, v2=None, v1_out=None, v2_out=None):
+        # check if both vertices are suited for gluing
+        if v1 is None:
+            assert v1_out is not None, f'v1 or v1_out must be specified.'
+            v1 = v1_out.orig
+        if v2 is None:
+            assert v2_out is not None, f'v2 or v2_out must be specified.'
+            v2 = v2_out.orig
+
+        # search for border edges if not specified
+        v1_out = v1.get_outgoing_border() if v1_out is None else v1_out
+        v2_out = v2.get_outgoing_border() if v2_out is None else v2_out
+        assert (v1_out.orig is v1) and (v2_out.orig is v2), f'({repr(v1_out)}, {v1}), ({repr(v2_out)}, {v2})'
+
+        # get incoming border edges
+        v1_in, v2_in = v1_out.pre, v2_out.pre
+
+        # assign new vertex, remove old
+        v = v1.combine_with(v2)
+        for h in chain(v1.outgoing_iter(), v2.outgoing_iter()):
+            h.orig = v
+            h.rev.dest = v
+        self.vertices.difference_update({v1, v2})
+        self.vertices.add(v1)
+
+        # do the shuffle
+        v1_out.pre = v2_in
+        v2_out.pre = v1_in
+        v1_in.nex = v2_out
+        v2_in.nex = v1_out
+
+    def glue_e2e(self, e1, e2):
+        for e in (e1, e2):
+            if not e.on_border():
+                raise ValueError(f'Cannot glue: Edge {e} not on border.')
+
+        # glue vertices
+        for v1, v2 in ((e1.orig, e2.dest), (e1.dest, e2.orig)):
+            if v1 != v2:
+                self.glue_v2v(v1, v2)
+
+        # eliminate double edge
+        e1.rev.rev = e2.rev
+        e2.rev.rev = e1.rev
+        self.halfedges.difference_update({e1, e2})
+
+    def glue_graph_e2e(self, graph, e1, e2):
+        self.add_graph(graph)
+        self.glue_e2e(e1, e2)
+
+    def close_vertex(self, v):
+        # get edges to be glued
+        e1 = v.get_outgoing_border()
+        e2 = e1.pre
+        self.glue_e2e(e1, e2)
+
+    def execute_edge_instruction(self, h, instruction=None, key=None):
+        if instruction is None:
+            key = 'instruction' if key is None else key
+            instruction = h[key]
+        else:
+            assert key is None, f'Please specify not more than one of [key, instruction].'
+        instruction(self, h)
+
+    def execute_all_edge_instructions(self, instruction=None, key=None):
+        for h in self.border_edges():
+            self.execute_edge_instruction(h, instruction, key)
+
+    def show_spring_layout(self, figsize=(15, 15)):
+        G = self.to_networkx_undirected()
+        pos = nx.spring_layout(G.to_undirected())
+        plt.figure(figsize=figsize)
+        nx.draw_networkx_nodes(G, pos, cmap=plt.get_cmap('jet'), node_size=500)
+        nx.draw_networkx_edges(G, pos, edge_color='r', arrows=True)
+        nx.draw_networkx_labels(G, pos)
+        plt.show()
+
+    def check_consistency(self):
+        for e in self.halfedges:
+            e.check_consistency()
+        for f in self.faces:
+            f.check_consistency()
+        for v in self.vertices:
+            v.check_consistency()
+
+
+def rotate_by(list_like, offset):
+    if isinstance(offset, int):
+        l = list(list_like)
+        return l[offset:] + l[:offset]
+    else:
+        return zip(*(rotate_by(list_like, off) for off in offset))
+
+
+def any_element(s):
+    return next(iter(s))
+
+
+class CyclicHalfedgeGraph(HalfEdgeGraph):
+    def __init__(self, vs, f=None):
+        super(CyclicHalfedgeGraph, self).__init__()
+
+        # init face if necessary
+        f = Face() if f is None else f
+        assert isinstance(f, Face), f"{type(f)}"
+
+        # init the halfedges, first only with the vertices
+        inner_hs = [HalfEdge(orig=orig, dest=dest)
+                    for orig, dest in rotate_by(vs, (0, 1))]
+        outer_hs = [HalfEdge(orig=orig, dest=dest)
+                    for dest, orig in rotate_by(vs, (0, 1))]
+
+        # give face reference to a halfedge
+        f.any_side = inner_hs[0]
+
+        # nex and pre and face for inner halfedges
+        for h, pre, nex in rotate_by(inner_hs, (0, -1, 1)):
+            h.nex = nex
+            h.pre = pre
+            h.face = f
+            h.orig.any_outgoing = h
+
+        # nex and pre for outer halfedges
+        for h, pre, nex in rotate_by(outer_hs, (0, 1, -1)):  # note different offsets
+            h.nex = nex
+            h.pre = pre
+
+        # rev for all halfedges
+        for h_inner, h_outer in zip(inner_hs, outer_hs):
+            h_inner.rev = h_outer
+            h_outer.rev = h_inner
+
+        # finally, add everything to self
+        self.add_vertices(vs)
+        self.add_face(f)
+        self.add_halfedges(inner_hs)
+        self.add_halfedges(outer_hs)
+        # TODO: add edges
