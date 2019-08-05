@@ -139,6 +139,9 @@ class Vertex(IdObject):
             if current is initial:
                 break
 
+    def order(self):
+        return len(list(self.outgoing_iter()))
+
     def incoming_iter(self):
         for h in self.outgoing_iter():
             yield h.rev
@@ -157,7 +160,7 @@ class Vertex(IdObject):
     def get_outgoing_border(self):
         # search for borders
         border_edges = [h for h in self.outgoing_iter() if h.face is None]
-        assert len(border_edges) > 0, f'Vertex {self} does not lie on a border.'
+        assert len(border_edges) > 0, f'Vertex {self} does not lie on a border. {self.order()}'
         assert len(border_edges) < 2, f'Vertex {self} has multiple adjacent border edges. Please specify one.'
         return border_edges[0]
 
@@ -208,11 +211,17 @@ class Face:
 
 
 class HalfEdgeGraph:
-    def __init__(self):
-        self.halfedges = set()
-        self.vertices = set()
-        self.faces = set()
-        self._any_border = None
+    def __init__(self, other=None):
+        if other is not None:
+            self.halfedges = copy(other.halfedges)
+            self.vertices = copy(other.vertices)
+            self.faces = copy(other.faces)
+            self._any_border = other._any_border
+        else:
+            self.halfedges = set()
+            self.vertices = set()
+            self.faces = set()
+            self._any_border = None
 
     def add_graph(self, other):
         if not isinstance(other, HalfEdgeGraph):
@@ -293,9 +302,9 @@ class HalfEdgeGraph:
         v1_out = v1.get_outgoing_border() if v1_out is None else v1_out
         v2_out = v2.get_outgoing_border() if v2_out is None else v2_out
         assert (v1_out.orig is v1) and (v2_out.orig is v2), f'({repr(v1_out)}, {v1}), ({repr(v2_out)}, {v2})'
-
         # get incoming border edges
         v1_in, v2_in = v1_out.pre, v2_out.pre
+        #assert v1_out.on_border() and v2_out.on_border() and v1_in.on_border() and v2_in.on_border()
 
         # assign new vertex, remove old
         v = v1.combine_with(v2)
@@ -379,12 +388,17 @@ class InAngleHEG(HalfEdgeGraph):
     # the angle between e and e.nex is stored in e['in_angle'].
     # whenever e.face is not None, it should have the 'in_angle' attribute.
 
-    def __init__(self, angle_sum=2*pi, eps=1e-6):
-        super(InAngleHEG, self).__init__()
+    def __init__(self, angle_sum=None, eps=None, other=None):
+        super(InAngleHEG, self).__init__(other=other)
+        self.tau = 2*pi
+        self.eps = 1e-6
+        if other is not None:
+            self.tau = other.tau if hasattr(other, 'tau') else self.tau
+            self.eps = other.eps if hasattr(other, 'eps') else self.eps
         # tau = 2*pi, the sum of angles
-        self.tau = angle_sum
+        self.tau = angle_sum if angle_sum is not None else self.tau
         # tolerance for deciding weather angles are equal
-        self.eps = eps
+        self.eps = eps if eps is not None else self.eps
 
     def is_tau(self, angle):
         return abs(angle - self.tau) < self.eps
@@ -403,6 +417,8 @@ class InAngleHEG(HalfEdgeGraph):
             v_next = self.close_vertex(v)
             if recursive:
                 self.autoclose_vertex(v_next, recursive=True)
+        elif anglesum > self.tau:
+            assert False, f'Vertex {v} has anglesum of {anglesum} > {self.tau}'
 
     def glue_e2e(self, e1, e2, auto_close=True, auto_close_recursive=True):
         # glue the edges
@@ -431,7 +447,7 @@ def any_element(s):
 
 
 class CyclicHalfedgeGraph(HalfEdgeGraph):
-    def __init__(self, vs, f=None):
+    def __init__(self, vs, inner_hs=None, outer_hs=None, f=None):
         super(CyclicHalfedgeGraph, self).__init__()
 
         # init face if necessary
@@ -439,13 +455,19 @@ class CyclicHalfedgeGraph(HalfEdgeGraph):
         assert isinstance(f, Face), f"{type(f)}"
 
         # init the halfedges, first only with the vertices
-        inner_hs = [HalfEdge(orig=orig, dest=dest)
-                    for orig, dest in rotate_by(vs, (0, 1))]
-        outer_hs = [HalfEdge(orig=orig, dest=dest)
-                    for dest, orig in rotate_by(vs, (0, 1))]
+        inner_hs = [HalfEdge() for _ in vs] if inner_hs is None else inner_hs
+        outer_hs = [HalfEdge() for _ in vs] if outer_hs is None else outer_hs
 
         # give face reference to a halfedge
         f.any_side = inner_hs[0]
+
+        # orig and dest for inner and outer halfedges
+        for h, (orig, dest) in zip(inner_hs, rotate_by(vs, (0, 1))):
+            h.orig = orig
+            h.dest = dest
+        for h, (dest, orig) in zip(outer_hs, rotate_by(vs, (0, 1))):
+            h.orig = orig
+            h.dest = dest
 
         # nex and pre and face for inner halfedges
         for h, pre, nex in rotate_by(inner_hs, (0, -1, 1)):
@@ -467,6 +489,7 @@ class CyclicHalfedgeGraph(HalfEdgeGraph):
         # finally, add everything to self
         self.add_vertices(vs)
         self.add_face(f)
+        self.face = f
         self.add_halfedges(inner_hs)
         self.add_halfedges(outer_hs)
         
