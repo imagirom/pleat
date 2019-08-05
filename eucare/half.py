@@ -2,6 +2,8 @@ from itertools import chain
 import matplotlib.pyplot as plt
 import networkx as nx
 from copy import copy
+from math import pi
+import numpy as np
 
 # TODO: the big ones
 # - add consistency checks
@@ -186,7 +188,7 @@ class Face:
             if current is initial:
                 break
 
-    def reverse_halfedge_iter(self):
+    def reverse_halfedge_iter(self): # TODO: this should be the reverse of halfedge_iter, no? (not returning the rev)
         for h in self.halfedge_iter():
             yield h.rev
 
@@ -206,22 +208,15 @@ class Face:
 
 
 class HalfEdgeGraph:
-    def __init__(self, other=None):
-        if other is not None:
-            if isinstance(other, HalfEdgeGraph):
-                self.halfedges = copy(other.halfedges)
-                self.vertices = copy(other.vertices)
-                self.faces = copy(other.faces)
-            else:
-                raise NotImplementedError
-        else:
-            self.halfedges = set()
-            self.vertices = set()
-            self.faces = set()
+    def __init__(self):
+        self.halfedges = set()
+        self.vertices = set()
+        self.faces = set()
+        self._any_border = None
 
     def add_graph(self, other):
         if not isinstance(other, HalfEdgeGraph):
-            raise TypeError('other must be a HalfEdgeGraph.')
+            raise TypeError(f'other must be a HalfEdgeGraph. Got {type(other)}')
         self.add_halfedges(other.halfedges)
         self.add_vertices(other.vertices)
         self.add_faces(other.faces)
@@ -258,8 +253,11 @@ class HalfEdgeGraph:
         return result
 
     def get_any_border(self):
+        if self._any_border is not None and self._any_border.on_border() and self._any_border in self.halfedges:
+            return self._any_border
         for h in self.halfedges:
             if h.on_border():
+                self._any_border = h
                 return h
         raise LookupError('No border found.')
 
@@ -319,9 +317,9 @@ class HalfEdgeGraph:
                 raise ValueError(f'Cannot glue: Edge {e} not on border.')
 
         # glue vertices
-        for v1, v2 in ((e1.orig, e2.dest), (e1.dest, e2.orig)):
-            if v1 != v2:
-                self.glue_v2v(v1, v2)
+        for v1_out, v2_out in ((e1, e2.nex), (e1.nex, e2)):
+            if v1_out.orig != v2_out.orig:
+                self.glue_v2v(v1_out=v1_out, v2_out=v2_out)
 
         # eliminate double edge
         e1.rev.rev = e2.rev
@@ -367,6 +365,58 @@ class HalfEdgeGraph:
         for v in self.vertices:
             v.check_consistency()
 
+
+# ------------------------------------------------ faces with in-angles ------------------------------------------------
+
+# class AngledHalfEdge(HalfEdge):
+#     def __init__(self, in_angle=None, *super_args, **super_kwargs):
+#         super(AngledHalfEdge, self).__init__(*super_args, **super_kwargs)
+#         self['in_angle'] = in_angle
+
+
+class InAngleHEG(HalfEdgeGraph):
+    # class for HalfEdgeGraphs with in-angles.
+    # the angle between e and e.nex is stored in e['in_angle'].
+    # whenever e.face is not None, it should have the 'in_angle' attribute.
+
+    def __init__(self, angle_sum=2*pi, eps=1e-6):
+        super(InAngleHEG, self).__init__()
+        # tau = 2*pi, the sum of angles
+        self.tau = angle_sum
+        # tolerance for deciding weather angles are equal
+        self.eps = eps
+
+    def is_tau(self, angle):
+        return abs(angle - self.tau) < self.eps
+
+    def close_vertex(self, v):
+        e = v.get_outgoing_border()
+        super(InAngleHEG, self).glue_e2e(e, e.pre)
+        # return the new vertex
+        return e.rev.orig
+
+    def autoclose_vertex(self, v, recursive=True):
+        anglesum = sum(h['in_angle']
+                       for h in v.incoming_iter()
+                       if h.face is not None)
+        if self.is_tau(anglesum):
+            v_next = self.close_vertex(v)
+            if recursive:
+                self.autoclose_vertex(v_next, recursive=True)
+
+    def glue_e2e(self, e1, e2, auto_close=True, auto_close_recursive=True):
+        # glue the edges
+        super(InAngleHEG, self).glue_e2e(e1, e2)
+        if not auto_close:
+            # if the vertices should not be closed, that is it
+            return
+        if e1.rev.orig.on_border():  # should always be the case
+            self.autoclose_vertex(e1.rev.orig, recursive=auto_close_recursive)
+        if e1.rev.dest.on_border():  # this might not be the case, if everything is closed by the previous operation
+            self.autoclose_vertex(e1.rev.dest, recursive=auto_close_recursive)
+
+
+# ------------------------------------------------ cyclic graph example ------------------------------------------------
 
 def rotate_by(list_like, offset):
     if isinstance(offset, int):
@@ -419,4 +469,11 @@ class CyclicHalfedgeGraph(HalfEdgeGraph):
         self.add_face(f)
         self.add_halfedges(inner_hs)
         self.add_halfedges(outer_hs)
-        # TODO: add edges
+        
+
+class RegularNGon(CyclicHalfedgeGraph, InAngleHEG):
+    def __init__(self, n, *super_args, **super_kwargs):
+        super(RegularNGon, self).__init__(vs=[Vertex() for _ in range(n)], *super_args, **super_kwargs)
+        f = any_element(self.faces)
+        for e in f.halfedge_iter():
+            e['in_angle'] = (n-2) / n * pi 

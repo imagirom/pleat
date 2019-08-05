@@ -43,3 +43,4 @@ class GlueTileInstruction(HalfEdgeInstruction):
     def __deepcopy__(self, memodict={}):
         # urgh that hack
         return self
+
