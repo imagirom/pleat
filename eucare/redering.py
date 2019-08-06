@@ -24,8 +24,11 @@ class CairoRenderer:
         self.scale = scale
         self.line_width = line_width
 
-        self.surface = cairo.ImageSurface(
-            cairo.FORMAT_RGB24, self.width, self.height)
+        #self.surface = cairo.ImageSurface(
+        #    cairo.FORMAT_RGB24, self.width, self.height)
+        self.surface = cairo.SVGSurface(
+            'output.svg', self.width, self.height
+        )
         dc = cairo.Context(self.surface)
         dc.set_line_cap(cairo.LINE_CAP_ROUND)
         dc.set_line_join(cairo.LINE_JOIN_ROUND)
@@ -33,7 +36,7 @@ class CairoRenderer:
         dc.set_font_size(18.0 / self.scale)
         dc.translate(self.width / 2, self.height / 2)
         dc.scale(self.scale, self.scale)
-        dc.set_source_rgb(0, 0, 0)
+        dc.set_source_rgb(1, 1, 1)
         dc.paint()
         self.dc = dc
 
