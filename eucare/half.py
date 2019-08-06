@@ -4,6 +4,8 @@ import networkx as nx
 from copy import copy
 from math import pi
 import numpy as np
+from collections import deque
+from .base import unit_vector, angle_to_axis
 
 # TODO: the big ones
 # - add consistency checks
@@ -71,7 +73,7 @@ class IdObject(AttributeObject):
     @classmethod
     def reset_ids(cls):
         if cls is IdObject:
-            print('resetting all ids')
+            #print('resetting all ids')
             IdObject.current_ids = dict()
         else:
             IdObject.current_ids[cls] = 0
@@ -177,6 +179,11 @@ class Vertex(IdObject):
         for e in self.incoming_iter():
             assert e.dest is self, f'{self}, {e.dest}, {e}'
 
+    def angle_sum(self):
+        return sum(h['in_angle']
+                   for h in self.incoming_iter()
+                   if h.face is not None)
+
 
 class Face:
     def __init__(self, any_side=None):
@@ -194,6 +201,9 @@ class Face:
     def reverse_halfedge_iter(self): # TODO: this should be the reverse of halfedge_iter, no? (not returning the rev)
         for h in self.halfedge_iter():
             yield h.rev
+
+    def order(self):
+        return len(list(self.halfedge_iter()))
 
     def vertex_iter(self):
         for h in self.halfedge_iter():
@@ -333,6 +343,9 @@ class HalfEdgeGraph:
         # eliminate double edge
         e1.rev.rev = e2.rev
         e2.rev.rev = e1.rev
+
+        e1.orig.any_outgoing = e1.rev.nex
+        e1.dest.any_outgoing = e1.rev.pre.rev
         self.halfedges.difference_update({e1, e2})
 
     def glue_graph_e2e(self, graph, e1, e2):
@@ -403,22 +416,25 @@ class InAngleHEG(HalfEdgeGraph):
     def is_tau(self, angle):
         return abs(angle - self.tau) < self.eps
 
-    def close_vertex(self, v):
+    def close_vertex(self, v, reverse=False):
+        # reverse specifies which vertex will be kept.
         e = v.get_outgoing_border()
-        super(InAngleHEG, self).glue_e2e(e, e.pre)
+        edges = (e, e.pre)
+        if reverse:
+            edges = edges[::-1]
+        super(InAngleHEG, self).glue_e2e(*edges)
         # return the new vertex
         return e.rev.orig
 
-    def autoclose_vertex(self, v, recursive=True):
-        anglesum = sum(h['in_angle']
-                       for h in v.incoming_iter()
-                       if h.face is not None)
+    def autoclose_vertex(self, v, reverse=False, recursive=True):
+        anglesum = v.angle_sum()
         if self.is_tau(anglesum):
-            v_next = self.close_vertex(v)
+            v_next = self.close_vertex(v, reverse=reverse)
             if recursive:
-                self.autoclose_vertex(v_next, recursive=True)
+                self.autoclose_vertex(v_next, reverse=reverse, recursive=True)
         elif anglesum > self.tau:
-            assert False, f'Vertex {v} has anglesum of {anglesum} > {self.tau}'
+           print(f'Vertex {v} has anglesum of {anglesum} > {self.tau}')
+           # assert False, f'Vertex {v} has anglesum of {anglesum} > {self.tau}'
 
     def glue_e2e(self, e1, e2, auto_close=True, auto_close_recursive=True):
         # glue the edges
@@ -427,9 +443,57 @@ class InAngleHEG(HalfEdgeGraph):
             # if the vertices should not be closed, that is it
             return
         if e1.rev.orig.on_border():  # should always be the case
-            self.autoclose_vertex(e1.rev.orig, recursive=auto_close_recursive)
+            # TODO: think about reverse properly...
+            self.autoclose_vertex(e1.rev.orig, reverse=False, recursive=auto_close_recursive)
+        else:
+            assert False
         if e1.rev.dest.on_border():  # this might not be the case, if everything is closed by the previous operation
-            self.autoclose_vertex(e1.rev.dest, recursive=auto_close_recursive)
+            self.autoclose_vertex(e1.rev.dest, reverse=True, recursive=auto_close_recursive)
+
+
+class EuclideanPositionHEG(InAngleHEG):
+    def __init__(self, **super_kwargs):
+        super(EuclideanPositionHEG, self).__init__(**super_kwargs)
+
+    def positions_coincide(self, p1, p2):
+        return np.linalg.norm(p1 -p2) < self.eps
+
+    def lengths_equal(self, l1, l2):
+        return abs(l1 - l2) <= self.eps
+
+    def glue_graph_e2e(self, graph, e1, e2):
+        assert self.lengths_equal(e1.rev['length'], e2.rev['length'])
+        super(EuclideanPositionHEG, self).glue_graph_e2e(graph, e1, e2)
+        # compute positions for new vertices, face by face
+        e = e1 if e1 in graph.halfedges else e2
+        if e.rev.on_border():
+            assert False, f'{e}'
+        faces_to_process = {(e.rev.face, e.rev.nex)}
+        processed_faces = set()
+        while faces_to_process:
+            f, initial = faces_to_process.pop()
+            processed_faces.add(f)
+            assert 'pos' in e.orig.attributes
+            assert 'pos' in e.dest.attributes
+            e = initial
+            while True:
+                assert 'pos' in e.orig.attributes, f'{e}'
+                assert 'pos' in e.pre.orig.attributes, f'{e},{e.pre}'
+                if 'pos' in e.dest.attributes:
+                    # nothing to do here, both positions already determined
+                    pass
+                else:
+                    length = e['length']
+                    next_angle = angle_to_axis(e.orig['pos'] - e.pre.orig['pos']) + np.pi - e.pre['in_angle']
+                    dir = unit_vector(next_angle)
+                    next_pos = e.orig['pos'] + length * dir
+                    e.dest['pos'] = next_pos
+                opposite_face = e.rev.face
+                if opposite_face in graph.faces and opposite_face not in processed_faces:
+                    faces_to_process.add((opposite_face, e.rev))
+                e = e.nex
+                if e is initial:
+                    break
 
 
 # ------------------------------------------------ cyclic graph example ------------------------------------------------

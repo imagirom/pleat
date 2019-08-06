@@ -74,7 +74,7 @@ class EuclideanProtoTile(ProtoTile):
         # edge_instructions can either be a list for all edges, or a dict, mapping a label to an instruction
         self.edge_instructions = edge_instructions if edge_instructions is not None else dict()
 
-    def make_graph(self):
+    def make_graph(self, add_positions=False):
         outer_edge_dict = dict()
 
         outer_edges = [HalfEdge() for _ in range(self.order)]
@@ -91,6 +91,10 @@ class EuclideanProtoTile(ProtoTile):
         vertices = [Vertex() for _ in range(self.order)]
         for v, label in zip(vertices, self.vertex_labels):
             v['label'] = label
+
+        if add_positions:
+            for v, pos in zip(vertices, self.points):
+                v['pos'] = pos
 
         if isinstance(self.edge_instructions, dict):
             for e in outer_edges:
@@ -113,5 +117,5 @@ class EuclideanProtoTile(ProtoTile):
 
 class RegularEuclideanTile(EuclideanProtoTile):
     def __init__(self, n, **super_kwargs):
-        points = unit_vector(np.linspace(0, 2*np.pi, n, endpoint=False))
+        points = unit_vector(np.linspace(0, 2*np.pi, n, endpoint=False)) / np.sin(np.pi/n)
         super(RegularEuclideanTile, self).__init__(points=points, **super_kwargs)
