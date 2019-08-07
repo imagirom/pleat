@@ -21,6 +21,7 @@ from .base import unit_vector, angle_to_axis
 # - add functionality to select parts of the tiling (all borders with pentagons adjacent to them)
 
 # TODO: cleanup stuff
+# - separate InAngleHEG and EuclideanPositionHEG?
 # - make up mind about e or h for halfedges
 
 
