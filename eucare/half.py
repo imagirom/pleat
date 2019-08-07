@@ -180,7 +180,7 @@ class Vertex(IdObject):
             assert e.orig is self, f'{self}, {e.orig}, {e}'
         for e in self.incoming_iter():
             assert e.dest is self, f'{self}, {e.dest}, {e}'
-        assert self.order() > 1, f'{self}, {self.order}'
+        assert self.order() > 1, f'{self}, {self.order()}'
 
     def angle_sum(self):
         return sum(h['in_angle']
@@ -277,6 +277,7 @@ class HalfEdgeGraph:
         any_deletions = False
         adjacent_halfedges = list(f.halfedge_iter())
         for h in adjacent_halfedges:
+            h.face = None
             if h.rev.on_border():
                 h['to_delete'] = True
                 any_deletions = True
@@ -291,12 +292,14 @@ class HalfEdgeGraph:
                     h.rev.nex.pre = h.pre
                     h.orig.any_outgoing = h.pre.rev
                 if 'to_delete' not in h.nex.attributes:
+                    # TODO?: while 'to_delete' h.nex.pre ...
+                    # (this is not necessary, if borders of the tilings are sufficiently far apart..)
                     h.nex.pre = h.rev.pre
                     h.rev.pre.nex = h.nex
                     h.dest.any_outgoing = h.nex
                 else:
                     # remove vertex surrounded by border
-                    self.vertices.remove(h.nex)
+                    self.vertices.remove(h.dest)
                 self.halfedges.difference_update({h, h.rev})
 
     def delete_edge(self, h):
@@ -462,12 +465,12 @@ class HalfEdgeGraph:
         referenced_vertices.update({h.orig for h in self.halfedges})
         referenced_vertices.update({h.dest for h in self.halfedges})
         assert referenced_vertices == self.vertices, \
-            f'{referenced_vertices.difference(self.vertices)}, {self.halfedges.difference(referenced_vertices)}'
+            f'{referenced_vertices.difference(self.vertices)}, {self.vertices.difference(referenced_vertices)}'
 
         referenced_faces = {h.face for h in self.halfedges}
         referenced_faces.discard(None)
         assert referenced_faces == self.faces, \
-            f'{referenced_faces.difference(self.faces)}, {self.halfedges.difference(referenced_faces)}'
+            f'{referenced_faces.difference(self.faces)}, {self.faces.difference(referenced_faces)}'
         
 
 # ------------------------------------------------ faces with in-angles ------------------------------------------------

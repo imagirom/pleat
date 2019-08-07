@@ -75,7 +75,7 @@ tiles = t_3_3_4_3_4()
 for _ in range(1):
     IdObject.reset_ids()
     tiling = EuclideanPositionHEG(eps=1e-3, other=tiles[-1].make_graph(add_positions=True)[0])
-    for i in range(20):
+    for i in range(5):
         vertices = [e.dest for e in tiling.border_edges()]
         for v in vertices:
             k = 0
@@ -91,8 +91,13 @@ for _ in range(1):
 
 print('checking consistency')
 remove_inner_hs(tiling, ratio=0.2)
-#tiling.check_consistency()
+tiling.check_consistency()
 
+for f in frozenset(tiling.faces):
+    if np.random.rand() > 0.2:
+        tiling.delete_face(f)
+        render()
+        tiling.check_consistency()
 
 print('rendering')
 
