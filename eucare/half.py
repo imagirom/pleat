@@ -8,13 +8,14 @@ from collections import deque
 from .base import unit_vector, angle_to_axis
 
 # TODO: the big ones
-# - add rendering, maybe with pycairo
+# - add rendering, maybe with pycairo (basic version done)
 # - add rendering for proto tiles
-# - add consistency checks
+# - add consistency checks (on HEG level)
 # - add conway operations in general way (Idea: disjoint triangles -> join them e2e -> delete unwanted edges)
 # - add geometry, in particular to place tiles next to each other (partially done for euclidean. next: generalize)
 # - add instructions on edges to generate tilings. add functions to expand tilings, e.g. all border edges / vertices,
-#   or until a certain region (rectangle or sphere or more general..) is filled with the tiling. (partially done)
+#   or until a certain region (rectangle or sphere or more general..) is filled with the tiling.
+#   (partially done, confusion on what is best..)
 
 # TODO: optional stuff
 # - add functionality to select parts of the tiling (all borders with pentagons adjacent to them)
