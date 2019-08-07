@@ -61,6 +61,7 @@ def attatch_tile_instruction(proto_tile, label=None):
         graph.glue_graph_e2e(tile, edge, tile_edge)
     return instruction
 
+
 # TODO: make this search for 'adjacent_prototile'
 
 def attatch_tile_instruction(proto_tile, label=None):

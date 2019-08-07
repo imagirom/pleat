@@ -180,6 +180,7 @@ class Vertex(IdObject):
             assert e.orig is self, f'{self}, {e.orig}, {e}'
         for e in self.incoming_iter():
             assert e.dest is self, f'{self}, {e.dest}, {e}'
+        assert self.order() > 1, f'{self}, {self.order}'
 
     def angle_sum(self):
         return sum(h['in_angle']
@@ -220,6 +221,7 @@ class Face:
         check_cyclic_iterator_consitency(self.reverse_halfedge_iter())
         for e in self.halfedge_iter():
             assert e.face is self, f'{self}, {e.face}, {e}'
+        assert self.order() > 1, f'{self}, {self.order()}'
 
 
 class HalfEdgeGraph:
@@ -267,6 +269,62 @@ class HalfEdgeGraph:
 
     def add_halfedges(self, hs):
         self.halfedges.update(hs)
+
+    def delete_face(self, f):
+        # removes the face from the mesh, together with all of its edges that lie on the border
+        self.faces.remove(f)
+        # mark edges that will be deleted
+        any_deletions = False
+        adjacent_halfedges = list(f.halfedge_iter())
+        for h in adjacent_halfedges:
+            if h.rev.on_border():
+                h['to_delete'] = True
+                any_deletions = True
+        if not any_deletions:
+            # nothing left to do
+            return
+        # update pre and nex where necessary, remove the edges
+        for h in adjacent_halfedges:
+            if 'to_delete' in h.attributes:
+                if 'to_delete' not in h.pre.attributes:
+                    h.pre.nex = h.rev.nex
+                    h.rev.nex.pre = h.pre
+                    h.orig.any_outgoing = h.pre.rev
+                if 'to_delete' not in h.nex.attributes:
+                    h.nex.pre = h.rev.pre
+                    h.rev.pre.nex = h.nex
+                    h.dest.any_outgoing = h.nex
+                else:
+                    # remove vertex surrounded by border
+                    self.vertices.remove(h.nex)
+                self.halfedges.difference_update({h, h.rev})
+
+    def delete_edge(self, h):
+        if h.on_border():
+            raise NotImplementedError
+        if h.face is h.rev.face:
+            assert h.orig.order() == 1 or h.dest.order() == 1, \
+                f"removal of {h} might lead to {h.face} not being simply connected."
+        else:
+            self.faces.remove(h.face)
+        self.halfedges.difference_update({h, h.rev})
+        f = h.rev.face
+        f.any_side = h.rev.nex
+
+        # assign new, bigger face to edges adjacent to deleted face
+        for k in h.face.halfedge_iter():
+            k.face = f
+
+        # update nex and pre and any_outgoing where necessary
+        for k in [h, h.rev]:
+            k.pre.nex = k.rev.nex
+            k.nex.pre = k.rev.pre
+            k.dest.any_outgoing = k.nex
+
+        # TODO  check if there are any dangling edges next to h after removal. remove them.
+        # for k in [h, h.rev]:
+        #     if k.orig.order() == 1 and k.orig.any_outgoing in self.halfedges:
+        #         self.delete_edge(k.orig.any_outgoing)
 
     def to_networkx_undirected(self):
         result = nx.Graph()
@@ -382,6 +440,7 @@ class HalfEdgeGraph:
         plt.show()
 
     def check_consistency(self):
+        # check local consistency
         for e in self.halfedges:
             e.check_consistency()
         for f in self.faces:
@@ -389,6 +448,27 @@ class HalfEdgeGraph:
         for v in self.vertices:
             v.check_consistency()
 
+        # global checks
+        referenced_halfedges = set()
+        referenced_halfedges.update({h.nex for h in self.halfedges})
+        referenced_halfedges.update({h.pre for h in self.halfedges})
+        referenced_halfedges.update({h.rev for h in self.halfedges})
+        referenced_halfedges.update({v.any_outgoing for v in self.vertices})
+        referenced_halfedges.update({f.any_side for f in self.faces})
+        assert referenced_halfedges == self.halfedges, \
+            f'{referenced_halfedges.difference(self.halfedges)}, {self.halfedges.difference(referenced_halfedges)}'
+
+        referenced_vertices = set()
+        referenced_vertices.update({h.orig for h in self.halfedges})
+        referenced_vertices.update({h.dest for h in self.halfedges})
+        assert referenced_vertices == self.vertices, \
+            f'{referenced_vertices.difference(self.vertices)}, {self.halfedges.difference(referenced_vertices)}'
+
+        referenced_faces = {h.face for h in self.halfedges}
+        referenced_faces.discard(None)
+        assert referenced_faces == self.faces, \
+            f'{referenced_faces.difference(self.faces)}, {self.halfedges.difference(referenced_faces)}'
+        
 
 # ------------------------------------------------ faces with in-angles ------------------------------------------------
 
@@ -417,6 +497,11 @@ class InAngleHEG(HalfEdgeGraph):
 
     def is_tau(self, angle):
         return abs(angle - self.tau) < self.eps
+
+    def delete_edge(self, h):
+        super(InAngleHEG, self).delete_edge(h)
+        for k in [h, h.rev]:
+            k.pre['in_angle'] += k.rev['in_angle']
 
     def close_vertex(self, v, reverse=False):
         # reverse specifies which vertex will be kept.

@@ -10,7 +10,7 @@ import eucare.plotting as euplt
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from eucare.redering import CairoRenderer
-from eucare.example_tilesets import t_4_6_12
+from eucare.example_tilesets import *
 
 # tile = copy(tile)
 
@@ -24,8 +24,39 @@ def print_graph(graph):
     for e in graph.halfedges:
         print(e.__repr__(), e.on_border(), e.face)
 
+def render():
+    renderer = CairoRenderer(width=1500, scale=30, face_inset=0.1, line_width=0)
+    surface = renderer.render_graph(tiling)
+    filename = 'output.png'
+    surface.write_to_png(filename)
+    #surface.finish()
+    img = mpimg.imread(filename)
+    plt.figure(figsize=(13, 8))
+    plt.imshow(img)
+    plt.axis('off')
+    plt.show()
 
-tiles = t_4_6_12()
+
+def remove_inner_hs(tiling, max=None, ratio=None):
+    hs = list(tiling.halfedges)
+    np.random.shuffle(hs)
+    removed = 0
+    if ratio is not None:
+        assert max is None
+        max = len(hs) * ratio
+    for e in hs:
+        if e in tiling.halfedges and not (
+
+                e.on_border() or e.rev.on_border() or
+                e.orig.order() < 3 or e.dest.order() < 3 or
+                e.rev.face is e.face
+        ):
+            tiling.delete_edge(e)
+            removed += 1
+            if max is not None and removed >= max:
+                break
+
+tiles = t_3_3_4_3_4()
 
 
 # tile = RegularNGon(n)
@@ -58,18 +89,14 @@ for _ in range(1):
             #     tiling.execute_edge_instruction(e)
             #     print(e in tiling.halfedges)
 
+print('checking consistency')
+remove_inner_hs(tiling, ratio=0.2)
+#tiling.check_consistency()
+
+
 print('rendering')
 
-renderer = CairoRenderer(width=1500, scale=30)
-surface = renderer.render_graph(tiling)
-filename = 'output.png'
-surface.write_to_png(filename)
-#surface.finish()
-img = mpimg.imread(filename)
-plt.figure(figsize=(13, 8))
-plt.imshow(img)
-plt.axis('off')
-plt.show()
+render()
 
 # plotting with matplotlib
 # plt.figure(figsize=(10, 10))

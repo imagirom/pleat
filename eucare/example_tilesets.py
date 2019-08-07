@@ -22,14 +22,23 @@ def t_4_6_12():
     f12 = RegularEuclideanTile(12, edge_labels=[4, 6] * 6)
     align_tiles(f4, 6, f6, 4)
     align_tiles(f6, 12, f12, 6)
-    align_tiles(f)
-    f4.edge_instructions[6] = f6.attatch_instruction(4)
-    f4.edge_instructions[12] = f12.attatch_instruction(4)
-    f6.edge_instructions[4] = f4.attatch_instruction(6)
-    f6.edge_instructions[12] = f12.attatch_instruction(6)
-    f12.edge_instructions[4] = f4.attatch_instruction(12)
-    f12.edge_instructions[6] = f6.attatch_instruction(12)
+    align_tiles(f4, 12, f12, 4)
+    # f4.edge_instructions[6] = f6.attatch_instruction(4)
+    # f4.edge_instructions[12] = f12.attatch_instruction(4)
+    # f6.edge_instructions[4] = f4.attatch_instruction(6)
+    # f6.edge_instructions[12] = f12.attatch_instruction(6)
+    # f12.edge_instructions[4] = f4.attatch_instruction(12)
+    # f12.edge_instructions[6] = f6.attatch_instruction(12)
     return f4, f6, f12
+
+def t_3_3_4_3_4():
+    tri = RegularEuclideanTile(3)
+    sq1 = RegularEuclideanTile(4, edge_labels=[1]*4)
+    sq2 = RegularEuclideanTile(4, edge_labels=[2]*4)
+    align_tiles(tri, 0, tri, 0)
+    align_tiles(tri, 1, sq1, 1)
+    align_tiles(tri, 2, sq2, 2)
+    return sq1, sq2, tri
 
 # # define 6.4.3.4 tiling
 # hexagon = RegularEuclideanTile(6, edge_labels=['a', 'a', 'a', 'a', 'a', 'a'])

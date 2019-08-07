@@ -18,11 +18,12 @@ def inset_poly(pts, dist):
 
 
 class CairoRenderer:
-    def __init__(self, width=1000, height=1000, line_width=0.2, scale=1):
+    def __init__(self, width=1000, height=1000, line_width=0.2, scale=1, face_inset = 0.15):
         self.width = width
         self.height = height
         self.scale = scale
         self.line_width = line_width
+        self.face_inset = face_inset
 
         #self.surface = cairo.ImageSurface(
         #    cairo.FORMAT_RGB24, self.width, self.height)
@@ -40,17 +41,20 @@ class CairoRenderer:
         dc.paint()
         self.dc = dc
 
-    def render_face(self, face, inset=0.15):
+    def render_face(self, face):
         dc = self.dc
         points = [v['pos'] for v in face.vertex_iter()]
+        inset = self.face_inset
         if inset != 0:
             points = inset_poly(points, inset)
         dc.move_to(*points[-1])
         for point in points:
             dc.line_to(*point)
         dc.set_source_rgb(1.0, 0.9, 0.3)
+        color = np.random.uniform(0, 1, 3)
+        dc.set_source_rgb(*color)
         dc.fill_preserve()
-        dc.set_source_rgb(0.5, 0.4, 0.15)
+        dc.set_source_rgb(*(color * 0.5))
         dc.stroke()
         return self.surface
 
