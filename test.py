@@ -25,8 +25,8 @@ def print_graph(graph):
         print(e.__repr__(), e.on_border(), e.face)
 
 def render():
-    renderer = CairoRenderer(width=1500, scale=30, face_inset=0.1, line_width=0)
-    surface = renderer.render_graph(tiling)
+    renderer = CairoRenderer(width=1500, scale=30, face_inset=0.2, line_width=0.2)
+    surface = renderer.render_graph(tiling, render_vertices=False, render_edges=False)
     filename = 'output.png'
     surface.write_to_png(filename)
     #surface.finish()
@@ -75,7 +75,7 @@ tiles = t_3_3_4_3_4()
 for _ in range(1):
     IdObject.reset_ids()
     tiling = EuclideanPositionHEG(eps=1e-3, other=tiles[-1].make_graph(add_positions=True)[0])
-    for i in range(5):
+    for i in range(20):
         vertices = [e.dest for e in tiling.border_edges()]
         for v in vertices:
             k = 0
@@ -90,11 +90,12 @@ for _ in range(1):
             #     print(e in tiling.halfedges)
 
 print('checking consistency')
-remove_inner_hs(tiling, ratio=0.2)
+remove_inner_hs(tiling, ratio=1)
 tiling.check_consistency()
 
 for f in frozenset(tiling.faces):
-    if np.random.rand() > 0.2:
+    break
+    if np.random.rand() > 1.2:
         tiling.delete_face(f)
         render()
         tiling.check_consistency()

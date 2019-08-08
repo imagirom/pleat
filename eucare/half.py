@@ -19,6 +19,7 @@ from .base import unit_vector, angle_to_axis
 
 # TODO: optional stuff
 # - add functionality to select parts of the tiling (all borders with pentagons adjacent to them)
+# - a class without explicit faces
 
 # TODO: cleanup stuff
 # - separate InAngleHEG and EuclideanPositionHEG?
@@ -85,7 +86,7 @@ class IdObject(AttributeObject):
 def check_cyclic_iterator_consitency(iterator):
     items = set()
     for item in iterator:
-        assert item not in items, f'{item}, items'
+        assert item not in items, f'{iterator}, {item}, {items}'
         items.add(item)
 
 
@@ -181,7 +182,7 @@ class Vertex(IdObject):
             assert e.orig is self, f'{self}, {e.orig}, {e}'
         for e in self.incoming_iter():
             assert e.dest is self, f'{self}, {e.dest}, {e}'
-        assert self.order() > 1, f'{self}, {self.order()}'
+        assert self.order() > 0, f'{self}, {self.order()}' # TODO: > 1
 
     def angle_sum(self):
         return sum(h['in_angle']
@@ -216,6 +217,9 @@ class Face:
     def face_iter(self):
         for h in self.halfedge_iter():
             yield h.rev.face
+
+    def midpoint(self):
+        return np.mean([v['pos'] for v in self.vertex_iter()], axis=0)
 
     def check_consistency(self):
         check_cyclic_iterator_consitency(self.halfedge_iter())
@@ -330,6 +334,28 @@ class HalfEdgeGraph:
         #     if k.orig.order() == 1 and k.orig.any_outgoing in self.halfedges:
         #         self.delete_edge(k.orig.any_outgoing)
 
+    def join_vertex(self, v):
+        assert v.order() == 2, f'Can only join vertices of order 2, ({v}, {v.order()})'
+        v_out = v.any_outgoing
+        v_out.rev.nex.rev = v_out
+        v_out.rev = v_out.rev.nex
+        v_out.check_consistency()
+        v_out.rev.check_consistency()
+
+        for h in [v_out, v_out.rev]:
+            self.halfedges.remove(h.pre)
+            h.orig = h.pre.orig
+            h.orig.any_outgoing = h
+            h.pre = h.pre.pre
+            h.pre.nex = h
+            if not h.on_border():
+                h.face.any_side = h
+        self.vertices.remove(v)
+
+    def subdivide_edge(self, h, v=None):
+        v = Vertex if v is None else v
+        raise NotImplementedError
+
     def to_networkx_undirected(self):
         result = nx.Graph()
         result.add_edges_from([(h.orig, h.dest) for h in self.halfedges])
@@ -395,9 +421,22 @@ class HalfEdgeGraph:
         v2_in.nex = v1_out
 
     def glue_e2e(self, e1, e2):
-        for e in (e1, e2):
-            if not e.on_border():
-                raise ValueError(f'Cannot glue: Edge {e} not on border.')
+        if all(a.orig is not b.dest for a, b in [(e1, e2), (e2, e1)]):
+            for e in (e1, e2):
+                if not e.on_border():
+                    raise ValueError(f'Cannot glue: Edge {e} not on border.')
+        else:
+            # handle face stuff now
+            if e1.face is e2.face is None:
+                pass
+            elif e1.nex is e2 and e2.nex is e1:
+                self.faces.remove(e1.face)
+            elif e1.nex is e2:
+                e1.face.any_side = e2.nex
+            elif e2.nex is e1:
+                e1.face.any_side = e1.nex
+            else:
+                raise ValueError(f'Cannot glue: Edges {[e1, e2]} of face {e1.face} are not adjacent.')
 
         # glue vertices
         for v1_out, v2_out in ((e1, e2.nex), (e1.nex, e2)):
@@ -408,8 +447,8 @@ class HalfEdgeGraph:
         e1.rev.rev = e2.rev
         e2.rev.rev = e1.rev
 
-        e1.orig.any_outgoing = e1.rev.nex
-        e1.dest.any_outgoing = e1.rev.pre.rev
+        e1.orig.any_outgoing = e2.rev#e1.rev.nex
+        e1.dest.any_outgoing = e1.rev#e1.rev.pre.rev
         self.halfedges.difference_update({e1, e2})
 
     def glue_graph_e2e(self, graph, e1, e2):
@@ -434,12 +473,24 @@ class HalfEdgeGraph:
         for h in self.border_edges():
             self.execute_edge_instruction(h, instruction, key)
 
-    def show_spring_layout(self, figsize=(15, 15)):
-        G = self.to_networkx_undirected()
+    def show_spring_layout(self, figsize=(15, 15), emph_func=None):
+
+        G = nx.Graph()
+        G.add_edges_from([(h.orig, h.dest) for h in self.halfedges])
+
+        if emph_func is None:
+            emph_func = lambda h: h.attributes.get('delete', False)
+        G.add_edges_from([(h.orig, h.dest) for h in self.halfedges if emph_func(h)],
+                              color='r')
+
         pos = nx.spring_layout(G.to_undirected())
         plt.figure(figsize=figsize)
-        nx.draw_networkx_nodes(G, pos, cmap=plt.get_cmap('jet'), node_size=500)
-        nx.draw_networkx_edges(G, pos, edge_color='r', arrows=True)
+
+
+        colors = [G[u][v].get('color', 'b') for u,v in G.edges]
+        nx.draw_networkx_nodes(G, pos, node_size=500)
+        nx.draw_networkx_edges(G, pos, edge_color=colors, arrows=True)
+
         nx.draw_networkx_labels(G, pos)
         plt.show()
 
@@ -459,20 +510,44 @@ class HalfEdgeGraph:
         referenced_halfedges.update({h.rev for h in self.halfedges})
         referenced_halfedges.update({v.any_outgoing for v in self.vertices})
         referenced_halfedges.update({f.any_side for f in self.faces})
-        assert referenced_halfedges == self.halfedges, \
-            f'{referenced_halfedges.difference(self.halfedges)}, {self.halfedges.difference(referenced_halfedges)}'
 
         referenced_vertices = set()
         referenced_vertices.update({h.orig for h in self.halfedges})
         referenced_vertices.update({h.dest for h in self.halfedges})
-        assert referenced_vertices == self.vertices, \
-            f'{referenced_vertices.difference(self.vertices)}, {self.vertices.difference(referenced_vertices)}'
 
         referenced_faces = {h.face for h in self.halfedges}
         referenced_faces.discard(None)
-        assert referenced_faces == self.faces, \
-            f'{referenced_faces.difference(self.faces)}, {self.faces.difference(referenced_faces)}'
-        
+
+        if (
+                referenced_vertices != self.vertices or
+                referenced_faces != self.faces or
+                referenced_halfedges != self.halfedges
+        ):
+            print('='*50)
+            print('consistency error')
+
+            print(f'halfedges: {referenced_halfedges.difference(self.halfedges)}, '
+                  f'{self.halfedges.difference(referenced_halfedges)}')
+            f'vertices: {referenced_vertices.difference(self.vertices)}, {self.vertices.difference(referenced_vertices)}'
+            f'faces: {referenced_faces.difference(self.faces)}, {self.faces.difference(referenced_faces)}'
+
+            reference_dict = {obj: set() for obj in
+                              referenced_halfedges.union(referenced_vertices).union(referenced_faces).union([None])}
+            for h in self.halfedges:
+                for attr in ['nex', 'pre', 'rev', 'orig', 'dest', 'face']:
+                    reference_dict[getattr(h, attr)].add((h, attr))
+            for v in self.vertices:
+                for attr in ['any_outgoing']:
+                    reference_dict[getattr(v, attr)].add((v, attr))
+            for f in self.faces:
+                for attr in ['any_side']:
+                    reference_dict[getattr(f, attr)].add((f, attr))
+            for obj in (referenced_vertices.difference(self.vertices)
+                        .union(referenced_faces.difference(self.faces))
+                        .union(referenced_halfedges.difference(self.halfedges))):
+                print(f'{obj} referenced by {reference_dict[obj]}.')
+            assert False
+
 
 # ------------------------------------------------ faces with in-angles ------------------------------------------------
 
@@ -585,6 +660,20 @@ class EuclideanPositionHEG(InAngleHEG):
                 e = e.nex
                 if e is initial:
                     break
+
+    def show(self, render_faces=True, render_edges=True, render_vertices=True, **kwargs):
+        from .redering import CairoRenderer
+        import matplotlib.image as mpimg
+        renderer = CairoRenderer(**kwargs)
+        surface = renderer.render_graph(self, render_faces=render_faces, render_edges=render_edges, render_vertices=render_vertices)
+        filename = 'output.png'
+        surface.write_to_png(filename)
+        # surface.finish()
+        img = mpimg.imread(filename)
+        plt.figure(figsize=(13, 8))
+        plt.imshow(img)
+        plt.axis('off')
+        plt.show()
 
 
 # ------------------------------------------------ cyclic graph example ------------------------------------------------

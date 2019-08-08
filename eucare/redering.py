@@ -18,7 +18,7 @@ def inset_poly(pts, dist):
 
 
 class CairoRenderer:
-    def __init__(self, width=1000, height=1000, line_width=0.2, scale=1, face_inset = 0.15):
+    def __init__(self, width=1000, height=1000, line_width=0.2, scale=1, face_inset=0.15):
         self.width = width
         self.height = height
         self.scale = scale
@@ -50,7 +50,6 @@ class CairoRenderer:
         dc.move_to(*points[-1])
         for point in points:
             dc.line_to(*point)
-        dc.set_source_rgb(1.0, 0.9, 0.3)
         color = np.random.uniform(0, 1, 3)
         dc.set_source_rgb(*color)
         dc.fill_preserve()
@@ -58,7 +57,45 @@ class CairoRenderer:
         dc.stroke()
         return self.surface
 
-    def render_graph(self, graph):
-        for f in graph.faces:
-            self.render_face(f)
+    def render_edge(self, edge):
+        dc = self.dc
+        dc.move_to(*edge.orig['pos'])
+        dc.line_to(*edge.dest['pos'])
+        dc.set_source_rgb(0.0, 0.0, 0.0)
+        if edge.attributes.get('delete', False):
+            dc.set_dash([self.line_width*2, self.line_width*3])
+        dc.stroke()
+        dc.set_dash([])
+        return self.surface
+
+    def render_vertex(self, vertex):
+        dc = self.dc
+        dc.arc(*vertex['pos'], 2*self.line_width, 0, 2*np.pi)
+        if vertex.attributes.get('join', False):
+            dc.set_source_rgb(0.0, 1.0, 0.0)
+        elif vertex.attributes.get('delete', False):
+            dc.set_source_rgb(1.0, 1.0, 1.0)
+        else:
+            dc.set_source_rgb(0.0, 0.0, 0.0)
+        dc.fill_preserve()
+        dc.set_source_rgb(0.0, 0.0, 0.0)
+        dc.stroke()
+
+    def render_graph(self, graph, render_vertices=True, render_faces=True, render_edges=True):
+        if render_faces:
+            for f in graph.faces:
+                self.render_face(f)
+
+        if render_edges:
+            rendered_edges = set()
+            for h in graph.halfedges:
+                if h.rev in rendered_edges:
+                    continue
+                rendered_edges.add(h)
+                self.render_edge(h)
+
+        if render_vertices:
+            for v in graph.vertices:
+                self.render_vertex(v)
+
         return self.surface

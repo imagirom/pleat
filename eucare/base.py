@@ -58,6 +58,29 @@ def nearest_neighbor(data, query, return_index=True):
     return data[index], index if return_index else data[index]
 
 
+def signed_area(pts):
+    pts = np.array(pts)
+    assert pts.shape[1] == 2
+    pts_rot = np.concatenate([pts[1:], pts[:1]])
+    return np.sum(pts[:, 0] * pts_rot[:, 1] - pts[:, 1] * pts_rot[:, 0]) / 2.0
+
+
+def euclidean_to_barycentric_map(tri):
+    tri = np.array(tri, dtype=np.float32)
+    def inner(point):
+        mat = np.repeat(tri[None, :], 3, axis=0)
+        mat[np.eye(3, dtype=np.bool)] = point
+        coords = np.array([signed_area(pts) for pts in mat], dtype=np.float32)
+        return coords / np.sum(coords)
+    return inner
+
+
+def barycentric_to_euclidean_map(tri):
+    def inner(barycentric_coords):
+        return tri.T @ barycentric_coords
+    return inner
+
+
 class Geometry:
     @staticmethod
     def translation(p1, p2):
