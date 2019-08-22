@@ -166,16 +166,19 @@ class TopologicalConwayOperator:
             [v for v in (h.orig for h in to_delete) if v.any_outgoing in to_delete])
 
         if delete_on_border:
-            for e in graph.border_edges():
+            for e in list(graph.border_edges()):
                 if e in graph.halfedges:
                     if e.rev.attributes.get('border_delete', False):
                         graph.delete_face(e.rev.face)
             # delete dangling faces
-            for e in graph.border_edges():
-                if e in graph.halfedges:
-                    if not any(e.rev.face.face_iter()):
-                        graph.delete_face(e.rev.face) # FIXME: this leads to errors on the edges adjacent to cusp
-
+            while True:
+                deleted_any = False
+                for f in graph.faces:
+                    if not any(f.face_iter()):
+                        graph.delete_face(f)
+                        deleted_any = True
+                if not deleted_any:
+                    break
         for e in graph.halfedges:
             if 'border_delete' in e.attributes:
                 del e['border_delete']
