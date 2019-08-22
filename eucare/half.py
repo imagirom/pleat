@@ -1,7 +1,7 @@
 from itertools import chain
 import matplotlib.pyplot as plt
 import networkx as nx
-from copy import copy
+from copy import copy, deepcopy
 from math import pi
 import numpy as np
 from collections import deque
@@ -299,15 +299,21 @@ class HalfEdgeGraph:
         # update pre and nex where necessary, remove the edges
         for h in adjacent_halfedges:
             if 'to_delete' in h.attributes:
-                if 'to_delete' not in h.pre.attributes:
-                    h.pre.nex = h.rev.nex
-                    h.rev.nex.pre = h.pre
+                if 'to_delete' not in h.rev.nex.rev.attributes:
+                    h2 = h
+                    while 'to_delete' in h2.attributes:
+                        h2 = h2.rev.nex
+                    h.pre.nex = h2
+                    h2.pre = h.pre
                     h.orig.any_outgoing = h.pre.rev
-                if 'to_delete' not in h.nex.attributes:
+                if 'to_delete' not in h.rev.pre.rev.attributes:
                     # TODO?: while 'to_delete' h.nex.pre ...
                     # (this is not necessary, if borders of the tilings are sufficiently far apart..)
-                    h.nex.pre = h.rev.pre
-                    h.rev.pre.nex = h.nex
+                    h2 = h
+                    while 'to_delete' in h2.attributes:
+                        h2 = h.rev.pre
+                    h.nex.pre = h2
+                    h2.nex = h.nex
                     h.dest.any_outgoing = h.nex
                 else:
                     # remove vertex surrounded by border
@@ -555,6 +561,53 @@ class HalfEdgeGraph:
                 print(f'{obj} referenced by {reference_dict[obj]}.')
             assert False
 
+    def copy(self, deepcopy_attributes=False, return_mappings=False):
+        def copy_with_attributes(obj):
+            cls = type(obj)
+            new = cls.__new__(cls)
+            new.attributes = copy(obj.attributes)
+            return new
+
+        def copy_with_attributes_deep(obj):
+            cls = type(obj)
+            new = cls.__new__(cls)
+            new.attributes = deepcopy(obj.attributes)
+            return new
+
+        copy_func = copy_with_attributes_deep if deepcopy_attributes else copy_with_attributes
+
+        # init mappings from old to new vertex/halfedge/face objects
+        v_map, e_map, f_map = [{obj: copy_func(obj) for obj in container}
+                               for container in (self.vertices, self.halfedges, self.faces)]
+
+        # copy other potential attributes of graph (e.g. tau for InAngleHEG)
+        cls = type(self)
+        result = cls.__new__(cls)
+        result.__dict__.update(self.__dict__)
+        result.vertices = set(v_map.values())
+        result.halfedges = set(e_map.values())
+        result.faces = set(f_map.values())
+
+        # copy topology
+        for v, v_new in v_map.items():
+            v_new.any_outgoing = e_map[v.any_outgoing]
+
+        for f, f_new in f_map.items():
+            f_new.any_side = e_map[f.any_side]
+
+        f_map[None] = None  # to handle border
+        for e, e_new in e_map.items():
+            e_new.orig = v_map[e.orig]
+            e_new.dest = v_map[e.dest]
+            e_new.nex = e_map[e.nex]
+            e_new.pre = e_map[e.pre]
+            e_new.rev = e_map[e.rev]
+            e_new.face = f_map[e.face]
+
+        if not return_mappings:
+            return result
+        else:
+            return result, (v_map, e_map, f_map)
 
 # ------------------------------------------------ faces with in-angles ------------------------------------------------
 
