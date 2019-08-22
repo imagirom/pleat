@@ -1,4 +1,4 @@
-from .half import HalfEdge, CyclicHalfedgeGraph, Vertex
+from .half import HalfEdge, CyclicHalfedgeGraph, Vertex, InAngleHEG
 from .base import angle_to_axis, unit_vector, unit_vector_to_vector
 from .instructions import attatch_tile_instruction
 import numpy as np
@@ -21,11 +21,10 @@ class EuclideanProtoTile(ProtoTile):
         self.vertex_labels = vertex_labels if vertex_labels is not None else list(range(self.order))
 
         # compute edgelenths and angles
-        edge_vectors = points - np.concatenate([points[1:], points[:1]])
+        edge_vectors = np.concatenate([points[1:], points[:1]]) - points
         self.edge_lengths = np.linalg.norm(edge_vectors, axis=1)
-        edge_angles = angle_to_axis(self.points)
-        self.in_angles = (edge_angles - np.pi - np.concatenate([edge_angles[1:], edge_angles[:1]])) % (2*np.pi)
-        print(f'in_angles: {self.in_angles}')
+        edge_angles = angle_to_axis(edge_vectors)
+        self.in_angles = (np.pi + edge_angles - np.concatenate([edge_angles[1:], edge_angles[:1]])) % (2*np.pi)
 
         # edge_instructions can either be a list for all edges, or a dict, mapping a label to an instruction
         self.edge_instructions = edge_instructions if edge_instructions is not None else dict()
@@ -62,7 +61,7 @@ class EuclideanProtoTile(ProtoTile):
         graph = CyclicHalfedgeGraph(vs=vertices, inner_hs=inner_edges, outer_hs=outer_edges)
         return graph, outer_edge_dict
 
-    def attatch_instruction(self, label=None):
+    def attach_instruction(self, label=None):
         assert label is None or label in self.edge_labels, f'{label}, {self.edge_labels}'
         return attatch_tile_instruction(self, label)
 
@@ -77,5 +76,22 @@ class EuclideanProtoTile(ProtoTile):
 
 class RegularEuclideanTile(EuclideanProtoTile):
     def __init__(self, n, **super_kwargs):
-        points = unit_vector(np.linspace(0, 2*np.pi, n, endpoint=False) + np.pi/n) / np.sin(np.pi/n)
+        points = unit_vector(np.linspace(0, 2*np.pi, n, endpoint=False) + np.pi/n) / np.sin(np.pi/n) / 2
         super(RegularEuclideanTile, self).__init__(points=points, **super_kwargs)
+
+
+class RhombusTile(EuclideanProtoTile):
+    def __init__(self, alpha=None, **super_kwargs):
+        alpha = np.pi / 3 if alpha is None else alpha
+        pts = np.concatenate([np.zeros((1, 2)), np.cumsum(unit_vector([-alpha/2, alpha/2, np.pi - alpha/2]), axis=0)])
+        super(RhombusTile, self).__init__(points=pts, **super_kwargs)
+
+
+def complete_vertex_with_rhombus(graph, vertex):
+    assert isinstance(graph, InAngleHEG)
+    edge = vertex.get_outgoing_border()
+    missing_angle = graph.tau - vertex.angle_sum()
+    assert missing_angle < graph.tau/2, f'{missing_angle}, {graph.tau}'
+    tile = RhombusTile(missing_angle)
+    new_graph, edgedict = tile.make_graph()
+    graph.glue_graph_e2e(new_graph, edge, edgedict[0])
