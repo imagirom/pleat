@@ -15,12 +15,18 @@ class TopologicalConwayOperator:
     def show(self):
         self.graph.show(scale=300, line_width=0.03, render_faces=False)
 
-    def generate_graph_and_corners(self, h):
-        return deepcopy((self.graph, (self.v1, self.vf, self.v2)))
+    def get_tri(self, h):
+        return None
 
-    def __call__(self, graph, faces=None, delete_on_border=False):
-        if delete_on_border:
-            raise NotImplementedError #TODO: get rid of resulting dangling edges
+    def generate_graph_and_corners(self, tri):
+        graph, (v_map, _, _) = self.graph.copy(deepcopy_attributes=False, return_mappings=True)
+        return graph, (v_map[self.v1], v_map[self.vf], v_map[self.v2])
+        #return deepcopy((self.graph, (self.v1, self.vf, self.v2)))
+
+    def __call__(self, graph, faces=None, delete_on_border=True):
+        #if delete_on_border:
+        #    raise NotImplementedError #TODO: get rid of resulting dangling edges
+
         # apply the operator to a set of halfedges in a graph
         assert isinstance(graph, HalfEdgeGraph)
         if faces is None:
@@ -34,10 +40,13 @@ class TopologicalConwayOperator:
         v2_out_lookup = dict()
         vf_lookup = dict()
         vf_set = set()
-        for h in halfedges:
+
+        graphs_and_corners = map(self.generate_graph_and_corners, [self.get_tri(h) for h in halfedges])
+
+        for gc, h in zip(graphs_and_corners, halfedges):
             # glue v1, v2 to h.dest, h.orig
             orig_face = h.face
-            con_graph, (v1, vf, v2) = self.generate_graph_and_corners(h)
+            con_graph, (v1, vf, v2) = gc #self.generate_graph_and_corners(h)
             graph.add_graph(con_graph)
             v1_out = v1.get_outgoing_border()
             v2_out = v2.get_outgoing_border()
@@ -89,10 +98,11 @@ class TopologicalConwayOperator:
                     HalfEdgeGraph.glue_e2e(graph, current, current.pre)
                     current = next
             else:
-                if not delete_on_border or not h.rev.on_border():
+                if True:# not delete_on_border or not h.rev.on_border(): #Fixme
                     for k in h.face.halfedge_iter():
                          k['delete'] = False
                          k.rev['delete'] = False
+                         k.rev['border_delete'] = True
                 if h.rev.on_border():
                     graph.delete_face(h.face)
                 else:
@@ -115,7 +125,9 @@ class TopologicalConwayOperator:
                     to_delete.update({h, h.rev})
                     continue
                 else:
-                    del h.attributes['delete']
+                    print('asdf')
+                    pass
+                    #del h.attributes['delete']
             to_keep.update({h, h.rev})
 
         assert not to_keep.intersection(to_delete)
@@ -153,11 +165,25 @@ class TopologicalConwayOperator:
         graph.vertices.difference_update(
             [v for v in (h.orig for h in to_delete) if v.any_outgoing in to_delete])
 
+        if delete_on_border:
+            for e in graph.border_edges():
+                if e in graph.halfedges:
+                    if e.rev.attributes.get('border_delete', False):
+                        graph.delete_face(e.rev.face)
+            # delete dangling faces
+            for e in graph.border_edges():
+                if e in graph.halfedges:
+                    if not any(e.rev.face.face_iter()):
+                        graph.delete_face(e.rev.face) # FIXME: this leads to errors on the edges adjacent to cusp
+
+        for e in graph.halfedges:
+            if 'border_delete' in e.attributes:
+                del e['border_delete']
+
         to_join = {v for v in graph.vertices if v.attributes.get('join', False)}
         for v in to_join:
             if v.order() is 2:  # TODO: check this beforehand
                 HalfEdgeGraph.join_vertex(graph, v)
-
         return graph
 
 
@@ -165,14 +191,19 @@ class GeometricConwayOperator(TopologicalConwayOperator):
     def __init__(self, *super_args, **super_kwargs):
         super(GeometricConwayOperator, self).__init__(*super_args, **super_kwargs)
         # convert euclidean to barycentric coordinates
-        self.to_barycentric = euclidean_to_barycentric_map(np.array([self.v1['pos'], self.vf['pos'], self.v2['pos']]))
+        to_barycentric = euclidean_to_barycentric_map(np.array([self.v1['pos'], self.vf['pos'], self.v2['pos']]))
+        for v in self.graph.vertices:
+            v['pos'] = to_barycentric(v['pos'])
 
-    def generate_graph_and_corners(self, h):
-        result, corners = super(GeometricConwayOperator, self).generate_graph_and_corners(h)
-        tri = np.array([h.dest['pos'], h.face.midpoint(), h.orig['pos']])
+    def get_tri(self, h):
+        return np.array([h.dest['pos'], h.face.midpoint(), h.orig['pos']])
+
+    def generate_graph_and_corners(self, tri):
+        result, corners = super(GeometricConwayOperator, self).generate_graph_and_corners(tri)
+
         to_euclidean = barycentric_to_euclidean_map(tri)
         for v in result.vertices:
-            v['pos'] = to_euclidean(self.to_barycentric(np.array(v['pos'])))
+            v['pos'] = to_euclidean(v['pos'])
         return result, corners
 
 
