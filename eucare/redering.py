@@ -17,8 +17,14 @@ def inset_poly(pts, dist):
     return [inset_corner(a, b, c, dist) for a, b, c in rotate_by(pts, (0, 1, 2))]
 
 
+def random_color(seed=None):
+    if seed is not None:
+        np.random.seed(hash(seed))
+    return np.random.uniform(0, 1, 3)
+
+
 class CairoRenderer:
-    def __init__(self, width=1000, height=1000, line_width=0.2, scale=1, face_inset=0.15):
+    def __init__(self, width=1000, height=1000, line_width=0.2, scale='auto', face_inset=0.15):
         self.width = width
         self.height = height
         self.scale = scale
@@ -34,14 +40,12 @@ class CairoRenderer:
         dc.set_line_cap(cairo.LINE_CAP_ROUND)
         dc.set_line_join(cairo.LINE_JOIN_ROUND)
         dc.set_line_width(self.line_width)
-        dc.set_font_size(18.0 / self.scale)
         dc.translate(self.width / 2, self.height / 2)
-        dc.scale(self.scale, self.scale)
         dc.set_source_rgb(1, 1, 1)
         dc.paint()
         self.dc = dc
 
-    def render_face(self, face):
+    def render_face(self, face, color_key='color_key'):
         dc = self.dc
         points = [v['pos'] for v in face.vertex_iter()]
         inset = self.face_inset
@@ -50,7 +54,7 @@ class CairoRenderer:
         dc.move_to(*points[-1])
         for point in points:
             dc.line_to(*point)
-        color = np.random.uniform(0, 1, 3)
+        color = random_color(face.attributes.get(color_key, None))
         dc.set_source_rgb(*color)
         dc.fill_preserve()
         dc.set_source_rgb(*(color * 0.5))
@@ -81,7 +85,20 @@ class CairoRenderer:
         dc.set_source_rgb(0.0, 0.0, 0.0)
         dc.stroke()
 
+    def autoscale(self, graph):
+        positions = np.array([v['pos'] for v in graph.vertices])
+        max_abs_pos = np.max(np.abs(positions), axis=0)
+        scale = np.min(np.array([self.width, self.height]) / max_abs_pos) / 2.2
+        self.dc.scale(scale, scale)
+        return self
+
     def render_graph(self, graph, render_vertices=True, render_faces=True, render_edges=True):
+        if self.scale is 'auto':
+            self.autoscale(graph)
+        else:
+            self.dc.scale(self.scale, self.scale)
+        #self.dc.set_font_size(18.0 / self.scale)
+
         if render_faces:
             for f in graph.faces:
                 self.render_face(f)
