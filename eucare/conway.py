@@ -192,6 +192,34 @@ def dual_graph():
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
+def kis_graph():
+    # define vertex positions
+    v1 = (0, -1)
+    vf = (1, 0)
+    v2 = (0, 1)
+    # construct nx graph with delete and join attributes
+    G = nx.Graph()
+    G.add_cycle([v1, vf, v2])
+
+    # construct EHEG and ConwayOperator
+    heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
+    return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
+
+
+def join_graph():
+    # define vertex positions
+    v1 = (0, -1)
+    vf = (1, 0)
+    v2 = (0, 1)
+    # construct nx graph with delete and join attributes
+    G = nx.Graph()
+    G.add_cycle([v1, vf, v2])
+    G.add_edge(v2, v1, delete=True)
+    # construct EHEG and ConwayOperator
+    heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
+    return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
+
+
 def ambo_graph():
     # define vertex positions
     v1 = (0, -1)
@@ -241,6 +269,23 @@ def gyro_graph(g=(1 / 4, -1 / 4)):
     G.add_cycle([v1, vf, v2, ve], delete=True)
     G.add_edges_from([[g, ve], [g, v1], [g, vf]])
     G.add_node(ve, join=True)
+
+    # construct EHEG and ConwayOperator
+    heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
+    return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
+
+
+def starify_graph(t=1/3):
+    v1 = (0, -1)
+    vf = (1, 0)
+    v2 = (0, 1)
+    v0 = (0, 0)
+    v1f = (t, -1 + t)
+    v2f = (t, 1 - t)
+    G = nx.Graph()
+    G.add_cycle([v1, v1f, vf, v2f, v2, v0], delete='True')
+    G.add_nodes_from([v0], join=True)
+    G.add_edges_from([[v0, v2f], [v2f, v1f]])
 
     # construct EHEG and ConwayOperator
     heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
