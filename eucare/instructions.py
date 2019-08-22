@@ -1,4 +1,4 @@
-from .half import HalfEdgeGraph, CyclicHalfedgeGraph, HalfEdge, Vertex, Face
+from .half import HalfEdgeGraph, HalfEdge
 from copy import deepcopy
 import numpy as np
 from .base import angle_to_axis, unit_vector
@@ -64,13 +64,3 @@ def attatch_tile_instruction(proto_tile, label=None):
 
 # TODO: make this search for 'adjacent_prototile'
 
-def attatch_tile_instruction(proto_tile, label=None):
-    def instruction(graph, edge):
-        tile, edge_dict = proto_tile.make_graph()
-        if label is not None:
-            tile_edge = edge_dict[label]
-        else:
-            # just take any edge
-            tile_edge = next(iter(edge_dict.values()))
-        graph.glue_graph_e2e(tile, edge, tile_edge)
-    return instruction
