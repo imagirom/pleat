@@ -2,7 +2,7 @@ import numpy as np
 from eucare.half import HalfEdgeGraph, Vertex, IdObject, RegularNGon, CyclicHalfedgeGraph, InAngleHEG, \
     EuclideanPositionHEG
 from eucare.instructions import *
-from eucare.prototiles import EuclideanProtoTile, RegularEuclideanTile
+from eucare.prototiles import EuclideanProtoTile, RegularEuclideanTile, complete_vertex_with_rhombus
 from eucare.base import unit_vector
 from copy import deepcopy, copy
 from tqdm import tqdm as tqdm
@@ -20,9 +20,83 @@ from eucare.example_tilesets import *
 # n = 6
 # proto_tile = RegularEuclideanTile(n, edge_labels = ['a'] * n)
 
+from eucare.half import *
+from eucare.prototiles import *
+render_settings = dict(line_width=0.05, face_inset=0.0,
+                       render_edges=True, render_vertices=False, render_faces=True)
+
+
+def get_edge_with(graph, func=None, on_border=False):
+    assert isinstance(graph, HalfEdgeGraph)
+    func = func if func is not None else lambda _: True
+    edge_iter = graph.border_edge_iter() if on_border else graph.halfedges
+    for e in edge_iter:
+        if func(e):
+            return e
+    raise LookupError('Cannot find edge with requested property')
+
+
+def get_vertex_with(graph, func=None, on_border=False):
+    assert isinstance(graph, HalfEdgeGraph)
+    func = func if func is not None else lambda _: True
+    vertex_iter = (e.orig for e in graph.border_edge_iter()) if on_border else graph.vertices
+    for v in vertex_iter:
+        if func(v):
+            return v
+    raise LookupError('Cannot find vertex with requested property')
+
+
+def test_graph():
+    G, edgedict = RhombusTile().make_graph(add_positions=True)
+    G = EuclideanPositionHEG(other=G)
+    #RegularEuclideanTile(3).attach_instruction(0)(G, edgedict[0])
+    RhombusTile().attach_instruction(0)(G, edgedict[0])
+    return G
+
+
+def attatch_test_graph(G1):
+    func = lambda e: e.rev.pre['in_angle'] < np.pi/2
+    e1 = get_edge_with(G1, func, on_border=True)
+    G2 = test_graph()
+    func = lambda e: any((edge['in_angle'] < np.pi/2 and edge.rev.on_border()) for edge in (e.rev, e.rev.pre))
+    e2 = get_edge_with(G2, func, on_border=True)
+    G1.glue_graph_e2e(G2, e1, e2)
+
+
+alpha = 2*np.pi/9
+G, edgedict = RhombusTile(alpha).make_graph(add_positions=True)
+G = EuclideanPositionHEG(other=G)
+v = edgedict[0].dest
+while v.on_border():
+    RhombusTile(alpha).attach_instruction(0)(G, v.get_outgoing_border())
+
+while True:
+    concave_vertices = [v for v in G.vertices if v.on_border() and 0 < G.tau - v.angle_sum() < np.pi]
+    if not concave_vertices:
+        break
+    for v in concave_vertices:
+        complete_vertex_with_rhombus(G, v)
+
+G.show(**render_settings)
+
+
+from eucare.conway import *
+
+G = starify_graph(t=1/2)(G)
+
+for e in G.border_edges():
+    if e in G.halfedges:
+        if any(v.attributes.get('join', False) for v in [e.orig, e.dest]):
+            G.delete_face(e.rev.face)
+
+G.show(**render_settings)
+assert False
+
+
 def print_graph(graph):
     for e in graph.halfedges:
         print(e.__repr__(), e.on_border(), e.face)
+
 
 def render():
     renderer = CairoRenderer(width=1500, scale=30, face_inset=0.2, line_width=0.2)
