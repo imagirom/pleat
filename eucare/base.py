@@ -12,6 +12,29 @@ def angle_to_axis(vectors):
     return np.arctan2(vectors[..., 1], vectors[..., 0])
 
 
+def angle(a, b, c):
+    return (angle_to_axis(a - b) - angle_to_axis(c - b)) % (2*np.pi)
+
+
+def in_angles(points):
+    edge_vectors = np.concatenate([points[1:], points[:1]]) - points
+    edge_angles = angle_to_axis(edge_vectors)
+    return (np.pi + edge_angles - np.concatenate([edge_angles[1:], edge_angles[:1]])) % (2*np.pi)
+
+
+def edge_lengths(points):
+    edge_vectors = np.concatenate([points[1:], points[:1]]) - points
+    return np.linalg.norm(edge_vectors, axis=1)
+
+
+def edge_lengths_and_in_angles(points):
+    edge_vectors = np.concatenate([points[1:], points[:1]]) - points
+    edge_lengths = np.linalg.norm(edge_vectors, axis=1)
+    edge_angles = angle_to_axis(edge_vectors)
+    in_angles = (np.pi + edge_angles - np.concatenate([edge_angles[1:], edge_angles[:1]])) % (2*np.pi)
+    return edge_lengths, in_angles
+
+
 def unit_vector_to_vector(alpha, vector):
     return np.array([vector[0], vector[0] + unit_vector(angle_to_axis(vector[1]-vector[0]) + alpha)])
 
@@ -79,6 +102,12 @@ def barycentric_to_euclidean_map(tri):
     def inner(barycentric_coords):
         return tri.T @ barycentric_coords
     return inner
+
+
+# congruency
+class CongruencyClass:
+    def __init__(self, pts):
+        pass
 
 
 class Geometry:
