@@ -164,3 +164,41 @@ class CyclicClassifier(RepresentationClassifier):
 
     def _represent_query_item(self, item):
         return np.array(item)
+
+
+class PreMapClassifier(Classifier):
+    def __init__(self, other, func, *super_args, **super_kwargs):
+        super(PreMapClassifier, self).__init__(*super_args, **super_kwargs)
+        self.func = func
+        self.other = other
+
+    def _get_index(self, item):
+        return self.other.classify(self.func(item))
+
+
+def _face_to_array(f):
+    data = []
+    for e in f.halfedge_iter():
+        data.append((e['length'], e['in_angle']))
+        #data.append(np.array(e.orig['pos'], dtype=np.float32))
+    data = np.stack(data)
+    #data -= np.mean(data, axis=0, keepdims=True)
+    #print(data)
+    return data
+
+
+congruency_classifier = CountingClassifier(PreMapClassifier(
+    NestedClassifier(
+        [LenClassifier, SumClassifier, lambda: CyclicClassifier(allow_flip=False)]
+    ),
+    _face_to_array))
+
+
+class AdjacencyClassifier(CyclicClassifier):
+    def __init__(self, key, *super_args, **super_kwargs):
+        super(AdjacencyClassifier, self).__init__(tolerance=0, *super_args, **super_kwargs)
+        self.key = key
+
+    def _represent_query_item(self, item):
+        return np.array([(f[self.key] if f is not None else None, item[self.key]) for f in item.face_iter()])
+
