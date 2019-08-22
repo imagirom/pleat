@@ -5,17 +5,16 @@ from copy import copy
 from math import pi
 import numpy as np
 from collections import deque
-from .base import unit_vector, angle_to_axis
+from .base import unit_vector, angle_to_axis, edge_lengths_and_in_angles
 
 # TODO: the big ones
-# - add rendering, maybe with pycairo (basic version done)
 # - add rendering for proto tiles
-# - add consistency checks (on HEG level)
-# - add conway operations in general way (Idea: disjoint triangles -> join them e2e -> delete unwanted edges)
-# - add geometry, in particular to place tiles next to each other (partially done for euclidean. next: generalize)
-# - add instructions on edges to generate tilings. add functions to expand tilings, e.g. all border edges / vertices,
+# - conway: add border styles
+# - add non euclidean geometries
+# - add functions to expand tilings, e.g. all border edges / vertices,
 #   or until a certain region (rectangle or sphere or more general..) is filled with the tiling.
 #   (partially done, confusion on what is best..)
+# - add function to compute angles for InAngleHEG (to apply after conway)
 
 # TODO: optional stuff
 # - add functionality to select parts of the tiling (all borders with pentagons adjacent to them)
@@ -190,8 +189,9 @@ class Vertex(IdObject):
                    if h.face is not None)
 
 
-class Face:
+class Face(IdObject):
     def __init__(self, any_side=None):
+        super(Face, self).__init__()
         self.any_side = any_side
 
     def halfedge_iter(self):
@@ -220,6 +220,13 @@ class Face:
 
     def midpoint(self):
         return np.mean([v['pos'] for v in self.vertex_iter()], axis=0)
+
+    def recompute_lengths_and_angles(self):
+        points = np.stack([v['pos'] for v in self.vertex_iter()])
+        lengths, angles = edge_lengths_and_in_angles(points)
+        for e, length, angle in zip(self.halfedge_iter(), lengths, angles):
+            e['length'] = length
+            e['in_angle'] = angle
 
     def check_consistency(self):
         check_cyclic_iterator_consitency(self.halfedge_iter())
@@ -628,8 +635,13 @@ class EuclideanPositionHEG(InAngleHEG):
         return abs(l1 - l2) <= self.eps
 
     def glue_graph_e2e(self, graph, e1, e2):
+        # clear positions of new graph, they have to be recalculated (from angles)
+        if isinstance(graph, EuclideanPositionHEG):
+            for v in graph.vertices:
+                del v['pos']
         assert self.lengths_equal(e1.rev['length'], e2.rev['length'])
         super(EuclideanPositionHEG, self).glue_graph_e2e(graph, e1, e2)
+
         # compute positions for new vertices, face by face
         e = e1 if e1 in graph.halfedges else e2
         if e.rev.on_border():
@@ -639,8 +651,6 @@ class EuclideanPositionHEG(InAngleHEG):
         while faces_to_process:
             f, initial = faces_to_process.pop()
             processed_faces.add(f)
-            assert 'pos' in e.orig.attributes
-            assert 'pos' in e.dest.attributes
             e = initial
             while True:
                 assert 'pos' in e.orig.attributes, f'{e}'
@@ -656,10 +666,14 @@ class EuclideanPositionHEG(InAngleHEG):
                     e.dest['pos'] = next_pos
                 opposite_face = e.rev.face
                 if opposite_face in graph.faces and opposite_face not in processed_faces:
-                    faces_to_process.add((opposite_face, e.rev))
+                    faces_to_process.add((opposite_face, e.rev.nex))
                 e = e.nex
                 if e is initial:
                     break
+
+    def recompute_lengths_and_angles(self):
+        for f in self.faces:
+            f.recompute_lengths_and_angles()
 
     def show(self, render_faces=True, render_edges=True, render_vertices=True, **kwargs):
         from .redering import CairoRenderer
