@@ -14,7 +14,6 @@ from .base import unit_vector, angle_to_axis, edge_lengths_and_in_angles
 # - add functions to expand tilings, e.g. all border edges / vertices,
 #   or until a certain region (rectangle or sphere or more general..) is filled with the tiling.
 #   (partially done, confusion on what is best..)
-# - add function to compute angles for InAngleHEG (to apply after conway)
 
 # TODO: optional stuff
 # - add functionality to select parts of the tiling (all borders with pentagons adjacent to them)
@@ -728,7 +727,17 @@ class EuclideanPositionHEG(InAngleHEG):
         for f in self.faces:
             f.recompute_lengths_and_angles()
 
-    def show(self, render_faces=True, render_edges=True, render_vertices=True, **kwargs):
+    def get_position_view(self, vertices=None, return_vertices=True):
+        vertices = list(self.vertices) if vertices is None else vertices
+        positions = np.stack([v['pos'] for v in vertices])
+        for v, p in zip(vertices, positions):
+            v['pos'] = p
+        if return_vertices:
+            return positions, vertices
+        else:
+            return positions
+
+    def show(self, render_faces=True, render_edges=True, render_vertices=True, block=True, figsize=None, **kwargs):
         from .redering import CairoRenderer
         import matplotlib.image as mpimg
         renderer = CairoRenderer(**kwargs)
@@ -737,10 +746,11 @@ class EuclideanPositionHEG(InAngleHEG):
         surface.write_to_png(filename)
         # surface.finish()
         img = mpimg.imread(filename)
-        plt.figure(figsize=(13, 8))
+        if figsize is not None:
+            plt.figure(figsize=figsize)
         plt.imshow(img)
         plt.axis('off')
-        plt.show()
+        plt.show(block=block)
 
 
 # ------------------------------------------------ cyclic graph example ------------------------------------------------
