@@ -173,7 +173,7 @@ class TopologicalConwayOperator:
             # delete dangling faces
             while True:
                 deleted_any = False
-                for f in graph.faces:
+                for f in list(graph.faces):
                     if not any(f.face_iter()):
                         graph.delete_face(f)
                         deleted_any = True
@@ -208,6 +208,12 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         for v in result.vertices:
             v['pos'] = to_euclidean(v['pos'])
         return result, corners
+
+    def __call__(self, graph, recompute_lengths_and_angles=True, **kwargs):
+        result = super(GeometricConwayOperator, self).__call__(graph, **kwargs)
+        if recompute_lengths_and_angles:
+            result.recompute_lengths_and_angles()
+        return result
 
 
 def dual_graph():
@@ -323,4 +329,24 @@ def starify_graph(t=1/3):
 
     # construct EHEG and ConwayOperator
     heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
+    return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
+
+
+def twist_rotate_graph(t=1/2):
+    v1 = (0, -1)
+    vf = (1, 0)
+    v2 = (0, 1)
+    v12t = (0, -1 + t)
+    v1ft = (t, -1 + t)
+    v21t = (0, 1 - t)
+    v2ft = (t, 1 - t)
+    G = nx.Graph()
+    G.add_cycle([v1, v1ft, vf, v2ft, v2, v21t, v12t], delete=True)
+    G.add_nodes_from([v1, vf, v2], delete=True)
+    G.add_nodes_from([v12t, v21t], join=True)
+    G.add_edges_from([[v12t, v1ft], [v21t, v2ft], [v1ft, v2ft]])
+
+    # construct EHEG and ConwayOperator
+    heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
+    v_lookup[vf].get_outgoing_border().rev.face['twistrotate'] = True
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
