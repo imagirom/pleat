@@ -61,6 +61,7 @@ class RepresentationClassifier(Classifier):
         super(RepresentationClassifier, self).__init__(*super_args, **super_kwargs)
         self.current_count = 0
         self.count_to_repr = dict()
+        self.represented_first = False
 
     def _compare_representations(self, query_rep, saved_rep):
         return query_rep == saved_rep
@@ -73,10 +74,16 @@ class RepresentationClassifier(Classifier):
 
     def _get_index(self, item):
         query_rep = self._represent_query_item(item)
+        if not self.represented_first and self.current_count == 1:  # compute representation that was skipped for performance (see below)
+            self.count_to_repr[0] = self._represent_item(self.count_to_repr[0])
+            self.represented_first = True
         for index, rep in self.count_to_repr.items():
             if self._compare_representations(query_rep, rep):
                 return index
-        self.count_to_repr[self.current_count] = self._represent_item(item)
+        if self.current_count == 0:  # for better performance, calculate representation only at first comparison
+            self.count_to_repr[0] = item
+        else:
+            self.count_to_repr[self.current_count] = self._represent_item(item)
         self.current_count += 1
         return self.current_count - 1
 
@@ -187,11 +194,12 @@ def _face_to_array(f):
     return data
 
 
-congruency_classifier = CountingClassifier(PreMapClassifier(
-    NestedClassifier(
-        [LenClassifier, SumClassifier, lambda: CyclicClassifier(allow_flip=False)]
-    ),
-    _face_to_array))
+def congruency_classifier():
+    return CountingClassifier(PreMapClassifier(
+        NestedClassifier(
+            [LenClassifier, SumClassifier, lambda: CyclicClassifier(allow_flip=False)]
+        ),
+        _face_to_array))
 
 
 class AdjacencyClassifier(CyclicClassifier):
