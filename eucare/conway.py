@@ -24,8 +24,7 @@ class TopologicalConwayOperator:
         #return deepcopy((self.graph, (self.v1, self.vf, self.v2)))
 
     def __call__(self, graph, faces=None, delete_on_border=True):
-        #if delete_on_border:
-        #    raise NotImplementedError #TODO: get rid of resulting dangling edges
+        # TODO: add option to copy graph. take care of face mapping
 
         # apply the operator to a set of halfedges in a graph
         assert isinstance(graph, HalfEdgeGraph)
@@ -44,9 +43,17 @@ class TopologicalConwayOperator:
         graphs_and_corners = map(self.generate_graph_and_corners, [self.get_tri(h) for h in halfedges])
 
         for gc, h in zip(graphs_and_corners, halfedges):
-            # glue v1, v2 to h.dest, h.orig
             orig_face = h.face
-            con_graph, (v1, vf, v2) = gc #self.generate_graph_and_corners(h)
+            con_graph, (v1, vf, v2) = gc
+
+            # add reference to old face/vertex to new face/vertex
+            for new_vertex, old_obj in [(v1, h.dest), (vf, h.face), (v2, h.orig)]:
+                if new_vertex.attributes.get('delete', False):
+                    new_vertex.get_outgoing_border().rev.face['pre_conway'] = old_obj
+                else:
+                    new_vertex['pre_conway'] = old_obj
+
+            # glue v1, v2 to h.dest, h.orig
             graph.add_graph(con_graph)
             v1_out = v1.get_outgoing_border()
             v2_out = v2.get_outgoing_border()
