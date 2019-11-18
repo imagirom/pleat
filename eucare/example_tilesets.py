@@ -24,6 +24,14 @@ def platonic(n):
     return [t]
 
 
+def t_3_12_12():
+    f3 = RegularEuclideanTile(3, edge_labels=[12, 12, 12])
+    f12 = RegularEuclideanTile(12, edge_labels=[12, 3] * 6)
+    align_tiles(f3, 12, f12, 3)
+    align_tiles(f12, 12, f12, 12)
+    return f3, f12
+
+
 def t_4_6_12():
     f4 = RegularEuclideanTile(4, edge_labels=[6, 12] * 2)
     f6 = RegularEuclideanTile(6, edge_labels=[4, 12] * 3)
@@ -42,6 +50,16 @@ def t_3_3_4_3_4():
     align_tiles(tri, 1, sq1, 1)
     align_tiles(tri, 2, sq2, 2)
     return sq1, sq2, tri
+
+
+def t_3_3_3_3_6():
+    tri_a = RegularEuclideanTile(3, edge_labels=['3b']*3)
+    tri_b = RegularEuclideanTile(3, edge_labels=['3a', '3b', '6a'])
+    hex_a = RegularEuclideanTile(6, edge_labels=['3b'] * 6)
+    align_tiles(tri_a, '3b', tri_b, '3a')
+    align_tiles(tri_b, '3b', tri_b, '3b')
+    align_tiles(hex_a, '3b', tri_b, '6a')
+    return tri_a, tri_b, hex_a
 
 # for printing: TA3 (Triangle, A, side 3) or Q1. Letters in ceter, numbers in sides.
 
@@ -69,6 +87,19 @@ def pgg_2x():
     align_tiles(tri_21, 2, tri_22, 0)
 
     return sq1, sq2, tri_11, tri_12, tri_21, tri_22
+
+
+def u2_4_6_12__3_4_6_4():
+    triangle = RegularEuclideanTile(3, edge_labels=[4, 4, 4])
+    square = RegularEuclideanTile(4, edge_labels=[3, '6a', 12, '6b'])
+    hexagon = RegularEuclideanTile(6, edge_labels=['4a', '4b', 12, '4a', '4b', 12])
+    dodecagon = RegularEuclideanTile(12, edge_labels=[4, 6] * 6)
+    align_tiles(triangle, 4, square, 3)
+    align_tiles(hexagon, '4a', square, '6a')
+    align_tiles(hexagon, '4b', square, '6b')
+    align_tiles(dodecagon, 4, square, 12)
+    align_tiles(dodecagon, 6, hexagon, 12)
+    return triangle, square, hexagon, dodecagon
 
 
 

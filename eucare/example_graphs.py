@@ -41,12 +41,22 @@ def rosette(n=8):
     return G
 
 
-def from_tiles(tiles, rings=15):
-    G = EuclideanPositionHEG(other=tiles[-1].make_graph(add_positions=True)[0])
-    for i in range(rings):
-        for h in G.border_edges():
-            if h.on_border() and h in G.halfedges:
-                G.execute_edge_instruction(h)
+def from_tiles(tiles, rings=15, vertex_based=True, base_tile=-1):
+    if isinstance(base_tile, int):
+        base_tile = tiles[base_tile]
+    if isinstance(base_tile, ProtoTile):
+        base_tile = base_tile.make_graph(add_positions=True)[0]
+    G = EuclideanPositionHEG(other=base_tile)
+    if vertex_based:
+        for i in range(rings):
+            for v in [h.orig for h in G.border_edges()]:
+                while v in G.vertices and v.on_border():
+                    G.execute_edge_instruction(v.get_outgoing_border())
+    else:
+        for i in range(rings):
+            for h in G.border_edges():
+                if h.on_border() and h in G.halfedges:
+                    G.execute_edge_instruction(h)
     return G
 
 

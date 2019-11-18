@@ -247,6 +247,7 @@ class HalfEdgeGraph:
             self.vertices = set()
             self.faces = set()
             self._any_border = None
+        self.simply_connected=False
 
     def add_graph(self, other):
         if not isinstance(other, HalfEdgeGraph):
@@ -383,13 +384,18 @@ class HalfEdgeGraph:
         raise LookupError('No border found.')
 
     def border_edge_iter(self):
-        initial = self.get_any_border()
-        current = initial
-        while True:
-            yield current
-            current = current.nex
-            if current is initial:
-                break
+        if self.simply_connected:
+            initial = self.get_any_border()
+            current = initial
+            while True:
+                yield current
+                current = current.nex
+                if current is initial:
+                    break
+        else:
+            for e in self.halfedges:
+                if e.on_border():
+                    yield e
 
     def border_edges(self):
         return list(self.border_edge_iter())
@@ -737,11 +743,13 @@ class EuclideanPositionHEG(InAngleHEG):
         else:
             return positions
 
-    def show(self, render_faces=True, render_edges=True, render_vertices=True, block=True, figsize=None, **kwargs):
+    def show(self, render_faces=True, render_edges=True, render_vertices=True, block=True,
+             figsize=None, for_cutting=False, **kwargs):
         from .redering import CairoRenderer
         import matplotlib.image as mpimg
         renderer = CairoRenderer(**kwargs)
-        surface = renderer.render_graph(self, render_faces=render_faces, render_edges=render_edges, render_vertices=render_vertices)
+        surface = renderer.render_graph(self, render_faces=render_faces, render_edges=render_edges,
+                                        render_vertices=render_vertices, for_cutting=for_cutting)
         filename = 'output.png'
         surface.write_to_png(filename)
         # surface.finish()

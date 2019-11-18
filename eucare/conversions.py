@@ -9,6 +9,7 @@ def EHEG_from_edgelist(pts, edges):
 
 
 def EHEG_from_nx(nxg, positions=None, return_v_lookup=False):
+    # converts a networkx graph to a planar EuclideanPositionHalfEdgeGraph
     assert not nxg.is_directed()
     if positions is None:
         positions = {n: np.array(n) for n in nxg.nodes()}
@@ -17,6 +18,7 @@ def EHEG_from_nx(nxg, positions=None, return_v_lookup=False):
     v_lookup = dict()
     for n, attrs in nxg.nodes().data():
         v = Vertex()
+        # assign node attributes
         for key, value in attrs.items():
             v[key] = value
         v['pos'] = positions[n]
@@ -30,6 +32,7 @@ def EHEG_from_nx(nxg, positions=None, return_v_lookup=False):
         for m in nxg[n]:
             w = v_lookup[m]
             h = HalfEdge(orig=v, dest=w)
+            # assign edge attributes
             for key, value in nxg[n][m].items():
                 h[key] = value
             h_lookup[v][w] = h

@@ -23,7 +23,7 @@ class TopologicalConwayOperator:
         return graph, (v_map[self.v1], v_map[self.vf], v_map[self.v2])
         #return deepcopy((self.graph, (self.v1, self.vf, self.v2)))
 
-    def __call__(self, graph, faces=None, delete_on_border=True):
+    def __call__(self, graph, faces=None, delete_on_border=True, delete_inner_border=False):
         # TODO: add option to copy graph. take care of face mapping
 
         # apply the operator to a set of halfedges in a graph
@@ -105,11 +105,13 @@ class TopologicalConwayOperator:
                     HalfEdgeGraph.glue_e2e(graph, current, current.pre)
                     current = next
             else:
-                if True:# not delete_on_border or not h.rev.on_border(): #Fixme
+                if True:  # not delete_on_border or not h.rev.on_border(): #Fixme
                     for k in h.face.halfedge_iter():
-                         k['delete'] = False
-                         k.rev['delete'] = False
-                         k.rev['border_delete'] = True
+                        if (not delete_inner_border) or h.rev.on_border():
+                            k['delete'] = False
+                            k.rev['delete'] = False
+                        k.rev['border_delete'] = True
+
                 if h.rev.on_border():
                     graph.delete_face(h.face)
                 else:
@@ -132,7 +134,6 @@ class TopologicalConwayOperator:
                     to_delete.update({h, h.rev})
                     continue
                 else:
-                    print('asdf')
                     pass
                     #del h.attributes['delete']
             to_keep.update({h, h.rev})
@@ -357,3 +358,27 @@ def twist_rotate_graph(t=1/2):
     heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
     v_lookup[vf].get_outgoing_border().rev.face['twistrotate'] = True
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
+
+
+def loft_graph(t=1/2):
+    v1 = (0, -1)
+    vf = (1, 0)
+    v2 = (0, 1)
+    v1ft = (t, -1 + t)
+    v2ft = (t, 1 - t)
+    G = nx.Graph()
+    G.add_cycle([v1, v1ft, v2ft, v2])
+    G.add_nodes_from([vf], delete=True)
+    G.add_edges_from([[v1ft, vf], [vf, v2ft]], delete=True)
+
+    # construct EHEG and ConwayOperator
+    heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
+    return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
+
+
+def chamfer_graph(t=1/2):
+    result = loft_graph(t)
+    e = [e for e in result.v1.outgoing_iter() if e.dest is result.v2][0]
+    e.rev.attributes['delete'] = True
+    e.attributes['delete'] = True
+    return result
