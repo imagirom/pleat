@@ -137,6 +137,7 @@ class CairoRenderer:
                         continue
                     rendered_edges.add(h)
                     self.render_edge(h)
+                    self.dc.stroke()
             else:
                 # order the edges such that the plotting takes less time
                 edges = list(graph.halfedges)
