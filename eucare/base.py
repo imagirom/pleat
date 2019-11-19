@@ -88,6 +88,13 @@ def signed_area(pts):
     return np.sum(pts[:, 0] * pts_rot[:, 1] - pts[:, 1] * pts_rot[:, 0]) / 2.0
 
 
+def orientation(pts, eps=0):
+    area = signed_area(pts)
+    if abs(area) <= eps:
+        return 0
+    return 2*int(area > 0)-1
+
+
 def euclidean_to_barycentric_map(tri):
     tri = np.array(tri, dtype=np.float32)
     def inner(point):
