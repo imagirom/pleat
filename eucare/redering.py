@@ -60,7 +60,7 @@ class CairoRenderer:
             dc.line_to(*point)
         if color_key in face.attributes:
             color = random_color(face.attributes.get(color_key, None))
-            stroke_color = color * 0.5
+            stroke_color = color #* 0.5
         else:
             color = np.array((0.0, 0.0, 0.0, 0.1))
             stroke_color = np.array((0.0, 0.0, 0.0, 0.0))
@@ -72,7 +72,7 @@ class CairoRenderer:
 
         dc.fill_preserve()
 
-        if len(color) == 3:
+        if len(stroke_color) == 3:
             dc.set_source_rgb(*stroke_color)
         else:
             dc.set_source_rgba(*stroke_color)

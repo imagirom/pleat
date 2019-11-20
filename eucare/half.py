@@ -479,6 +479,26 @@ class HalfEdgeGraph:
         e2 = e1.pre
         self.glue_e2e(e1, e2)
 
+    def twocolorable(self):
+        return all([v.order() % 2 == 0 for v in self.vertices if not v.on_border()])
+
+    def twocolor_faces(self, key='color_key', initial_face=None):
+        """Twocolor the graph. Each face will get the 'key' set to True of False, initial face will have label True."""
+        assert self.twocolorable(), 'Graph is not twocolorable, since it has an inner vertex of odd order!'
+        if initial_face is None:
+            initial_face = next(iter(self.faces))
+        yet_to_color = copy(self.faces)
+        frontier = {(initial_face, True)}
+        while frontier:
+            face, label = frontier.pop()
+            if face not in yet_to_color:
+                continue
+            yet_to_color.remove(face)
+            face[key] = label
+            for f in face.face_iter():
+                frontier.add((f, not label))
+        assert not yet_to_color, 'Graph is not connected!'
+
     def execute_edge_instruction(self, h, instruction=None, key=None):
         if instruction is None:
             key = 'instruction' if key is None else key
@@ -693,21 +713,35 @@ class EuclideanPositionHEG(InAngleHEG):
         return abs(l1 - l2) <= self.eps
 
     def glue_graph_e2e(self, graph, e1, e2):
-        # clear positions of new graph, they have to be recalculated (from angles)
-        if isinstance(graph, EuclideanPositionHEG):
-            for v in graph.vertices:
-                del v['pos']
         assert self.lengths_equal(e1.rev['length'], e2.rev['length'])
         super(EuclideanPositionHEG, self).glue_graph_e2e(graph, e1, e2)
+        e = (e1 if e1 in graph.halfedges else e2).rev
+        self.recompute_positions(edge_to_start=e, faces=graph.faces)
+
+    def recompute_positions(self, edge_to_start=None, faces=None):
+        """ recompute all positions of nodes part of faces based on the lengths and angles. """
+        if faces is None:
+            faces = self.faces
+        if len(faces) == 0:
+            return  # nothing to do
+        if edge_to_start is None:
+            # get any edge of faces
+            edge_to_start = next(next(iter(faces)).halfedge_iter())
+        if edge_to_start.on_border():
+            assert False, f'{edge_to_start}'
+
+        # delete old positions
+        vertices = set.union(set(), *(f.vertex_iter() for f in faces))\
+            .difference({edge_to_start.orig, edge_to_start.dest})
+        for v in vertices:
+            if 'pos' in v.attributes:
+                del v['pos']
 
         # compute positions for new vertices, face by face
-        e = e1 if e1 in graph.halfedges else e2
-        if e.rev.on_border():
-            assert False, f'{e}'
-        faces_to_process = {(e.rev.face, e.rev.nex)}
+        yet_to_process = {(edge_to_start.face, edge_to_start.nex)}
         processed_faces = set()
-        while faces_to_process:
-            f, initial = faces_to_process.pop()
+        while yet_to_process:
+            f, initial = yet_to_process.pop()
             processed_faces.add(f)
             e = initial
             while True:
@@ -723,8 +757,8 @@ class EuclideanPositionHEG(InAngleHEG):
                     next_pos = e.orig['pos'] + length * dir
                     e.dest['pos'] = next_pos
                 opposite_face = e.rev.face
-                if opposite_face in graph.faces and opposite_face not in processed_faces:
-                    faces_to_process.add((opposite_face, e.rev.nex))
+                if opposite_face in faces and opposite_face not in processed_faces:
+                    yet_to_process.add((opposite_face, e.rev.nex))
                 e = e.nex
                 if e is initial:
                     break
