@@ -30,6 +30,6 @@
     - Folding
         - [x] Two-coloring
         - [x] Generate folded vertex positions (transparent view)
-        - [ ] Generate scalable overlap graph
-        - [ ] Generate Opaque folded view
+        - [x] Generate scalable overlap graph
+        - [x] Generate Opaque folded view
     
