@@ -5,7 +5,7 @@ from copy import copy, deepcopy
 from math import pi
 import numpy as np
 from collections import deque
-from .base import unit_vector, angle_to_axis, edge_lengths_and_in_angles
+from .base import unit_vector, angle_to_axis, edge_lengths_and_in_angles, signed_area
 
 # TODO: the big ones
 # - add rendering for proto tiles
@@ -226,6 +226,9 @@ class Face(IdObject):
         for e, length, angle in zip(self.halfedge_iter(), lengths, angles):
             e['length'] = length
             e['in_angle'] = angle
+
+    def area(self):
+        return signed_area(np.stack([v['pos'] for v in self.vertex_iter()]))
 
     def check_consistency(self):
         check_cyclic_iterator_consitency(self.halfedge_iter())

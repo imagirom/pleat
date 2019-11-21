@@ -4,3 +4,8 @@ import eucare.example_tilesets
 import eucare.example_graphs
 import eucare.plotting
 import eucare.reciprocal_figures
+import eucare.classifiers
+import eucare.instructions
+import eucare.base
+import eucare.half
+import eucare.overlap

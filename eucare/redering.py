@@ -117,9 +117,21 @@ class CairoRenderer:
         self.dc.scale(scale, scale)
         return self
 
+    def autocenterscale(self, graph):
+        positions = np.array([v['pos'] for v in graph.vertices])
+        print(np.max(positions, axis=0), np.min(positions, axis=0))
+        offset = (np.max(positions, axis=0) + np.min(positions, axis=0)) / 2
+        print(offset)
+        max_abs_pos = np.max(np.abs(positions - offset[None]), axis=0)
+        print(max_abs_pos)
+        scale = np.min(np.array([self.width, self.height]) / max_abs_pos) / 2.05
+        self.dc.scale(scale, scale)
+        self.dc.translate(-offset[0]*1.025, -offset[1] * 1.025)
+        return self
+
     def render_graph(self, graph, render_vertices=True, render_faces=True, render_edges=True, for_cutting=False):
         if self.scale is 'auto':
-            self.autoscale(graph)
+            self.autocenterscale(graph)
         else:
             self.dc.scale(self.scale, self.scale)
         #self.dc.set_font_size(18.0 / self.scale)
