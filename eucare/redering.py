@@ -199,7 +199,6 @@ class SvgwriteRenderer:
         print(width)
         dwg = svgwrite.Drawing(filename, size=(width*unit, height*unit), viewBox=f'0 0 {width} {height}')
 
-
         if render_faces:
             raise NotImplementedError
 

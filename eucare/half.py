@@ -780,6 +780,16 @@ class EuclideanPositionHEG(InAngleHEG):
         else:
             return positions
 
+    def normalize_positions(self):
+        ps, vs = self.get_position_view()
+        k = ps.copy()
+        k = np.array([complex(*ki) for ki in k])
+        k -= np.mean(k)
+        k = k / np.max(np.abs(k))
+        k = np.stack([k.real, k.imag], axis=-1)
+        ps[:] = k
+        self.recompute_lengths_and_angles()
+
     def show(self, render_faces=True, render_edges=True, render_vertices=True, block=True,
              figsize=None, for_cutting=False, **kwargs):
         from .redering import CairoRenderer

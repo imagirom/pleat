@@ -18,7 +18,7 @@ def random_directed_set(edges):
     return directed_edges
 
 
-def reciprocal_figure(G):
+def reciprocal_figure(G, reciprocal_pos_key='reciprocal_pos'):
     # Step 1: Choose direction for every interior edge.
 
     #print(len(G.halfedges))
@@ -128,12 +128,18 @@ def reciprocal_figure(G):
     dual_vertices = M @ sol
     dual_vertices = dual_vertices.reshape(-1, 2)
 
+    # save reciprocal positions in attribute of faces of G
+    if reciprocal_pos_key is not None:
+        for i, f in enumerate(faces):
+            f[reciprocal_pos_key] = dual_vertices[i]
+
     # Step 5: make reciprocal figure into face graph
     D, (v_map, e_map, f_map) = G.copy(return_mappings=True)
-    f2p = {f_map[f]: dual_vertices[i] for i, f in enumerate(faces)}
+    face2reciprocalpos = {f_map[f]: dual_vertices[i] for i, f in enumerate(faces)}
+
     D = dual_graph()(D)
     for v in D.vertices:
-        v['pos'] = f2p[v['pre_conway']]
+        v['pos'] = face2reciprocalpos[v['pre_conway']]
 
     inv_v_map = invert_mapping(f_map)
     for v in D.vertices:
@@ -161,7 +167,8 @@ def shrink_rotate_graph(G, alpha=np.pi/5, factor=0.5):
         dual_vertices.append(v['pos'])
         faces.append(v['pre'])
 
-    f2p = {f_map[f]: dual_vertices[i] for i, f in enumerate(faces)}
+    inverse_f_map = invert_mapping(f_map)  # to get from 'pre_conway' of SRG to G
+
     SRG = twist_rotate_graph()(SRG)
 
     twistfaces = list(filter(lambda f: 'twistrotate' in f.attributes, SRG.faces))
@@ -178,7 +185,9 @@ def shrink_rotate_graph(G, alpha=np.pi/5, factor=0.5):
     for f in twistfaces:
         ps, vs = np.array([[v['base_pos'], v] for v in f.vertex_iter()]).T
         ps = np.stack(ps)
-        rotation_center = f2p[f['pre_conway']]
+        assert 'pre_conway' in f.attributes
+        f['pre_conway'] = inverse_f_map[f['pre_conway']]
+        rotation_center = f['pre_conway']['reciprocal_pos']
         f['rotation_center'] = rotation_center
 
         ps = rotation_center + (ps - rotation_center) @ rotation_matrix(alpha) * factor
