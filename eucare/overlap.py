@@ -286,7 +286,8 @@ def overlap_graph(G, eps=1e-10):
     # ------ assign original faces ------
 
     initial_edge = next(overlap_G.border_edge_iter()).rev
-    frontier = [(initial_edge, {e.face for e in initial_edge['original_edges']})]
+    assert not initial_edge.on_border()
+    frontier = [(initial_edge, {e_orig.face for e_orig in initial_edge['original_edges'] if not e_orig.on_border()})]
     yet_to_assign = set(overlap_G.faces)
     while yet_to_assign:
         current_halfedge, original_faces = frontier.pop()
@@ -320,6 +321,7 @@ def find_face_order(overlap_G, over_under_pairs=None):
     V2face = V
     V = list(range(len(V)))
     # phi maps face in overlap to group of original faces
+    print([f.order() for f in U2face])
     phi = {v: [u for u in U if U2face[u] in V2face[v]['original_faces']] for v in V}
     # rho is set of lists of face groups (which are lists of faces)
     face2U = {face: u for u, face in enumerate(U2face)}
@@ -328,10 +330,10 @@ def find_face_order(overlap_G, over_under_pairs=None):
                for v in V
                for e in V2face[v].halfedge_iter() if e['original_face_groups']
                if len(e['original_face_groups']) >= 2])
+
     # tau is set of triples of faces in U, such that for every v one gets for every edge e all triples (a, b, c) with
     # c in phi[v] and not in any face group of e
     # (a, b) a face group of an edge of v
-
     tau = set([(*[face2U[f] for f in group], face2U[c])
                for v in V2face
                for e in v.halfedge_iter()
@@ -395,14 +397,13 @@ def find_face_order(overlap_G, over_under_pairs=None):
             return 1 - choices[(b, a)]
 
     # add ordering constraints: no a > b > c > a is allowed
-    Y = set()
     for a, b, c, in Y:
         prob += pulp.lpSum([over(a, b), over(b, c), over(c, a)]) <= 2, ""
         prob += pulp.lpSum([over(a, c), over(c, b), over(b, a)]) <= 2, ""
 
     # add fold-adjacency constraints: if a was next to b, it cannot be c -> a c b (where -> means over an edge)
     for a, b, c in tau:
-        prob += pulp.lpSum([over(a, c), over(c, b)]) == 1, ""
+       prob += pulp.lpSum([over(a, c), over(c, b)]) == 1, ""
 
     # add directly specified over under constraints
     print('over under', len(over_under_pairs))
@@ -441,3 +442,4 @@ def find_face_order(overlap_G, over_under_pairs=None):
         face = V2face[v]
         phi[v].sort(key=cmp_to_key(comparison_func))
         face['sorted_original_faces'] = [U2face[u] for u in phi[v]]
+        print(phi[v])

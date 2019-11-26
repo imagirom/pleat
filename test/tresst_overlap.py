@@ -91,15 +91,15 @@ def sr_graph(n=5, angle=np.pi/4, factor=0.4):
 
     #angle, factor = 0.06 * np.pi, 0.53
     angle, factor = 0.11 * np.pi, 0.54
-    #G = concentric_rings(12, 2, 2.5)
-    G = ec.example_graphs.from_tiles(ec.example_tilesets.platonic(4), 3, vertex_based=True)
+    #G = concentric_rings(8, 0, 2.5)
+    G = ec.example_graphs.from_tiles(ec.example_tilesets.platonic(4), 1, vertex_based=True)
     #G = ec.example_graphs.from_tiles(ec.example_tilesets.t_3_3_4_3_4(), n, vertex_based=True)
     #G = ec.conway.kis_graph()(G)
 
     G.check_consistency()
 
     G.normalize_positions()
-    direct_around_origin(G)
+    #direct_around_origin(G)
   #   for f in G.faces:
   #       if f.order() == 12:
   #           for e in f.halfedge_iter():
@@ -209,33 +209,44 @@ ec.overlap.find_face_order(G, over_under_pairs)
 
 #for e in G.halfedges:
 #    print(e['original_face_groups'])
-cc = ec.classifiers.CountingClassifier(ec.classifiers.RepresentationClassifier())
-for f in G.faces:
-    #f['color_key'] = len(f['original_faces'])
-    f['color_key'] = cc.classify(f['sorted_original_faces'][0])
-    #print(f['color_key'])
 
 
-to_delete = [e
-             for e in G.halfedges
-             if not (e.on_border() or e.rev.on_border()) and e.face['color_key'] is e.rev.face['color_key']]
+TOP = 'top_side'
+BOTTOM = 'bottom_side'
 
-G.halfedges.difference_update(to_delete)
-G = ec.conversions.EHEG_from_nx(G.to_networkx_undirected(), {v: v['pos'] for v in G.vertices})
-to_join = []
-for v in G.vertices:
-    if not v.on_border() and v.order() == 2:
-        to_join.append(v)
-for v in to_join:
-    G.join_vertex(v)
-G.recompute_lengths_and_angles()
-cc = ec.classifiers.CountingClassifier(ec.classifiers.lambda_classifier(lambda f: f.area()//0.0001)())
-for f in G.faces:
-    # over = 0
-    # under = 0
-    # for e in f.halfedge_iter():
-    #     print(e.attributes)
-    #f['color_key'] = over / (over + under)
-    f['color_key'] = cc.classify(f)
-G.show(**render_settings)
 
+def show_folded(G, side=TOP):
+    assert side in (TOP, BOTTOM)
+    cc = ec.classifiers.CountingClassifier(ec.classifiers.RepresentationClassifier())
+    G = G.copy()
+    for f in G.faces:
+        #f['color_key'] = len(f['original_faces'])
+        f['color_key'] = cc.classify(f['sorted_original_faces'][0 if side is TOP else -1])
+        #print(f['color_key'])
+    G.show(**render_settings)
+
+    to_delete = [e
+                 for e in G.halfedges
+                 if not (e.on_border() or e.rev.on_border()) and e.face['color_key'] is e.rev.face['color_key']]
+
+    G.halfedges.difference_update(to_delete)
+    G = ec.conversions.EHEG_from_nx(G.to_networkx_undirected(), {v: v['pos'] for v in G.vertices})
+    to_join = []
+    for v in G.vertices:
+        if not v.on_border() and v.order() == 2:
+            to_join.append(v)
+    for v in to_join:
+        G.join_vertex(v)
+    G.recompute_lengths_and_angles()
+    cc = ec.classifiers.CountingClassifier(ec.classifiers.lambda_classifier(lambda f: f.area()//0.0001)())
+    for f in G.faces:
+        # over = 0
+        # under = 0
+        # for e in f.halfedge_iter():
+        #     print(e.attributes)
+        #f['color_key'] = over / (over + under)
+        f['color_key'] = cc.classify(f)
+    G.show(**render_settings)
+
+show_folded(G, TOP)
+show_folded(G, BOTTOM)
