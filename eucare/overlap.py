@@ -2,6 +2,9 @@ import numpy as np
 import networkx as nx
 from sklearn.cluster import AgglomerativeClustering
 from functools import cmp_to_key
+from tqdm.auto import tqdm
+from fastcluster import linkage_vector, linkage
+from scipy.cluster.hierarchy import fcluster
 
 from .utils import random_directed_set
 from .half import rotate_by
@@ -38,7 +41,8 @@ def intervals_overlapping(interval1, interval2):
 def get_potential_intersections(segments, epsilon=1e-12):
     # list of start and end points, with index of corresponding segment and flag whether it is a start or an end point.
     segments = np.array(segments).copy()
-    segments.sort(axis=1)
+    segments.sort(axis=1)  # sort by y coordinate
+    # move all segments start point by epsilon in x and y, to also register just non-intersections
     segments[:, 0, :] -= epsilon
     assert len(segments.shape) == 3, f'{segments.shape}'
     assert segments.shape[1:] == (2, 2), f'{segments.shape}'
@@ -163,8 +167,29 @@ def group_closeby(pts, eps):
     return new_labels
 
 
+def fast_group_closeby(pts, eps):
+    Z = linkage_vector(pts, method='single', metric='cityblock')
+    unsorted = fcluster(Z, eps, criterion='distance')
+    result = []
+    i = 0
+    id_map = {}
+    for idx in unsorted:
+        if idx not in id_map:
+            id_map[idx] = i
+            i += 1
+        result.append(id_map[idx])
+    return np.array(result, dtype=np.int32)
+
+
 def overlap_graph(G, eps=1e-10):
+    # TODO: first step: group points in graph
     edges = [e for e in G.halfedges if e.face is not None]
+    new_edges = []
+    for e in edges:
+        if e.rev not in new_edges:
+            new_edges.append(e)
+    edges = new_edges
+
     print('number of edges:', len(edges))
     line_segments = np.array([[e.orig['pos'], e.dest['pos']] for e in edges])
     print(line_segments.shape)
@@ -203,14 +228,14 @@ def overlap_graph(G, eps=1e-10):
 
     print('n crossings:', len(crossings))
 
-    clustering = group_closeby(crossings, eps)
+    clustering = fast_group_closeby(crossings, eps)
     #clustering = group_closeby(crossings, eps)
     print('reduced n crossings', np.max(clustering) + 1)
     first_occurences = np.argmax(clustering[None] == np.arange(np.max(clustering) + 1)[:, None], axis=1)
     filtered_crossings = crossings[first_occurences]
 
     n_filtered_crossings = len(filtered_crossings)
-    filtered_crossings_to_edges = [set() for i in range(n_filtered_crossings)]
+    filtered_crossings_to_edges = [set() for i in range(n_filtered_crossings)]  # TODO: get rid of
     edges_to_crossings = [set() for i in range(len(edges))]
     for i, edge_ids in enumerate(crossings_to_edges):
         filtered_crossings_to_edges[clustering[i]].update(edge_ids)
@@ -218,11 +243,11 @@ def overlap_graph(G, eps=1e-10):
             edges_to_crossings[e].add(clustering[i])
 
     # ------ get crossing orders, construct nx graph ------
-
+    print('getting crossing orders..')
     # nodes = np.arange(n_filtered_crossings)
     nx_edges = []
     edge_to_ordered_ids = []
-    for i in range(len(line_segments)):
+    for i in tqdm(range(len(line_segments))):
         e = edges[i]
         crossing_ids = np.array(list(edges_to_crossings[i]))
         crossing_positions = filtered_crossings[crossing_ids]
@@ -235,14 +260,19 @@ def overlap_graph(G, eps=1e-10):
     nx_edges = np.concatenate(nx_edges)
     print(nx_edges.shape)
 
+    print('constructing nx graph..')
     nx_graph = nx.Graph()
     nx_graph.add_edges_from(nx_edges)
     nx_positions = {i: pos for i, pos in enumerate(filtered_crossings)}
+
+    print('order of nx graph:', nx_graph.order())
+    print('converting to EHEG..')
 
     overlap_G, v_lookup = EHEG_from_nx(nx_graph, nx_positions, return_v_lookup=True)
     overlap_G.recompute_lengths_and_angles()
 
     # ------ assign original vertices, edges ------
+    print('assigning original vertices and edges..')
     for v in overlap_G.vertices:
         v['original_vertices'] = set()
     for e in overlap_G.halfedges:
@@ -257,7 +287,7 @@ def overlap_graph(G, eps=1e-10):
     for f in G.faces:
         face_orientations[f] = f.area() > 0
 
-    for i in range(len(edges)):
+    for i in tqdm(range(len(edges))):
         ordered_ids_0 = edge_to_ordered_ids[i]
         if len(ordered_ids_0) == 0:
             assert False, f'this should not happen..'
@@ -269,6 +299,8 @@ def overlap_graph(G, eps=1e-10):
             if not e.on_border() and not face_orientations[e.face]:
                 ordered_ids = ordered_ids[::-1]
             for k, l in zip(ordered_ids[:-1], ordered_ids[1:]):
+                if k not in v_lookup or l not in v_lookup:
+                    continue  # this can happen if dangling edges were deleted
                 for new_edge in v_lookup[k].outgoing_iter():
                     if v_lookup[l] is new_edge.dest:
                         new_edge['original_edges'].add(e)
@@ -284,7 +316,7 @@ def overlap_graph(G, eps=1e-10):
     # print(len(set([tuple(e['original_face_groups']) for e in overlap_G.halfedges if e['original_face_groups'] and len(e['original_face_groups'][0]) == 2 ])))
 
     # ------ assign original faces ------
-
+    print('assigning original faces..')
     initial_edge = next(overlap_G.border_edge_iter()).rev
     assert not initial_edge.on_border()
     frontier = [(initial_edge, {e_orig.face for e_orig in initial_edge['original_edges'] if not e_orig.on_border()})]
@@ -305,14 +337,19 @@ def overlap_graph(G, eps=1e-10):
                     (original_faces - {e_orig.face for e_orig in e['original_edges'] if not e_orig.on_border()}).union(
                         {e_orig.face for e_orig in e.rev['original_edges'] if not e_orig.on_border()})
                 ))
-
+    print('done.')
     return overlap_G
 
 
-def find_face_order(overlap_G, over_under_pairs=None):
+def find_face_order(overlap_G, over_under_pairs=None, solver=None, ignore_area_threshold=0):
+    # U is the set of original faces whose local orderings are to be determined
+    # V is the set of faces in the overlap graph
     # over_under_pairs is list of tuples of faces (f1, f2) in U with f1 over f2
     # v is a face in overlap_G, u one in G
     V = list(overlap_G.faces)
+    #V_maximal = list(f for f in overlap_G.faces
+    #                 if all([len(e['original_face_groups']) for e in f.halfedge_iter()]))
+    #print(f'V: {len(V)}, V_maximal: {len(V_maximal)}')
     U = list(set.union(*(v['original_faces'] for v in V)))
     print('V', len(V))
     print('U', len(U))
@@ -320,10 +357,19 @@ def find_face_order(overlap_G, over_under_pairs=None):
     U = list(range(len(U)))
     V2face = V
     V = list(range(len(V)))
+
+    #V_maximal = [v for v in V if V2face[v] in V_maximal]  # TODO: fix and use again
+
     # phi maps face in overlap to group of original faces
-    print([f.order() for f in U2face])
     phi = {v: [u for u in U if U2face[u] in V2face[v]['original_faces']] for v in V}
-    # rho is set of lists of face groups (which are lists of faces)
+
+    # filter out small faces in overlap graph:
+    V_unfiltered = V
+    V = [v for v in V_unfiltered
+         if V2face[v].area() > ignore_area_threshold]
+
+    # rho is set of lists of face groups (which are lists of faces), for all edges with more than two face groups
+    # TODO: actually use rho to solve these edges correctly
     face2U = {face: u for u, face in enumerate(U2face)}
     rho = set([tuple(tuple(face2U[face] for face in group)
                      for group in e['original_face_groups'] if group)
@@ -332,16 +378,19 @@ def find_face_order(overlap_G, over_under_pairs=None):
                if len(e['original_face_groups']) >= 2])
 
     # tau is set of triples of faces in U, such that for every v one gets for every edge e all triples (a, b, c) with
-    # c in phi[v] and not in any face group of e
-    # (a, b) a face group of an edge of v
+    # c in phi[v] and not in any face group of e and
+    # (a, b) a face group of e
     tau = set([(*[face2U[f] for f in group], face2U[c])
                for v in V2face
                for e in v.halfedge_iter()
                for group in e['original_face_groups']
                for c in v['original_faces']
                if len(group) == 2
-               if c not in group
+               if c not in set.union(set(), *e['original_face_groups'])
     ])
+
+    # Problem: Some faces in a group in 'original_face_groups' are not in 'original_faces'
+    # How can that happen?
 
     # tau3 = set([(v, *[face2U[f] for f in group], face2U[c])
     #            for v in V2face
@@ -356,12 +405,14 @@ def find_face_order(overlap_G, over_under_pairs=None):
     #     assert U2face[b] in v['original_faces']
     #     assert U2face[c] in v['original_faces']
 
-    tau2 = set([tuple([face2U[f] for f in group])
-               for v in V
-               for e in V2face[v].halfedge_iter()
-               for group in e.rev['original_face_groups'] if len(group) == 2
-               for c in phi[v] if c not in [face2U[f] for f in group]
-               ])
+    # should be the same as tau but is not..
+    tau2 = set([(*[face2U[f] for f in group], c)
+                for v in V_unfiltered
+                for e in V2face[v].halfedge_iter()
+                for group in e.rev['original_face_groups'] if len(group) == 2  # should always be 2, except if border
+                for c in phi[v] if U2face[c] not in set.union(set(), *e['original_face_groups'])
+                ])
+
     print('rho', len(rho))
     print('tau', len(tau))
     print('tau2', len(tau2))
@@ -370,21 +421,23 @@ def find_face_order(overlap_G, over_under_pairs=None):
     print('sum', sum([len(p) for p in phi.values()]))
     # X is the set of Variables, that is tuplesV in U that overlap in overlap_G
     X = list(set([(a, b)
-              for U_v in phi.values()
-              for i, a in enumerate(U_v)
-              for b in U_v[i + 1:]]))
+                  for v in V_unfiltered  # there can be conditions
+                  for U_v in [phi[v]]
+                  for i, a in enumerate(U_v)
+                  for b in U_v[i + 1:]
+                  ]))
     print(len(X))
 
-    Y = list(set([(a, b, c)
-              for U_v in phi.values()
-              for i, a in enumerate(U_v)
-              for j, b in enumerate(U_v[i+1:])
-              for c in U_v[i+j+2:]]))
-    print(len(Y))
+    # Y are triplets that can be compared. Is used for ordering constraints
+    # Y = list(set([(a, b, c)
+    #                for v in V_maximal
+    #                for i, a in enumerate(phi[v])
+    #                for j, b in enumerate(phi[v][i + 1:])
+    #                for c in phi[v][i + j + 2:]]))
 
     import pulp
     prob = pulp.LpProblem("Overlap Problem", pulp.LpMinimize)
-    choices = pulp.LpVariable.dicts("Choice", X, 0, 1, pulp.LpInteger)
+    choices = pulp.LpVariable.dicts("Choice", X, 0, 1, pulp.LpBinary)
     prob += 0, "Arbitrary Objective Function"
 
     for a, b in X:
@@ -397,16 +450,36 @@ def find_face_order(overlap_G, over_under_pairs=None):
             return 1 - choices[(b, a)]
 
     # add ordering constraints: no a > b > c > a is allowed
-    for a, b, c, in Y:
+    added_constraints = set()
+    from tqdm.auto import tqdm
+    n_triplets = sum(n * (n-1) * (n-2) // 6
+                     for n in (len(phi[v]) for v in V))
+    for a, b, c, in tqdm(((a, b, c)
+                     for v in V #V_maximal #FIXME V vs V_maximal makes a differenc, which it definitely should not
+                     for i, a in enumerate(phi[v])
+                     for j, b in enumerate(phi[v][i + 1:])
+                     for c in phi[v][i + j + 2:]), total=n_triplets, desc='adding ordering constraints'):
+        if (a, b, c) in added_constraints:
+            continue
+        added_constraints.add((a, b, c))
         prob += pulp.lpSum([over(a, b), over(b, c), over(c, a)]) <= 2, ""
         prob += pulp.lpSum([over(a, c), over(c, b), over(b, a)]) <= 2, ""
+    print(f'added {len(added_constraints)} ordering constraints.')
 
     # add fold-adjacency constraints: if a was next to b, it cannot be c -> a c b (where -> means over an edge)
-    for a, b, c in tau:
-       prob += pulp.lpSum([over(a, c), over(c, b)]) == 1, ""
+    print(f'adding {len(tau2)} fold-adjacency constraints..')
+    errors = 0
+    for a, b, c in tqdm(tau2):
+        try:
+            prob += pulp.lpSum([over(a, c), over(c, b)]) == 1, ""
+        except Exception as e:
+            errors += 1
+            print(e)
+    if errors > 0:
+        print(f'\ncould not add {errors} constraints!\n')
 
     # add directly specified over under constraints
-    print('over under', len(over_under_pairs))
+    print(f'adding {len(over_under_pairs)} over-under constraints')
     if over_under_pairs is not None:
         for f1, f2 in over_under_pairs:
             try:
@@ -416,30 +489,44 @@ def find_face_order(overlap_G, over_under_pairs=None):
 
     prob.writeLP("Overlap.lp")
 
-    # The problem is solved using PuLP's choice of Solver
-    prob.solve()
+    # Solve the problem
+    if solver is None:
+        solver_order = [pulp.CPLEX, pulp.GLPK]
+        for solver_class in solver_order:
+            solver = solver_class()
+            if solver.available():
+                break
+        if solver is None:
+            solver = 'auto'
+
+    print(f'solving ILP with solver {solver.__class__.__name__ if isinstance(solver, pulp.LpSolver) else solver}..')
+    prob.solve(solver=solver)
 
     # The status of the solution is printed to the screen
-    print(("Status:", pulp.LpStatus[prob.status]))
-
+    #print(("status:", pulp.LpStatus[prob.status]))
+    assert prob.status is pulp.LpStatusOptimal, f'ILP status: {pulp.LpStatus[prob.status]}'
+    print('ILP solved')
     #for t in choices:
     #    print(pulp.value(choices[t]))
 
     def comparison_func(a, b):
         if (a, b) in choices:
             order = pulp.value(choices[(a, b)])
-        else:
+        elif (b, a) in choices:
             order = pulp.value(choices[(b, a)])
             if order is not None:
                 order = 1-order
+        else:  # this case happens when some faces in V are ignored
+            order = None
         if order is None:
             print('order unclear!')
             return 0
         else:
             return 2 * order - 1
-
-    for v in V:
+    print(f'determining face order..')
+    for v in V_unfiltered:
         face = V2face[v]
         phi[v].sort(key=cmp_to_key(comparison_func))
         face['sorted_original_faces'] = [U2face[u] for u in phi[v]]
-        print(phi[v])
+
+    print('done.\n')

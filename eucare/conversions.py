@@ -8,12 +8,29 @@ def EHEG_from_edgelist(pts, edges):
     raise NotImplementedError
 
 
+def _delete_dangling_edges_nx(nx_graph):
+    """Deletes all dangling edges in the networkx graph, inplace. Returns number of deleted edges"""
+    finished = False
+    n_deleted = 0
+    while nx_graph.order() > 0 and not finished:
+        finished = True
+        for n in list(nx_graph.nodes):
+            if len(nx_graph[n]) == 1:
+                finished = False
+                nx_graph.remove_node(n)
+                n_deleted += 1
+    return n_deleted
+
+
 def EHEG_from_nx(nxg, positions=None, return_v_lookup=False):
     # converts a networkx graph to a planar EuclideanPositionHalfEdgeGraph
     assert not nxg.is_directed()
     if positions is None:
         positions = {n: np.array(n) for n in nxg.nodes()}
     assert isinstance(positions, dict)
+    n_dangling = _delete_dangling_edges_nx(nxg)
+    if n_dangling > 0:
+        print(f'Warning: Deleted {n_dangling} dangling edges in conversion to EHG')
     result = EuclideanPositionHEG()
     v_lookup = dict()
     for n, attrs in nxg.nodes().data():
@@ -62,12 +79,33 @@ def EHEG_from_nx(nxg, positions=None, return_v_lookup=False):
         for k in f.halfedge_iter():
             k.face = f
             unassigned_edges.remove(k)
+        #print(f.area())
+
+    result.check_consistency()
 
     # detect 'outside' faces which should be None by their orientation
+    # it is selected as the one with maximal negative area
+    # (area 0 faces might have slightly negative areas due to numerical issues)
+    outside_face = None
+    current_min_area = 0
     for f in frozenset(result.faces):
-        vertex_pos = [v['pos'] for v in f.vertex_iter()]
-        if signed_area(vertex_pos) < 0:
-            result.delete_face(f)
+        area = f.area()
+        if area < current_min_area:
+            current_min_area = area
+            outside_face = f
+    assert outside_face is not None, f'Could not find an outside face to delete. Are all areas 0?'
+    print(f'area: {outside_face.area()}, order: {outside_face.order()}')
+    result.delete_face(outside_face)
+
+    # Old method: leads to errors with error 0 faces
+    # for f in frozenset(result.faces):
+    #     vertex_pos = [v['pos'] for v in f.vertex_iter()]
+    #     if signed_area(vertex_pos) < 0:
+    #         print(f'deleting outside face of order {f.order()} and area {f.area()}..')
+    #         # for e in f.halfedge_iter():
+    #         #     e.face = None
+    #         # result.faces.remove(f)
+    #         result.delete_face(f)
 
     if not return_v_lookup:
         return result

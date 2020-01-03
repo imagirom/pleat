@@ -291,14 +291,17 @@ class HalfEdgeGraph:
         # mark edges that will be deleted
         any_deletions = False
         adjacent_halfedges = list(f.halfedge_iter())
+        n_edge_deletions = 0
         for h in adjacent_halfedges:
             h.face = None
             if h.rev.on_border():
                 h['to_delete'] = True
                 any_deletions = True
+                n_edge_deletions += 1
         if not any_deletions:
             # nothing left to do
             return
+        print(f'deleting {n_edge_deletions} edges that do not have a face anymore')
         # update pre and nex where necessary, remove the edges
         for h in adjacent_halfedges:
             if 'to_delete' in h.attributes:

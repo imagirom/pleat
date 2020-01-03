@@ -63,7 +63,7 @@ def concentric_rings(n, rings, factor):
     G = ec.prototiles.RegularEuclideanTile(n).make_graph(add_positions=True)[0]
     G = ec.half.EuclideanPositionHEG(other=G)
     # Idea: first chamfer without border-delete, then loft.
-    G = ec.conway.chamfer_graph(t=1/(factor))(
+    G = ec.conway.chamfer_graph(t=1/factor)(
         G,
         delete_on_border=False,
         delete_inner_border=False,
@@ -89,10 +89,15 @@ def sr_graph(n=5, angle=np.pi/4, factor=0.4):
     #G = ec.example_graphs.from_tiles(ec.example_tilesets.t_4_6_12(), n, vertex_based=True) # FIXME: result is one face
     #G = ec.conway.gyro_graph()(G)
 
-    #angle, factor = 0.06 * np.pi, 0.53
-    angle, factor = 0.11 * np.pi, 0.54
-    #G = concentric_rings(8, 0, 2.5)
-    G = ec.example_graphs.from_tiles(ec.example_tilesets.platonic(4), 1, vertex_based=True)
+    #beta, gamma = 0.4156, 0.65  # this leads to for some reason infeasible problem
+    beta, gamma = 0.35, 0.65
+    beta *= np.pi
+    angle = np.arccos((gamma + np.sin(beta)) / np.sqrt(gamma ** 2 + 2 * gamma * np.sin(beta) + 1))
+    factor = gamma / np.sqrt(gamma ** 2 + 2 * gamma * np.sin(beta) + 1)
+
+    #angle, factor = 0.11 * np.pi, 0.54
+    G = concentric_rings(12, 2, 3.1)
+    #G = ec.example_graphs.from_tiles(ec.example_tilesets.platonic(4), 1, vertex_based=True)
     #G = ec.example_graphs.from_tiles(ec.example_tilesets.t_3_3_4_3_4(), n, vertex_based=True)
     #G = ec.conway.kis_graph()(G)
 
@@ -203,8 +208,10 @@ print('inner edges', len(G.halfedges) / 2 - len(G.border_edges()))
 print('assigned creases', len([e for e in G.halfedges
               if e.attributes.get('crease_type', None) in ('mountain', 'valley') and not (e.on_border() or e.rev.on_border())]))
 over_under_pairs = get_over_under_pairs(G)
-G = ec.overlap.overlap_graph(G)
+
+G = ec.overlap.overlap_graph(G, eps=1e-12) #1e-4
 G.show(**render_settings)
+import pulp
 ec.overlap.find_face_order(G, over_under_pairs)
 
 #for e in G.halfedges:
@@ -223,7 +230,7 @@ def show_folded(G, side=TOP):
         #f['color_key'] = len(f['original_faces'])
         f['color_key'] = cc.classify(f['sorted_original_faces'][0 if side is TOP else -1])
         #print(f['color_key'])
-    G.show(**render_settings)
+    #G.show(**render_settings)
 
     to_delete = [e
                  for e in G.halfedges
