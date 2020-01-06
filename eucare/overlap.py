@@ -304,6 +304,7 @@ def overlap_graph(G, eps=1e-10):
                 for new_edge in v_lookup[k].outgoing_iter():
                     if v_lookup[l] is new_edge.dest:
                         new_edge['original_edges'].add(e)
+                        #new_edge.rev['original_edges'].add(e)
                         if not e.on_border():
                             if frozenset((e, e.rev)) not in new_edge['original_face_groups']:
                                 new_edge['original_face_groups'][frozenset((e, e.rev))] = set()
@@ -340,6 +341,9 @@ def overlap_graph(G, eps=1e-10):
     print('done.')
     return overlap_G
 
+MOUNTAIN = 1
+VALLEY = -1
+
 
 def find_face_order(overlap_G, over_under_pairs=None, solver=None, ignore_area_threshold=0):
     # U is the set of original faces whose local orderings are to be determined
@@ -347,8 +351,9 @@ def find_face_order(overlap_G, over_under_pairs=None, solver=None, ignore_area_t
     # over_under_pairs is list of tuples of faces (f1, f2) in U with f1 over f2
     # v is a face in overlap_G, u one in G
     V = list(overlap_G.faces)
-    #V_maximal = list(f for f in overlap_G.faces
-    #                 if all([len(e['original_face_groups']) for e in f.halfedge_iter()]))
+    # FIXME: using V_maximal can lead to problems in conjunction with filtering facets by size
+    V_maximal = list(f for f in overlap_G.faces
+                     if all([len(e['original_face_groups']) for e in f.halfedge_iter()]))
     #print(f'V: {len(V)}, V_maximal: {len(V_maximal)}')
     U = list(set.union(*(v['original_faces'] for v in V)))
     print('V', len(V))
@@ -358,8 +363,6 @@ def find_face_order(overlap_G, over_under_pairs=None, solver=None, ignore_area_t
     V2face = V
     V = list(range(len(V)))
 
-    #V_maximal = [v for v in V if V2face[v] in V_maximal]  # TODO: fix and use again
-
     # phi maps face in overlap to group of original faces
     phi = {v: [u for u in U if U2face[u] in V2face[v]['original_faces']] for v in V}
 
@@ -368,23 +371,25 @@ def find_face_order(overlap_G, over_under_pairs=None, solver=None, ignore_area_t
     V = [v for v in V_unfiltered
          if V2face[v].area() > ignore_area_threshold]
 
+
     # rho is set of lists of face groups (which are lists of faces), for all edges with more than two face groups
-    # TODO: actually use rho to solve these edges correctly
     face2U = {face: u for u, face in enumerate(U2face)}
-    rho = set([tuple(tuple(face2U[face] for face in group)
-                     for group in e['original_face_groups'] if group)
+    rho = set([frozenset(frozenset(face2U[face] for face in group)
+                         for group in e['original_face_groups'] if group and len(group) == 2)
                for v in V
                for e in V2face[v].halfedge_iter() if e['original_face_groups']
                if len(e['original_face_groups']) >= 2])
-
+    rho = {groups for groups in rho if len(groups) > 1}
     # tau is set of triples of faces in U, such that for every v one gets for every edge e all triples (a, b, c) with
     # c in phi[v] and not in any face group of e and
     # (a, b) a face group of e
     tau = set([(*[face2U[f] for f in group], face2U[c])
-               for v in V2face
-               for e in v.halfedge_iter()
+               for v in V
+               for v_face in [V2face[v]]
+               for e in v_face.halfedge_iter()
                for group in e['original_face_groups']
-               for c in v['original_faces']
+               for c in v_face['original_faces']
+               #if v_face in V_maximal
                if len(group) == 2
                if c not in set.union(set(), *e['original_face_groups'])
     ])
@@ -407,7 +412,7 @@ def find_face_order(overlap_G, over_under_pairs=None, solver=None, ignore_area_t
 
     # should be the same as tau but is not..
     tau2 = set([(*[face2U[f] for f in group], c)
-                for v in V_unfiltered
+                for v in V_unfiltered  # to use V_maximal here, use e['original_face_groups] instead of e.rev['..']!
                 for e in V2face[v].halfedge_iter()
                 for group in e.rev['original_face_groups'] if len(group) == 2  # should always be 2, except if border
                 for c in phi[v] if U2face[c] not in set.union(set(), *e['original_face_groups'])
@@ -444,6 +449,7 @@ def find_face_order(overlap_G, over_under_pairs=None, solver=None, ignore_area_t
         assert (b, a) not in X
 
     def over(a, b):
+        # TODO: if a, b in over_under_pairs, just return a constant
         if (a, b) in choices:
             return choices[(a, b)]
         else:
@@ -453,12 +459,15 @@ def find_face_order(overlap_G, over_under_pairs=None, solver=None, ignore_area_t
     added_constraints = set()
     from tqdm.auto import tqdm
     n_triplets = sum(n * (n-1) * (n-2) // 6
-                     for n in (len(phi[v]) for v in V))
+                     for n in (len(phi[v]) for v in V if V2face[v] in V_maximal))
     for a, b, c, in tqdm(((a, b, c)
-                     for v in V #V_maximal #FIXME V vs V_maximal makes a differenc, which it definitely should not
-                     for i, a in enumerate(phi[v])
-                     for j, b in enumerate(phi[v][i + 1:])
-                     for c in phi[v][i + j + 2:]), total=n_triplets, desc='adding ordering constraints'):
+                          for v in V #V_maximal #FIXME V vs V_maximal makes a differenc, which it definitely should not
+                          for i, a in enumerate(phi[v])
+                          for j, b in enumerate(phi[v][i + 1:])
+                          for c in phi[v][i + j + 2:]
+                          if V2face[v] in V_maximal
+                          ), total=n_triplets, desc='adding ordering constraints'):
+
         if (a, b, c) in added_constraints:
             continue
         added_constraints.add((a, b, c))
@@ -486,6 +495,24 @@ def find_face_order(overlap_G, over_under_pairs=None, solver=None, ignore_area_t
                 prob += over(face2U[f1], face2U[f2]) == 1, ""
             except:
                 print('not overlapping..')
+
+    # add rho constraints corresponding to edges with multiple face groups
+    included = set()
+    for groups in tqdm(rho):
+        groups = list(groups)
+        for i, (a, b) in enumerate(groups):
+            for c, d in groups[i+1:]:
+                if a in (c, d):
+                    print('whoops')
+                    assert b in (c, d)
+                    continue
+                if frozenset((frozenset((a, b)), frozenset((c, d)))) in included:
+                    continue
+                included.add(frozenset((frozenset((a, b)), frozenset((c, d)))))
+                group1_over_group2 = pulp.lpSum([over(c, a), over(c, b), over(d, a), over(d, b)])
+                # add auxilliary variable
+                aux_var = pulp.LpVariable(f"{a},{b},{c},{d}", 0, 2, pulp.LpInteger)
+                prob += group1_over_group2 - 2 * aux_var == 0, ""
 
     prob.writeLP("Overlap.lp")
 
@@ -529,4 +556,114 @@ def find_face_order(overlap_G, over_under_pairs=None, solver=None, ignore_area_t
         phi[v].sort(key=cmp_to_key(comparison_func))
         face['sorted_original_faces'] = [U2face[u] for u in phi[v]]
 
+    print(f'determining crease assignment..')
+    crease_assignment = dict()
+    for f1 in U2face:
+        # TODO: this assumes the graph is two colored with color key 'color_key'..
+        for e in f1.halfedge_iter():
+            f2 = e.rev.face
+            if f2 is None:
+                continue
+            if f1['color_key']:
+                crease_assignment[e] = comparison_func(face2U[f1], face2U[f2])
+            else:
+                crease_assignment[e] = -1 * comparison_func(face2U[f1], face2U[f2])
+            e['color_key'] = crease_assignment[e]
+
     print('done.\n')
+    return crease_assignment
+
+
+"""
+Temporary utility functions - Have to make up mind on how to organize / where to put them!
+"""
+
+
+def fold_wireframe(G, initial_face=None):
+    """mirrors all faces of G in-place"""
+    if initial_face is None:
+        for f in G.faces:
+            pos = np.array([v['pos'] for v in f.vertex_iter()])
+            if np.all(np.min(pos, axis=0) <= 0) and np.all(np.max(pos, axis=0) > 0):
+                initial_face = f
+                break
+    if initial_face is None:
+        initial_face = next(iter(G.faces))
+    G.twocolor_faces(initial_face=initial_face)
+    for f in filter(lambda f: f['color_key'], G.faces):
+        for e in f.halfedge_iter():
+            e['in_angle'] *= -1
+    G.recompute_positions()
+
+
+def get_over_under_pairs_from_creases(G, two_coloring_key='color_key'):
+    # return list of pairs (f1, f2) with f1 over f2
+    # G is assumed to be two-colored
+    over_under_pairs = []
+    for e in G.halfedges:
+        crease_type = e.attributes.get('crease_type', None)
+        if crease_type in (MOUNTAIN, VALLEY) and not (e.on_border() or e.rev.on_border()):
+            e_above = e if e.face[two_coloring_key] else e.rev
+            if crease_type is MOUNTAIN:
+                e_above = e_above.rev
+            over_under_pairs.append([e_above.face, e_above.rev.face])
+    print('number of pairs', len(over_under_pairs))
+    return over_under_pairs
+
+
+TOP = 'top_side'
+BOTTOM = 'bottom_side'
+
+
+def face_order_to_clean_graph(G, side=TOP):
+    from .classifiers import CountingClassifier, RepresentationClassifier, lambda_classifier
+    from .conversions import EHEG_from_nx
+    assert side in (TOP, BOTTOM)
+    cc = CountingClassifier(RepresentationClassifier())
+    G = G.copy()
+    for f in G.faces:
+        try:
+            f['color_key'] = cc.classify(f['sorted_original_faces'][0 if side is TOP else -1])
+        except IndexError:
+            f['color_key'] = 1000
+
+    to_delete = [e
+                 for e in G.halfedges
+                 if not (e.on_border() or e.rev.on_border()) and e.face['color_key'] is e.rev.face['color_key']]
+
+    G.halfedges.difference_update(to_delete)
+    G = EHEG_from_nx(G.to_networkx_undirected(), {v: v['pos'] for v in G.vertices})
+#     to_join = []
+#     for v in G.vertices:
+#         if not v.on_border() and v.order() == 2:
+#             to_join.append(v)
+#     for v in to_join:
+#         G.join_vertex(v)
+    G.recompute_lengths_and_angles()
+    cc = CountingClassifier(lambda_classifier(lambda f: f.area()//0.0001)())
+    for f in G.faces:
+        f['color_key'] = cc.classify(f)
+    return G
+
+
+def fold_complete(G, initial_face=None, overlap_eps=1e-6, area_eps=0):
+    fold_wireframe(G, initial_face=initial_face)
+    over_under_pairs = get_over_under_pairs_from_creases(G)
+    result = dict()
+    G_over = overlap_graph(G, overlap_eps)
+    crease_assignment = find_face_order(G_over, over_under_pairs, ignore_area_threshold=area_eps)
+    # make CP
+    colors = {
+        0: (0, 0, 0),
+        1: (1, 0, 0),
+        -1: (0, 0, 1)
+    }
+    fold_wireframe(G, initial_face=initial_face)
+    for e in G.halfedges:
+        e['crease_assignment'] = crease_assignment.get(e, 0)
+        e['color_key'] = colors[crease_assignment.get(e, 0)]
+    result['CP'] = G
+    result['folded_state'] = G_over
+    result['folded_view_top'] = face_order_to_clean_graph(G_over, TOP)
+    result['folded_view_bottom'] = face_order_to_clean_graph(G_over, BOTTOM)
+    return result

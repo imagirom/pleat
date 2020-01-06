@@ -56,7 +56,8 @@ def from_tiles(tiles, rings=15, vertex_based=True, base_tile=-1):
         for i in range(rings):
             for h in G.border_edges():
                 if h.on_border() and h in G.halfedges:
-                    G.execute_edge_instruction(h)
+                    if 'instruction' in h.attributes:
+                        G.execute_edge_instruction(h)
     return G
 
 

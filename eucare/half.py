@@ -67,10 +67,10 @@ class IdObject(AttributeObject):
         IdObject.current_ids[cls] = IdObject.current_ids.get(cls, 0) + 1
         self['id'] = IdObject.current_ids[cls]
 
-    def __repr__(self):
-        cls = type(self)
-        clspre = cls.printname if hasattr(cls, 'printname') else cls.__name__
-        return f'{clspre}{self["id"]}'
+    #def __repr__(self):
+    #    cls = type(self)
+    #    clspre = cls.printname if hasattr(cls, 'printname') else cls.__name__
+    #    return f'{clspre}{self["id"]}'
 
     @classmethod
     def reset_ids(cls):
@@ -105,8 +105,8 @@ class HalfEdge(IdObject):
         # Face reference
         self.face = face
 
-    def __repr__(self):
-        return f'{self}({self.orig},{self.dest})'
+    #def __repr__(self):
+    #    return f'{self}({self.orig},{self.dest})'
 
     def __str__(self):
         return f'H{self["id"]}'
@@ -301,7 +301,7 @@ class HalfEdgeGraph:
         if not any_deletions:
             # nothing left to do
             return
-        print(f'deleting {n_edge_deletions} edges that do not have a face anymore')
+        #print(f'deleting {n_edge_deletions} edges that do not have a face anymore')
         # update pre and nex where necessary, remove the edges
         for h in adjacent_halfedges:
             if 'to_delete' in h.attributes:

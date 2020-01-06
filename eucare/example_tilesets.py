@@ -24,6 +24,12 @@ def platonic(n):
     return [t]
 
 
+def square_strip():
+    t = RegularEuclideanTile(4, edge_labels=['a', 'b', 'a', 'b'])
+    align_tiles(t, 'a', t, 'a')
+    return [t]
+
+
 def t_3_12_12():
     f3 = RegularEuclideanTile(3, edge_labels=[12, 12, 12])
     f12 = RegularEuclideanTile(12, edge_labels=[12, 3] * 6)

@@ -198,6 +198,19 @@ def get_over_under_pairs(G, two_coloring_key='color_key'):
     return over_under_pairs
 
 
+def fold(G):
+    initial_face = None
+    for f in G.faces:
+        pos = np.array([v['pos'] for v in f.vertex_iter()])
+        if np.all(np.min(pos, axis=0) <= 0) and np.all(np.max(pos, axis=0) > 0):
+            initial_face = f
+    G.twocolor_faces(initial_face=initial_face)
+    for f in filter(lambda f: f['color_key'], G.faces):
+        for e in f.halfedge_iter():
+            e['in_angle'] *= -1
+    G.recompute_positions()
+
+
 #G = sr_graph(factor=0.1, angle=0)
 G = sr_graph()
 #G.add_graph(G.copy())
@@ -209,13 +222,23 @@ print('assigned creases', len([e for e in G.halfedges
               if e.attributes.get('crease_type', None) in ('mountain', 'valley') and not (e.on_border() or e.rev.on_border())]))
 over_under_pairs = get_over_under_pairs(G)
 
-G = ec.overlap.overlap_graph(G, eps=1e-12) #1e-4
-G.show(**render_settings)
-import pulp
-ec.overlap.find_face_order(G, over_under_pairs)
+G_over = ec.overlap.overlap_graph(G, eps=1e-12) #1e-4
+G_over.show(**render_settings)
+crease_assignment = ec.overlap.find_face_order(G_over, over_under_pairs)
 
 #for e in G.halfedges:
 #    print(e['original_face_groups'])
+
+# plot crease assignments
+colors = {
+    0: (0, 0, 0),
+    1: (1, 0, 0),
+    -1: (0, 0, 1)
+}
+for e in G.halfedges:
+    e['color_key'] = colors[crease_assignment.get(e, 0)]
+fold(G)
+G.show(**render_settings)
 
 
 TOP = 'top_side'
@@ -255,5 +278,5 @@ def show_folded(G, side=TOP):
         f['color_key'] = cc.classify(f)
     G.show(**render_settings)
 
-show_folded(G, TOP)
-show_folded(G, BOTTOM)
+show_folded(G_over, TOP)
+show_folded(G_over, BOTTOM)

@@ -2,6 +2,7 @@ import cairo
 from .base import angle_to_axis, unit_vector
 from .half import rotate_by
 import numpy as np
+from collections import Iterable
 try:
     import svgwrite
 except ImportError:
@@ -21,10 +22,17 @@ def inset_poly(pts, dist):
     return [inset_corner(a, b, c, dist) for a, b, c in rotate_by(pts, (0, 1, 2))]
 
 
+_seed_offset = np.random.randint(2**16)
+
+
 def random_color(seed=None):
     if seed is not None:
-        np.random.seed(hash(seed))
+        np.random.seed(hash(seed) + _seed_offset)
     return np.random.uniform(0, 1, 3)
+
+
+def is_color(obj):
+    return isinstance(obj, Iterable) and len(obj) in (3, 4) and all([isinstance(c, (int, float)) for c in obj])
 
 
 class CairoRenderer:
@@ -59,28 +67,29 @@ class CairoRenderer:
         for point in points:
             dc.line_to(*point)
         if color_key in face.attributes:
-            color = random_color(face.attributes.get(color_key, None))
+            color = face.attributes.get(color_key, None)
+            if not is_color(color):
+                color = random_color(color)
             stroke_color = color #* 0.5
         else:
             color = np.array((0.0, 0.0, 0.0, 0.1))
             stroke_color = np.array((0.0, 0.0, 0.0, 0.0))
 
-        if len(color) == 3:
-            dc.set_source_rgb(*color)
-        else:
-            dc.set_source_rgba(*color)
-
+        self.set_source_color(color)
         dc.fill_preserve()
-
-        if len(stroke_color) == 3:
-            dc.set_source_rgb(*stroke_color)
-        else:
-            dc.set_source_rgba(*stroke_color)
-
+        self.set_source_color(stroke_color)
         dc.stroke()
         return self.surface
 
-    def render_edge(self, edge, last_pos=None, tol=1e-6):
+    def set_source_color(self, color):
+        if not is_color(color):
+            color = random_color(color)
+        if len(color) == 3:
+            self.dc.set_source_rgb(*color)
+        else:
+            self.dc.set_source_rgba(*color)
+
+    def render_edge(self, edge, color_key='color_key', last_pos=None, tol=1e-6):
         dc = self.dc
         if True or last_pos is None or np.linalg.norm(last_pos - edge.orig['pos']) > tol:
             dc.move_to(*edge.orig['pos'])
@@ -88,6 +97,12 @@ class CairoRenderer:
             pass
         dc.line_to(*edge.dest['pos'])
         #dc.set_source_rgb(0.0, 0.0, 0.0)
+        # set color. TODO: this interacts weirdly with delayed dc.stroke..
+        if color_key in edge.attributes:
+            self.set_source_color(edge.attributes.get(color_key, None))
+        else:
+            self.set_source_color((0.0, 0.0, 0.0))
+
         if edge.attributes.get('delete', False):
             dc.set_dash([self.line_width*2, self.line_width*3])
             dc.stroke()
@@ -130,6 +145,8 @@ class CairoRenderer:
         return self
 
     def render_graph(self, graph, render_vertices=True, render_faces=True, render_edges=True, for_cutting=False):
+        global _seed_offset
+        _seed_offset = np.random.randint(2**16)
         if self.scale is 'auto':
             self.autocenterscale(graph)
         else:
@@ -162,7 +179,7 @@ class CairoRenderer:
                 last_pos = np.array([np.inf, np.inf])
                 while True:
                     e = edges[current]
-                    _, last_pos = self.render_edge(e, last_pos)
+                    _, last_pos = self.render_edge(e, last_pos=last_pos)
                     rendered[current] = 1
                     rendered[edge_to_index[e.rev]] = 1
                     if all(rendered):
