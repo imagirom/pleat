@@ -9,7 +9,7 @@ render_settings = dict(
     render_edges=True,
     render_faces=True,
     render_vertices=False,
-    line_width=0.003,
+    line_width=7,
     face_inset=0.0,
     for_cutting=False
 )
@@ -85,7 +85,7 @@ def concentric_rings(n, rings, factor):
     G.recompute_lengths_and_angles()
     return G
 
-def sr_graph(n=5, angle=np.pi/4, factor=0.4):
+def sr_graph(n=2, angle=np.pi/4, factor=0.4):
     #G = ec.example_graphs.from_tiles(ec.example_tilesets.t_4_6_12(), n, vertex_based=True) # FIXME: result is one face
     #G = ec.conway.gyro_graph()(G)
 
@@ -96,7 +96,7 @@ def sr_graph(n=5, angle=np.pi/4, factor=0.4):
     factor = gamma / np.sqrt(gamma ** 2 + 2 * gamma * np.sin(beta) + 1)
 
     #angle, factor = 0.11 * np.pi, 0.54
-    G = concentric_rings(12, 2, 3.1)
+    G = concentric_rings(12, n, 3.1)
     #G = ec.example_graphs.from_tiles(ec.example_tilesets.platonic(4), 1, vertex_based=True)
     #G = ec.example_graphs.from_tiles(ec.example_tilesets.t_3_3_4_3_4(), n, vertex_based=True)
     #G = ec.conway.kis_graph()(G)
@@ -104,7 +104,7 @@ def sr_graph(n=5, angle=np.pi/4, factor=0.4):
     G.check_consistency()
 
     G.normalize_positions()
-    #direct_around_origin(G)
+    direct_around_origin(G)
   #   for f in G.faces:
   #       if f.order() == 12:
   #           for e in f.halfedge_iter():
@@ -121,7 +121,9 @@ def sr_graph(n=5, angle=np.pi/4, factor=0.4):
             initial_face = f
     G.twocolor_faces(initial_face=initial_face)
     G.show(**render_settings)
-    assign_MV_to_SRG(G)
+
+    from eucare.overlap import assign_shrink_rotate_creases
+    assign_shrink_rotate_creases(G)
     for f in filter(lambda f: f['color_key'], G.faces):
         for e in f.halfedge_iter():
             e['in_angle'] *= -1
@@ -211,39 +213,8 @@ def fold(G):
     G.recompute_positions()
 
 
-#G = sr_graph(factor=0.1, angle=0)
-G = sr_graph()
-#G.add_graph(G.copy())
-print('inner edges', len(G.halfedges) / 2 - len(G.border_edges()))
-
-#G.show(**render_settings)
-
-print('assigned creases', len([e for e in G.halfedges
-              if e.attributes.get('crease_type', None) in ('mountain', 'valley') and not (e.on_border() or e.rev.on_border())]))
-over_under_pairs = get_over_under_pairs(G)
-
-G_over = ec.overlap.overlap_graph(G, eps=1e-12) #1e-4
-G_over.show(**render_settings)
-crease_assignment = ec.overlap.find_face_order(G_over, over_under_pairs)
-
-#for e in G.halfedges:
-#    print(e['original_face_groups'])
-
-# plot crease assignments
-colors = {
-    0: (0, 0, 0),
-    1: (1, 0, 0),
-    -1: (0, 0, 1)
-}
-for e in G.halfedges:
-    e['color_key'] = colors[crease_assignment.get(e, 0)]
-fold(G)
-G.show(**render_settings)
-
-
 TOP = 'top_side'
 BOTTOM = 'bottom_side'
-
 
 def show_folded(G, side=TOP):
     assert side in (TOP, BOTTOM)
@@ -278,5 +249,37 @@ def show_folded(G, side=TOP):
         f['color_key'] = cc.classify(f)
     G.show(**render_settings)
 
-show_folded(G_over, TOP)
-show_folded(G_over, BOTTOM)
+if __name__ == '__main__':
+    #G = sr_graph(factor=0.1, angle=0)
+    G = sr_graph()
+    #G.add_graph(G.copy())
+    print('inner edges', len(G.halfedges) / 2 - len(G.border_edges()))
+
+    #G.show(**render_settings)
+
+    print('assigned creases', len([e for e in G.halfedges
+                  if e.attributes.get('crease_type', None) in ('mountain', 'valley') and not (e.on_border() or e.rev.on_border())]))
+    over_under_pairs = get_over_under_pairs(G)
+
+    G_over = ec.overlap.overlap_graph(G, eps=1e-12) #1e-4
+    G_over.show(**render_settings)
+    crease_assignment = ec.overlap.find_folded_face_order(G_over, over_under_pairs)
+
+    #for e in G.halfedges:
+    #    print(e['original_face_groups'])
+
+    # plot crease assignments
+    colors = {
+        0: (0, 0, 0),
+        1: (1, 0, 0),
+        -1: (0, 0, 1)
+    }
+    for e in G.halfedges:
+        e['color_key'] = colors[crease_assignment.get(e, 0)]
+    fold(G)
+    G.show(**render_settings)
+
+
+
+    show_folded(G_over, TOP)
+    show_folded(G_over, BOTTOM)

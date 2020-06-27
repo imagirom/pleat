@@ -94,7 +94,7 @@ def EHEG_from_nx(nxg, positions=None, return_v_lookup=False):
             current_min_area = area
             outside_face = f
     assert outside_face is not None, f'Could not find an outside face to delete. Are all areas 0?'
-    print(f'area: {outside_face.area()}, order: {outside_face.order()}')
+    #print(f'area: {outside_face.area()}, order: {outside_face.order()}')
     result.delete_face(outside_face)
 
     # Old method: leads to errors with error 0 faces

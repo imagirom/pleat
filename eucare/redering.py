@@ -36,7 +36,7 @@ def is_color(obj):
 
 
 class CairoRenderer:
-    def __init__(self, width=1000, height=1000, line_width=0.03, scale='auto', face_inset=0.06):
+    def __init__(self, width=1000, height=1000, line_width=0.03, scale='auto', face_inset=0.06, path='output.svg'):
         self.width = width
         self.height = height
         self.scale = scale
@@ -46,11 +46,12 @@ class CairoRenderer:
         #self.surface = cairo.ImageSurface(
         #    cairo.FORMAT_RGB24, self.width, self.height)
         self.surface = cairo.SVGSurface(
-            'output.svg', self.width, self.height
+            path, self.width, self.height
         )
         dc = cairo.Context(self.surface)
         dc.set_line_cap(cairo.LINE_CAP_ROUND)
         dc.set_line_join(cairo.LINE_JOIN_ROUND)
+        self.line_width = line_width
         dc.set_line_width(self.line_width)
         dc.translate(self.width / 2, self.height / 2)
         dc.set_source_rgb(1, 1, 1)
@@ -134,14 +135,13 @@ class CairoRenderer:
 
     def autocenterscale(self, graph):
         positions = np.array([v['pos'] for v in graph.vertices])
-        print(np.max(positions, axis=0), np.min(positions, axis=0))
         offset = (np.max(positions, axis=0) + np.min(positions, axis=0)) / 2
-        print(offset)
         max_abs_pos = np.max(np.abs(positions - offset[None]), axis=0)
-        print(max_abs_pos)
-        scale = np.min(np.array([self.width, self.height]) / max_abs_pos) / 2.05
+        relative_margin = 0.05
+        scale = np.min(np.array([self.width, self.height]) / max_abs_pos) / 2 / (1 + 2 * relative_margin)
         self.dc.scale(scale, scale)
-        self.dc.translate(-offset[0]*1.025, -offset[1] * 1.025)
+        self.dc.set_line_width(self.line_width / scale)
+        self.dc.translate(-offset[0] * (1 + 0 * relative_margin), -offset[1] * (1))
         return self
 
     def render_graph(self, graph, render_vertices=True, render_faces=True, render_edges=True, for_cutting=False):

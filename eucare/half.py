@@ -794,13 +794,13 @@ class EuclideanPositionHEG(InAngleHEG):
         self.recompute_lengths_and_angles()
 
     def show(self, render_faces=True, render_edges=True, render_vertices=True, block=True,
-             figsize=None, for_cutting=False, **kwargs):
+             figsize=None, for_cutting=False, filename='output', **kwargs):
         from .redering import CairoRenderer
         import matplotlib.image as mpimg
-        renderer = CairoRenderer(**kwargs)
+        renderer = CairoRenderer(path=filename+'.svg', **kwargs)
         surface = renderer.render_graph(self, render_faces=render_faces, render_edges=render_edges,
                                         render_vertices=render_vertices, for_cutting=for_cutting)
-        filename = 'output.png'
+        filename = filename + '.png'
         surface.write_to_png(filename)
         # surface.finish()
         img = mpimg.imread(filename)
