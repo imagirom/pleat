@@ -230,7 +230,7 @@ def dual_graph():
     v2 = (0, 1)
     ve = (0, 0)
     G = nx.Graph()
-    G.add_cycle([v1, vf, v2, ve], delete=True)
+    nx.add_cycle(G, [v1, vf, v2, ve], delete=True)
     G.add_nodes_from([v1, v2], delete=True)
     G.add_nodes_from([ve], join=True)
     G.add_edge(ve, vf)
@@ -247,7 +247,7 @@ def kis_graph():
     v2 = (0, 1)
     # construct nx graph with delete and join attributes
     G = nx.Graph()
-    G.add_cycle([v1, vf, v2])
+    nx.add_cycle(G, [v1, vf, v2])
 
     # construct EHEG and ConwayOperator
     heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
@@ -261,7 +261,7 @@ def join_graph():
     v2 = (0, 1)
     # construct nx graph with delete and join attributes
     G = nx.Graph()
-    G.add_cycle([v1, vf, v2])
+    nx.add_cycle(G, [v1, vf, v2])
     G.add_edge(v2, v1, delete=True)
     # construct EHEG and ConwayOperator
     heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
@@ -278,7 +278,7 @@ def ambo_graph():
     v2f = (1 / 2, 1 / 2)
     # construct nx graph with delete and join attributes
     G = nx.Graph()
-    G.add_cycle([v1, v1f, vf, v2f, v2, v12], delete=True)
+    nx.add_cycle(G, [v1, v1f, vf, v2f, v2, v12], delete=True)
     G.add_nodes_from([v1, vf, v2], delete=True)
     G.add_nodes_from([v1f, v2f], join=True)
     G.add_edges_from([[v12, v1f], [v12, v2f]])
@@ -297,7 +297,7 @@ def truncate_graph(t=1 / 2):
     v21t = (0, 1 - t)
     v2ft = (t / 2, 1 - t / 2)
     G = nx.Graph()
-    G.add_cycle([v1, v1ft, vf, v2ft, v2, v21t, v12t], delete=True)
+    nx.add_cycle(G, [v1, v1ft, vf, v2ft, v2, v21t, v12t], delete=True)
     del G.edges[v12t, v21t]['delete']
     G.add_nodes_from([v1, vf, v2], delete=True)
     G.add_nodes_from([v1ft, v2ft], join=True)
@@ -314,7 +314,7 @@ def gyro_graph(g=(1 / 4, -1 / 4)):
     v2 = (0, 1)
     ve = (0, 0)
     G = nx.Graph()
-    G.add_cycle([v1, vf, v2, ve], delete=True)
+    nx.add_cycle(G, [v1, vf, v2, ve], delete=True)
     G.add_edges_from([[g, ve], [g, v1], [g, vf]])
     G.add_node(ve, join=True)
 
@@ -331,7 +331,7 @@ def starify_graph(t=1/3):
     v1f = (t, -1 + t)
     v2f = (t, 1 - t)
     G = nx.Graph()
-    G.add_cycle([v1, v1f, vf, v2f, v2, v0], delete='True')
+    nx.add_cycle(G, [v1, v1f, vf, v2f, v2, v0], delete='True')
     G.add_nodes_from([v0], join=True)
     G.add_edges_from([[v0, v2f], [v2f, v1f]])
 
@@ -349,7 +349,7 @@ def twist_rotate_graph(t=1/2):
     v21t = (0, 1 - t)
     v2ft = (t, 1 - t)
     G = nx.Graph()
-    G.add_cycle([v1, v1ft, vf, v2ft, v2, v21t, v12t], delete=True)
+    nx.add_cycle(G, [v1, v1ft, vf, v2ft, v2, v21t, v12t], delete=True)
     G.add_nodes_from([v1, vf, v2], delete=True)
     G.add_nodes_from([v12t, v21t], join=True)
     G.add_edges_from([[v12t, v1ft], [v21t, v2ft], [v1ft, v2ft]])
@@ -361,13 +361,14 @@ def twist_rotate_graph(t=1/2):
 
 
 def loft_graph(t=1/2):
+    assert t < 1
     v1 = (0, -1)
     vf = (1, 0)
     v2 = (0, 1)
     v1ft = (t, -1 + t)
     v2ft = (t, 1 - t)
     G = nx.Graph()
-    G.add_cycle([v1, v1ft, v2ft, v2])
+    nx.add_cycle(G, [v1, v1ft, v2ft, v2])
     G.add_nodes_from([vf], delete=True)
     G.add_edges_from([[v1ft, vf], [vf, v2ft]], delete=True)
 
@@ -377,6 +378,7 @@ def loft_graph(t=1/2):
 
 
 def chamfer_graph(t=1/2):
+    assert t < 1
     result = loft_graph(t)
     e = [e for e in result.v1.outgoing_iter() if e.dest is result.v2][0]
     e.rev.attributes['delete'] = True
