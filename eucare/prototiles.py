@@ -10,21 +10,14 @@ class ProtoTile:
         raise NotImplementedError
 
 
-class EuclideanProtoTile(ProtoTile):
-    def __init__(self, points=None, edge_labels=None, vertex_labels=None, edge_instructions=None):
-        # points should have shape (n, 2)
-        points = np.array(points)
-        assert len(points.shape) == 2 and points.shape[1] == 2, f'{points.shape}'
-        self.order = len(points)
-        self.points = points
+class PolygonalProtoTile(ProtoTile):
+    def __init__(self, in_angles, edge_lengths, edge_labels=None, vertex_labels=None, edge_instructions=None):
+        assert len(in_angles) == len(edge_lengths)
+        self.order = len(in_angles)
+        self.in_angles = in_angles
+        self.edge_lengths = edge_lengths
         self.edge_labels = edge_labels if edge_labels is not None else list(range(self.order))
         self.vertex_labels = vertex_labels if vertex_labels is not None else list(range(self.order))
-
-        # compute edgelenths and angles
-        edge_vectors = np.concatenate([points[1:], points[:1]]) - points
-        self.edge_lengths = np.linalg.norm(edge_vectors, axis=1)
-        edge_angles = angle_to_axis(edge_vectors)
-        self.in_angles = (np.pi + edge_angles - np.concatenate([edge_angles[1:], edge_angles[:1]])) % (2*np.pi)
 
         # edge_instructions can either be a list for all edges, or a dict, mapping a label to an instruction
         self.edge_instructions = edge_instructions if edge_instructions is not None else dict()
@@ -48,6 +41,7 @@ class EuclideanProtoTile(ProtoTile):
             v['label'] = label
 
         if add_positions:
+            assert hasattr(self, 'points')
             for v, pos in zip(vertices, self.points):
                 v['pos'] = pos
 
@@ -72,6 +66,20 @@ class EuclideanProtoTile(ProtoTile):
             f"edge_labels={self.edge_labels}," \
             f"vertex_labels={self.vertex_labels}" \
             f")"
+
+
+class EuclideanProtoTile(PolygonalProtoTile):
+    def __init__(self, points=None, **super_kwargs):
+        # points should have shape (n, 2)
+        points = np.array(points)
+        assert len(points.shape) == 2 and points.shape[1] == 2, f'{points.shape}'
+        self.points = points
+        # compute edgelenths and angles
+        edge_vectors = np.concatenate([points[1:], points[:1]]) - points
+        edge_lengths = np.linalg.norm(edge_vectors, axis=1)
+        edge_angles = angle_to_axis(edge_vectors)
+        in_angles = (np.pi + edge_angles - np.concatenate([edge_angles[1:], edge_angles[:1]])) % (2*np.pi)
+        super().__init__(in_angles, edge_lengths, **super_kwargs)
 
 
 class RegularEuclideanTile(EuclideanProtoTile):
