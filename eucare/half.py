@@ -757,17 +757,23 @@ class EuclideanPositionHEG(InAngleHEG):
                     # nothing to do here, both positions already determined
                     pass
                 else:
-                    length = e['length']
-                    next_angle = angle_to_axis(e.orig['pos'] - e.pre.orig['pos']) + np.pi - e.pre['in_angle']
-                    dir = unit_vector(next_angle)
-                    next_pos = e.orig['pos'] + length * dir
-                    e.dest['pos'] = next_pos
+                    e.dest['pos'] = self.construct_next_point(
+                        a=e.pre.orig['pos'], b=e.orig['pos'],
+                        angle=e.pre['in_angle'], length=e['length']
+                    )
                 opposite_face = e.rev.face
                 if opposite_face in faces and opposite_face not in processed_faces:
                     yet_to_process.add((opposite_face, e.rev.nex))
                 e = e.nex
                 if e is initial:
                     break
+
+    @staticmethod
+    def construct_next_point(a, b, angle, length):
+        """construct the point c such that angle(a, b, c)=angle and |bc|=length"""
+        next_angle = angle_to_axis(b - a) + np.pi - angle
+        direction = unit_vector(next_angle)
+        return b + length * direction
 
     def recompute_lengths_and_angles(self):
         for f in self.faces:
