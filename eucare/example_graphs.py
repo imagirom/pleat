@@ -41,16 +41,15 @@ def rosette(n=8):
     return G
 
 
-def from_tiles(tiles, rings=15, vertex_based=True, base_tile=-1, add_positions=True, hyperbolic=False):
+def from_tiles(tiles, rings=2, vertex_based=True, base_tile=-1, add_positions=True):
     if isinstance(base_tile, int):
         base_tile = tiles[base_tile]
     if isinstance(base_tile, ProtoTile):
         base_tile = base_tile.make_graph(add_positions=add_positions)[0]
     if add_positions:
-        if not hyperbolic:
-            G = EuclideanPositionHEG(other=base_tile)
-        else:
-            assert False
+        assert len({tile.geometry for tile in tiles}) == 1, f'Geometries must agree but got {[tile.geometry for tile in tiles]}'
+        assert tiles[0].geometry is not None
+        G = GeometricHEG(geometry=tiles[0].geometry, other=base_tile)
     else:
         G = InAngleHEG(other=base_tile)
     if vertex_based:

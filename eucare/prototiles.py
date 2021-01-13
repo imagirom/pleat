@@ -1,6 +1,7 @@
 from .half import HalfEdge, CyclicHalfedgeGraph, Vertex, InAngleHEG
 from .base import angle_to_axis, unit_vector, unit_vector_to_vector
 from .instructions import attatch_tile_instruction
+from .geometries import *
 import numpy as np
 
 
@@ -60,7 +61,7 @@ class PolygonalProtoTile(ProtoTile):
         return attatch_tile_instruction(self, label)
 
     def __str__(self):
-        return f"EuclideanPrototile(" \
+        return f"PolygonalProtoTile(" \
             f"lenghts={self.edge_lengths}, " \
             f"angles={self.in_angles}, " \
             f"edge_labels={self.edge_labels}," \
@@ -68,8 +69,32 @@ class PolygonalProtoTile(ProtoTile):
             f")"
 
 
+class RegularProtoTile(PolygonalProtoTile):
+    def __init__(self, n, in_angle, edge_length, **super_kwargs):
+        super().__init__([in_angle]*n, [edge_length]*n, **super_kwargs)
+        euclidean_angle_deficit = np.pi * (n - 2) - in_angle * n
+        eps = 1e-6
+        if abs(euclidean_angle_deficit) < eps:
+            self.geometry = EuclideanGeometry
+        elif euclidean_angle_deficit < 0:
+            self.geometry = SphereModel
+        else:
+            self.geometry = PoincareDiskModel
+
+        geo = self.geometry
+        # calculate points
+        points = [geo.origin(), geo.from_polar(edge_length, 0)]
+        for _ in range(n-2):
+            points.append(geo.construct_next_poly_point(points[-2], points[-1], in_angle, edge_length))
+        com = geo.center_of_mass(np.array(points))
+        transform = geo.translation(com, geo.origin())
+        self.points = np.array([transform(point) for point in points])
+
+
+
 class EuclideanProtoTile(PolygonalProtoTile):
     def __init__(self, points=None, **super_kwargs):
+        self.geometry = EuclideanGeometry
         # points should have shape (n, 2)
         points = np.array(points)
         assert len(points.shape) == 2 and points.shape[1] == 2, f'{points.shape}'
