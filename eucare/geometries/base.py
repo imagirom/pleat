@@ -1,3 +1,19 @@
+import numpy as np
+from collections import Counter
+from scipy.optimize import root_scalar
+from functools import partial
+
+
+def root_return(func):
+    def inner(*args, **kwargs):
+        result = func(*args, **kwargs)
+        if result.converged:
+            return result.root
+        else:
+            raise ValueError(f'No root was found')
+    return inner
+
+
 class Geometry:
     """base class for various 2D geometries"""
 
@@ -40,6 +56,10 @@ class Geometry:
     @classmethod
     def point_along_axis(cls, x):
         """return a point along the standard axis, parametrized by x, signed distance to the origin"""
+        raise NotImplementedError
+
+    @classmethod
+    def to_euclidean(cls, pts):
         raise NotImplementedError
 
     @classmethod
@@ -87,9 +107,49 @@ class Geometry:
     def construct_next_poly_point(cls, a, b, angle, length):
         """construct the point c such that angle(a, b, c)=angle and |bc|=length"""
         a0 = cls.translation(b, cls.origin())(a)
-        c0 = cls.from_polar(length, cls.angle_to_axis(a0) + angle)
+        c0 = cls.from_polar(length, cls.angle_to_axis(a0) - angle)
         c = cls.translation(cls.origin(), b)(c0)
         return c
+
+    @classmethod
+    def regular_poly_in_angle(cls, n, r):
+        return 2 * cls.angle(cls.from_polar(r, -np.pi / n), cls.from_polar(r, np.pi / n), cls.origin())
+
+    @classmethod
+    def regular_poly_side_length(cls, n, r):
+        return cls.distance(cls.from_polar(r, -np.pi / n), cls.from_polar(r, np.pi/n))
+
+    @classmethod
+    def platonic_side_length(cls, n, k):
+        """find the sidelength of a regular polygon with n sides and an in-angle of 2*pi/k"""
+        raise NotImplementedError
+
+    @classmethod
+    @root_return
+    def platonic_side_length_to_radius(cls, n, l):
+        """find the radius of a regular n-gon of side length l"""
+        return root_scalar(lambda r: cls.regular_poly_side_length(n, r) - l, x0=0.1, x1=0.01)
+
+    @classmethod
+    @root_return
+    def archimedian_side_length(cls, faces_around_corner, **archimedian_side_length_root_kwargs):
+        multiplicities = Counter(faces_around_corner)
+
+        def length_to_angle_deficit(l):
+            return sum(k * cls.regular_poly_in_angle(n, cls.platonic_side_length_to_radius(n, l))
+                       for n, k in multiplicities.items()) - 2 * np.pi
+
+        if not archimedian_side_length_root_kwargs:
+            archimedian_side_length_root_kwargs = dict(x0=1, x1=2)
+
+        return root_scalar(lambda l: np.sign(l) * length_to_angle_deficit(abs(l)),
+                           **archimedian_side_length_root_kwargs)
+
+    @classmethod
+    def archimedian_side_length_and_angles(cls, faces_around_corner):
+        length = cls.archimedian_side_length(faces_around_corner)
+        return length, {n: cls.regular_poly_in_angle(n, cls.platonic_side_length_to_radius(n, length))
+                        for n in set(faces_around_corner)}
 
     # TODO: implement from triangle coordinates (also to?)
     # @classmethod

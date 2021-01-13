@@ -53,7 +53,7 @@ def hyperboloid_centroid(vs, ms=None, axis=None):
     if axis is None:
         assert len(vs.shape) == 2
         axis = 0
-    ms = np.ones(list(vs.shape[:-1]) + [1], dtype=vs.dtype) if ms is None else ms
+    ms = np.ones(list(vs.shape[:-1]), dtype=vs.dtype) if ms is None else ms
     mean = (vs * ms[..., None]).mean(axis)
     mean /= np.sqrt(mean[..., :1] ** 2 - (mean[..., 1:] ** 2).sum(-1, keepdims=True))
     return mean
@@ -100,3 +100,7 @@ class PoincareDiskModel(Geometry):
     @classmethod
     def point_along_axis(cls, x):
         return np.sign(x) * np.tanh(np.abs(x) / 2)
+
+    @classmethod
+    def to_euclidean(cls, pts):
+        return complex_to_real(pts)

@@ -42,3 +42,15 @@ class EuclideanGeometry(Geometry):
     @classmethod
     def point_along_axis(cls, x):
         return np.array([x, 0])
+
+    @classmethod
+    def to_euclidean(cls, pts):
+        return pts
+
+    @classmethod
+    def archimedian_side_length(cls, faces_around_corner, eps=1e-6):
+        euclidean_vertex_angle = sum(np.pi * (n - 2) / n for n in faces_around_corner)
+        if abs(euclidean_vertex_angle - 2 * np.pi) < eps:
+            return 1
+        else:
+            raise ValueError(f'Vertex {faces_around_corner} is impossible in euclidean geometry.')

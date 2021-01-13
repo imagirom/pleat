@@ -1,3 +1,3 @@
 from .euclidean import EuclideanGeometry
 from .hyperbolic import PoincareDiskModel
-from .spherical import UnitSphereModel
+from .spherical import SphereModel

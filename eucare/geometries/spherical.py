@@ -18,7 +18,7 @@ def _rot_z_mat(a1):
     ])
 
 
-class UnitSphereModel(Geometry):
+class SphereModel(Geometry):
     @classmethod
     def origin(cls):
         return np.array([1, 0, 0])
@@ -48,7 +48,7 @@ class UnitSphereModel(Geometry):
 
     @classmethod
     def _rotate_around_origin(cls, a1):
-        mat = _rot_x_mat(a1)
+        mat = _rot_x_mat(a1).T
 
         def origin_rotate(p):
             return p @ mat
@@ -75,3 +75,18 @@ class UnitSphereModel(Geometry):
     @classmethod
     def point_along_axis(cls, x):
         return np.array([np.cos(x), np.sin(x), 0])
+
+    @classmethod
+    def archimedian_side_length(cls, faces_around_corner):
+        return super().archimedian_side_length(faces_around_corner, bracket=[0.1, 2*np.pi/max(faces_around_corner)])
+
+    # --- Methods Specific to this geometry ---
+
+    @classmethod
+    def stereographic_projection(cls, pts):
+        """stereographic projection with pole at (-1, 0, 0)"""
+        return 2 * pts[..., 1:] / (pts[..., :1] + 1)
+
+    @classmethod
+    def to_euclidean(cls, pts):
+        return cls.stereographic_projection(pts)
