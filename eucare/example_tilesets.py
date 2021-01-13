@@ -1,4 +1,6 @@
-from .prototiles import RegularEuclideanTile
+import numpy as np
+from .prototiles import RegularEuclideanTile, RegularProtoTile
+from .geometries import *
 
 
 class TileSet:
@@ -127,3 +129,92 @@ def u2_4_6_12__3_4_6_4():
 # cairo_tri.edge_instructions[2] = attatch_tile_instruction(cairo_tri, 2)
 # cairo_sq_A.edge_instructions['a'] = attatch_tile_instruction(cairo_tri, 0)
 # cairo_sq_B.edge_instructions['a'] = attatch_tile_instruction(cairo_tri, 1)
+
+
+def archimedian_vertex_to_geometry(face_orders):
+    euclidean_vertex_angle = sum(np.pi * (n-2) / n for n in face_orders)
+    if abs(euclidean_vertex_angle - 2*np.pi) < 1e-6:
+        return EuclideanGeometry
+    elif euclidean_vertex_angle < 2*np.pi:
+        return SphereModel
+    else:
+        return PoincareDiskModel
+
+
+def curved_platonic(n, k):
+    # angles in units of pi
+    geo = archimedian_vertex_to_geometry([n]*k)
+    side_length = geo.archimedian_side_length([n]*k)
+    t = RegularProtoTile(n, 2*np.pi/k, side_length, edge_labels=['a']*n)
+    align_tiles(t, 'a', t, 'a')
+    return [t]
+
+
+def curved_snub(n, k):
+    face_orders = [n, 3, 3, k, 3]
+    geo = archimedian_vertex_to_geometry(face_orders)
+    side_length, angles = geo.archimedian_side_length_and_angles(face_orders)
+    t1 = RegularProtoTile(n, angles[n], side_length, edge_labels=['a']*n)
+    t2 = RegularProtoTile(k, angles[k], side_length, edge_labels=['b']*k)
+    t3 = RegularProtoTile(3, angles[3], side_length, edge_labels=['a', 'b', 'c'])
+    align_tiles(t1, 'a', t3, 'a')
+    align_tiles(t2, 'b', t3, 'b')
+    align_tiles(t3, 'c', t3, 'c')
+    return [t2, t3, t1]
+
+
+def curved_expand(n, k):
+    face_orders = [n, 4, k, 4]
+    geo = archimedian_vertex_to_geometry(face_orders)
+    side_length, angles = geo.archimedian_side_length_and_angles(face_orders)
+    t1 = RegularProtoTile(n, angles[n], side_length, edge_labels=['a']*n)
+    t2 = RegularProtoTile(k, angles[k], side_length, edge_labels=['b']*k)
+    t3 = RegularProtoTile(4, angles[4], side_length, edge_labels=['a', 'b', 'a', 'b'])
+    align_tiles(t1, 'a', t3, 'a')
+    align_tiles(t2, 'b', t3, 'b')
+    return [t2, t3, t1]
+
+
+def curved_truncate(n, k):
+    face_orders = [2*n, k, 2*n]
+    geo = archimedian_vertex_to_geometry(face_orders)
+    side_length, angles = geo.archimedian_side_length_and_angles(face_orders)
+    t1 = RegularProtoTile(2*n, angles[2*n], side_length, edge_labels=['a', 'b']*n)
+    t2 = RegularProtoTile(k, angles[k], side_length, edge_labels=['b']*k)
+    align_tiles(t1, 'a', t1, 'a')
+    align_tiles(t1, 'b', t2, 'b')
+    return [t2, t1]
+
+
+def curved_ambo(n, k):
+    face_orders = [n, k, n, k]
+    geo = archimedian_vertex_to_geometry(face_orders)
+    side_length, angles = geo.archimedian_side_length_and_angles(face_orders)
+    t1 = RegularProtoTile(n, angles[n], side_length, edge_labels=['a']*n)
+    t2 = RegularProtoTile(k, angles[k], side_length, edge_labels=['a']*k)
+    align_tiles(t1, 'a', t2, 'a')
+    return [t2, t1]
+
+
+def curved_omnitruncate(n, k):
+    face_orders = [2*n, 4, 2*k]
+    geo = archimedian_vertex_to_geometry(face_orders)
+    side_length, angles = geo.archimedian_side_length_and_angles(face_orders)
+    t1 = RegularProtoTile(2*n, angles[2*n], side_length, edge_labels=['a', 'b']*n)
+    t2 = RegularProtoTile(2*k, angles[2*k], side_length, edge_labels=['a', 'c']*k)
+    t3 = RegularProtoTile(4, angles[4], side_length, edge_labels=['b', 'c']*2)
+    align_tiles(t1, 'a', t2, 'a')
+    align_tiles(t1, 'b', t3, 'b')
+    align_tiles(t2, 'c', t3, 'c')
+    return [t2, t3, t1]
+
+
+def curved_zip(n, k):
+    face_orders = [n, 2*k, 2*k]
+    geo = archimedian_vertex_to_geometry(face_orders)
+    side_length, angles = geo.archimedian_side_length_and_angles(face_orders)
+    t1 = RegularProtoTile(n, angles[n], side_length, edge_labels=['a']*n)
+    t2 = RegularProtoTile(2*k, angles[2*k], side_length, edge_labels=['a', 'b']*k)
+    align_tiles(t1, 'a', t2, 'a')
+    align_tiles(t2, 'b', t2, 'b')
+    return [t2, t1]
