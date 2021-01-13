@@ -36,12 +36,14 @@ def is_color(obj):
 
 
 class CairoRenderer:
-    def __init__(self, width=1000, height=1000, line_width=0.03, scale='auto', face_inset=0.06, path='output.svg'):
+    def __init__(self, width=1000, height=1000, line_width=0.03, scale='auto', face_inset=0.06, path='output.svg',
+                 position_key='pos'):
         self.width = width
         self.height = height
         self.scale = scale
         self.line_width = line_width
         self.face_inset = face_inset
+        self.position_key = position_key
 
         #self.surface = cairo.ImageSurface(
         #    cairo.FORMAT_RGB24, self.width, self.height)
@@ -60,7 +62,7 @@ class CairoRenderer:
 
     def render_face(self, face, color_key='color_key'):
         dc = self.dc
-        points = [v['pos'] for v in face.vertex_iter()]
+        points = [v[self.position_key] for v in face.vertex_iter()]
         inset = self.face_inset
         if inset != 0:
             points = inset_poly(points, inset)
@@ -92,11 +94,11 @@ class CairoRenderer:
 
     def render_edge(self, edge, color_key='color_key', last_pos=None, tol=1e-6):
         dc = self.dc
-        if True or last_pos is None or np.linalg.norm(last_pos - edge.orig['pos']) > tol:
-            dc.move_to(*edge.orig['pos'])
+        if True or last_pos is None or np.linalg.norm(last_pos - edge.orig[self.position_key]) > tol:
+            dc.move_to(*edge.orig[self.position_key])
         else:
             pass
-        dc.line_to(*edge.dest['pos'])
+        dc.line_to(*edge.dest[self.position_key])
         #dc.set_source_rgb(0.0, 0.0, 0.0)
         # set color. TODO: this interacts weirdly with delayed dc.stroke..
         if color_key in edge.attributes:
@@ -111,11 +113,11 @@ class CairoRenderer:
         else:
             pass
             #dc.stroke()
-        return self.surface if last_pos is None else (self.surface, edge.dest['pos'])
+        return self.surface if last_pos is None else (self.surface, edge.dest[self.position_key])
 
     def render_vertex(self, vertex):
         dc = self.dc
-        dc.arc(*vertex['pos'], 2*self.line_width, 0, 2*np.pi)
+        dc.arc(*vertex[self.position_key], 2*self.line_width, 0, 2*np.pi)
         if vertex.attributes.get('join', False):
             dc.set_source_rgb(0.0, 1.0, 0.0)
         elif vertex.attributes.get('delete', False):
@@ -127,14 +129,14 @@ class CairoRenderer:
         dc.stroke()
 
     def autoscale(self, graph):
-        positions = np.array([v['pos'] for v in graph.vertices])
+        positions = np.array([v[self.position_key] for v in graph.vertices])
         max_abs_pos = np.max(np.abs(positions), axis=0)
         scale = np.min(np.array([self.width, self.height]) / max_abs_pos) / 2.2
         self.dc.scale(scale, scale)
         return self
 
     def autocenterscale(self, graph):
-        positions = np.array([v['pos'] for v in graph.vertices])
+        positions = np.array([v[self.position_key] for v in graph.vertices])
         offset = (np.max(positions, axis=0) + np.min(positions, axis=0)) / 2
         max_abs_pos = np.max(np.abs(positions - offset[None]), axis=0)
         relative_margin = 0.05
@@ -173,7 +175,7 @@ class CairoRenderer:
                 edge_to_index = {e: i for i, e in enumerate(edges)}
                 n_edges = len(edges)
                 rendered = np.zeros(n_edges, dtype=np.int32)
-                origs = np.stack([e.orig['pos'] for e in edges])
+                origs = np.stack([e.orig[self.position_key] for e in edges])
                 current = np.argmin(origs[:, 0])
                 id_range = np.arange(n_edges)
                 last_pos = np.array([np.inf, np.inf])
@@ -184,7 +186,7 @@ class CairoRenderer:
                     rendered[edge_to_index[e.rev]] = 1
                     if all(rendered):
                         break
-                    dists = np.linalg.norm(origs[rendered == 0] - e.dest['pos'][None], axis=1)
+                    dists = np.linalg.norm(origs[rendered == 0] - e.dest[self.position_key][None], axis=1)
                     current = id_range[rendered == 0][np.argmin(dists)]
                     if np.min(dists) > 1e-6:  # TODO: hardcoding this is bad, use relative deviation..
                         self.dc.stroke()
@@ -199,8 +201,9 @@ class CairoRenderer:
 
 class SvgwriteRenderer:
     """This is to be used with a cutting plotter"""
-    def __init__(self):
+    def __init__(self, position_key='pos'):
         assert svgwrite is not None, f'SvgwriteRenderer requires the svgwrite package. You can install it via pip.'
+        self.position_key = position_key
         
     def render_graph(self, filename, graph, render_vertices=False, render_faces=False, render_edges=True,
                      for_cutting=True, height=30, unit=svgwrite.cm):
@@ -228,24 +231,24 @@ class SvgwriteRenderer:
                 edge_to_index = {e: i for i, e in enumerate(edges)}
                 n_edges = len(edges)
                 rendered = np.zeros(n_edges, dtype=np.int32)
-                origs = np.stack([e.orig['pos'] for e in edges])
+                origs = np.stack([e.orig[self.position_key] for e in edges])
                 current = int(np.argmin(origs[:, 0]))
                 id_range = np.arange(n_edges)
                 polylines = []
-                current_polyline = [edges[current].orig['pos']]
+                current_polyline = [edges[current].orig[self.position_key]]
                 while True:
                     e = edges[current]
-                    last_pos = e.dest['pos']
+                    last_pos = e.dest[self.position_key]
                     current_polyline.append(last_pos)
                     rendered[current] = 1
                     rendered[edge_to_index[e.rev]] = 1
                     if all(rendered):
                         break
-                    dists = np.linalg.norm(origs[rendered == 0] - e.dest['pos'][None], axis=1)
+                    dists = np.linalg.norm(origs[rendered == 0] - e.dest[self.position_key][None], axis=1)
                     current = id_range[rendered == 0][np.argmin(dists)]
                     if np.min(dists) > 1e-6:  # TODO: hardcoding this is bad, use relative deviation..
                         polylines.append(current_polyline)
-                        current_polyline = [edges[current].orig['pos']]
+                        current_polyline = [edges[current].orig[self.position_key]]
                 polylines.append(current_polyline)
 
                 for pts in polylines:

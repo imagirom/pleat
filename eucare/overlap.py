@@ -11,11 +11,13 @@ import os
 import itertools
 from collections import defaultdict
 from functools import cmp_to_key
+from copy import copy
 
 from .utils import random_directed_set
 from .half import rotate_by
 from .base import orientation
 from .conversions import EHEG_from_nx
+from .redering import SvgwriteRenderer
 
 
 def intervals_overlapping(interval1, interval2):
@@ -744,7 +746,7 @@ def fold_complete(G, initial_face=None, overlap_eps=1e-6, area_eps=0):
     return result
 
 
-def save_results(results, path='results', render_settings=None):
+def save_results(results, path='results', render_settings=None, min_foldable_length=None, bbox=None):
     if render_settings is None:
         render_settings = dict(
             figsize=(7, 7),
@@ -752,18 +754,74 @@ def save_results(results, path='results', render_settings=None):
             render_faces=False,
             render_vertices=False,
             face_inset=0,
-            for_cutting = False,
+            for_cutting=False,
             line_width=3,
         )
     os.makedirs(path, exist_ok=True)
     cp_settings = render_settings.copy()
     cp_settings.update(dict(filename=os.path.join(path, 'CP'), render_faces=False))
     results['CP'].show(**cp_settings)
-    
+
     folded_settings = render_settings.copy()
     folded_settings.update(dict(filename=os.path.join(path, 'top')))
     results['folded_view_top'].show(**folded_settings)
     folded_settings.update(dict(filename=os.path.join(path, 'bottom')))
     results['folded_view_bottom'].show(**folded_settings)
+
+    backlight_settings = copy(render_settings)
+    backlight_settings['render_edges'] = False
+    backlight_settings['render_faces'] = True
+    backlight_settings['line_width'] = 0
+    backlight_settings['filename'] = os.path.join(path, 'backlit')
+    for f in results['folded_state'].faces:
+        f['color_key'] = [0, 0, 0, 1 - 0.85 ** (len(f['original_faces']))]
+    results['folded_state'].show(**backlight_settings)
+
+    # optimize rotation and save for cutting
+
+    def angle_to_height(G, angle):
+        border_positions = np.array([v['pos'] for v in G.border_vertex_iter()])
+        rot_border_positions = border_positions @ np.array([[np.cos(angle)], [-np.sin(angle)]])
+        return np.max(rot_border_positions) - np.min(rot_border_positions)
+
+    def optimize_rotation(G, angle_offset=0):
+        border_positions = np.array([v['pos'] for v in G.border_vertex_iter()])
+
+        def angle_to_height(angle):
+            rot_border_positions = border_positions @ np.array([[np.cos(angle)], [-np.sin(angle)]])
+            return np.max(rot_border_positions) - np.min(rot_border_positions)
+
+        angles = np.linspace(0, np.pi, 10000)
+        heights = [angle_to_height(a) for a in angles]
+        angle = angles[np.argmin(heights)] + angle_offset
+        ps = G.get_position_view(return_vertices=False)
+        ps[:] = ps @ np.array([[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]])
+
+    def min_edge_length(G):
+        edges = copy(G.halfedges)
+        min_length = np.inf
+        while edges:
+            e = edges.pop()
+            edges.remove(e.rev)
+            min_length = min(((e.orig['pos'] - e.dest['pos']) ** 2).sum(), min_length)
+        return np.sqrt(min_length)
+
+    SRG = results['CP']
+    if bbox is not None:
+        optimize_rotation(SRG, angle_offset=0 if bbox[0] < bbox[1] else np.pi / 2)
+        scale = max(angle_to_height(SRG, 0) / bbox[0], angle_to_height(SRG, np.pi / 2) / bbox[1])
+        sheet_height = angle_to_height(SRG, np.pi / 2) / scale
+        print(f'The shortest fold has a length of {min_edge_length(SRG) / scale:4.2f}cm.')
+    else:
+        optimize_rotation(SRG, angle_offset=0)
+        min_foldable_length = 0.5 if min_foldable_length is None else min_foldable_length
+        sheet_height = angle_to_height(SRG, np.pi / 2) * min_foldable_length / min_edge_length(SRG)
+
+    folded = results['folded_state']
+    optimize_rotation(folded, angle_offset=0)
+    print(f"The folded model has a size of {angle_to_height(folded):4.2} x {angle_to_height(folded):4.2}cm.")
+
+    plotter = SvgwriteRenderer()
+    plotter.render_graph(os.path.join(path, 'cp_for_cutting.svg'), SRG, height=sheet_height)
 
 from functools import lru_cache
