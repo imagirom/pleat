@@ -27,11 +27,17 @@ def edge_lengths(points):
     return np.linalg.norm(edge_vectors, axis=1)
 
 
-def edge_lengths_and_in_angles(points):
-    edge_vectors = np.concatenate([points[1:], points[:1]]) - points
-    edge_lengths = np.linalg.norm(edge_vectors, axis=1)
-    edge_angles = angle_to_axis(edge_vectors)
-    in_angles = (np.pi + edge_angles - np.concatenate([edge_angles[1:], edge_angles[:1]])) % (2*np.pi)
+def edge_lengths_and_in_angles(points, geometry):
+    edge_lengths = [geometry.distance(p1, p2) for p1, p2 in zip(points, np.concatenate([points[1:], points[:1]]))]
+    in_angles = [geometry.angle(p1, p2, p3)
+                 for p1, p2, p3 in zip(points,
+                                       np.concatenate([points[1:], points[:1]]),
+                                       np.concatenate([points[2:], points[:2]]))]
+
+    # edge_vectors = np.concatenate([points[1:], points[:1]]) - points
+    # edge_lengths = np.linalg.norm(edge_vectors, axis=1)
+    # edge_angles = angle_to_axis(edge_vectors)
+    # in_angles = (np.pi + edge_angles - np.concatenate([edge_angles[1:], edge_angles[:1]])) % (2*np.pi)
     return edge_lengths, in_angles
 
 

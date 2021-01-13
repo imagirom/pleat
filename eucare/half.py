@@ -6,6 +6,7 @@ from math import pi
 import numpy as np
 from collections import deque
 from .base import unit_vector, angle_to_axis, edge_lengths_and_in_angles, signed_area
+from .geometries import *
 
 # TODO: the big ones
 # - add rendering for proto tiles
@@ -220,9 +221,9 @@ class Face(IdObject):
     def midpoint(self):
         return np.mean([v['pos'] for v in self.vertex_iter()], axis=0)
 
-    def recompute_lengths_and_angles(self):
+    def recompute_lengths_and_angles(self, geometry):
         points = np.stack([v['pos'] for v in self.vertex_iter()])
-        lengths, angles = edge_lengths_and_in_angles(points)
+        lengths, angles = edge_lengths_and_in_angles(points, geometry)
         for e, length, angle in zip(self.halfedge_iter(), lengths, angles):
             e['length'] = length
             e['in_angle'] = angle
@@ -708,9 +709,10 @@ class InAngleHEG(HalfEdgeGraph):
             self.autoclose_vertex(e1.rev.dest, reverse=True, recursive=auto_close_recursive)
 
 
-class EuclideanPositionHEG(InAngleHEG):
-    def __init__(self, **super_kwargs):
-        super(EuclideanPositionHEG, self).__init__(**super_kwargs)
+class GeometricHEG(InAngleHEG):
+    def __init__(self, geometry=EuclideanGeometry, **super_kwargs):
+        super(GeometricHEG, self).__init__(**super_kwargs)
+        self.geometry = geometry
 
     def positions_coincide(self, p1, p2):
         return np.linalg.norm(p1 -p2) < self.eps
@@ -720,7 +722,7 @@ class EuclideanPositionHEG(InAngleHEG):
 
     def glue_graph_e2e(self, graph, e1, e2):
         assert self.lengths_equal(e1.rev['length'], e2.rev['length'])
-        super(EuclideanPositionHEG, self).glue_graph_e2e(graph, e1, e2)
+        super().glue_graph_e2e(graph, e1, e2)
         e = (e1 if e1 in graph.halfedges else e2).rev
         self.recompute_positions(edge_to_start=e, faces=graph.faces)
 
@@ -768,16 +770,16 @@ class EuclideanPositionHEG(InAngleHEG):
                 if e is initial:
                     break
 
-    @staticmethod
-    def construct_next_point(a, b, angle, length):
+    def construct_next_point(self, a, b, angle, length):
         """construct the point c such that angle(a, b, c)=angle and |bc|=length"""
-        next_angle = angle_to_axis(b - a) + np.pi - angle
-        direction = unit_vector(next_angle)
-        return b + length * direction
+        return self.geometry.construct_next_poly_point(a, b, angle, length)
+        # next_angle = angle_to_axis(b - a) + np.pi - angle
+        # direction = unit_vector(next_angle)
+        # return b + length * direction
 
     def recompute_lengths_and_angles(self):
         for f in self.faces:
-            f.recompute_lengths_and_angles()
+            f.recompute_lengths_and_angles(geometry=self.geometry)
 
     def get_position_view(self, vertices=None, return_vertices=True):
         vertices = list(self.vertices) if vertices is None else vertices
@@ -789,21 +791,30 @@ class EuclideanPositionHEG(InAngleHEG):
         else:
             return positions
 
-    def normalize_positions(self):
-        ps, vs = self.get_position_view()
-        k = ps.copy()
-        k = np.array([complex(*ki) for ki in k])
-        k -= np.mean(k)
-        k = k / np.max(np.abs(k))
-        k = np.stack([k.real, k.imag], axis=-1)
-        ps[:] = k
+    # def normalize_positions(self):
+    #     ps, vs = self.get_position_view()
+    #     k = ps.copy()
+    #     k = np.array([complex(*ki) for ki in k])
+    #     k -= np.mean(k)
+    #     k = k / np.max(np.abs(k))
+    #     k = np.stack([k.real, k.imag], axis=-1)
+    #     ps[:] = k
+    #     self.recompute_lengths_and_angles()
+
+    def convert_to_euclidean(self):
+        for v in self.vertices:
+            v['pos'] = self.geometry.to_euclidean(v['pos'])
+        self.geometry = EuclideanGeometry
         self.recompute_lengths_and_angles()
 
     def show(self, render_faces=True, render_edges=True, render_vertices=True, block=True,
              figsize=None, for_cutting=False, filename='output', **kwargs):
         from .redering import CairoRenderer
         import matplotlib.image as mpimg
-        renderer = CairoRenderer(path=filename+'.svg', **kwargs)
+        render_position_key = 'euclidean_pos'
+        for v in self.vertices:
+            v[render_position_key] = self.geometry.to_euclidean(v['pos'])
+        renderer = CairoRenderer(path=filename+'.svg', position_key=render_position_key, **kwargs)
         surface = renderer.render_graph(self, render_faces=render_faces, render_edges=render_edges,
                                         render_vertices=render_vertices, for_cutting=for_cutting)
         filename = filename + '.png'
@@ -816,6 +827,10 @@ class EuclideanPositionHEG(InAngleHEG):
         plt.axis('off')
         plt.show(block=block)
 
+
+class EuclideanPositionHEG(GeometricHEG):
+    def __init__(self, **super_kwargs):
+        super().__init__(geometry=EuclideanGeometry, **super_kwargs)
 
 # ------------------------------------------------ cyclic graph example ------------------------------------------------
 
