@@ -205,20 +205,25 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         to_barycentric = euclidean_to_barycentric_map(np.array([self.v1['pos'], self.vf['pos'], self.v2['pos']]))
         for v in self.graph.vertices:
             v['pos'] = to_barycentric(v['pos'])
+        self.geometry = None
 
     def get_tri(self, h):
         return np.array([h.dest['pos'], h.face.midpoint(), h.orig['pos']])
 
     def generate_graph_and_corners(self, tri):
+
         result, corners = super(GeometricConwayOperator, self).generate_graph_and_corners(tri)
 
-        to_euclidean = barycentric_to_euclidean_map(tri)
+        to_euclidean = self.geometry.barycentric_to_euclidean_map(tri)
+        # this could be vectorized
         for v in result.vertices:
             v['pos'] = to_euclidean(v['pos'])
         return result, corners
 
     def __call__(self, graph, recompute_lengths_and_angles=True, **kwargs):
-        result = super(GeometricConwayOperator, self).__call__(graph, **kwargs)
+        assert isinstance(graph, GeometricHEG)
+        self.geometry = graph.geometry
+        result = super().__call__(graph, **kwargs)
         if recompute_lengths_and_angles:
             result.recompute_lengths_and_angles()
         return result

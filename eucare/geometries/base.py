@@ -151,5 +151,9 @@ class Geometry:
         return length, {n: cls.regular_poly_in_angle(n, cls.platonic_side_length_to_radius(n, length))
                         for n in set(faces_around_corner)}
 
+    @classmethod
+    def barycentric_to_euclidean_map(cls, tri):
+        return lambda masses: cls.center_of_mass(tri, masses)
+
     # TODO: implement from triangle coordinates (also to?)
     # @classmethod

@@ -194,10 +194,10 @@ def _face_to_array(f):
     return data
 
 
-def congruency_classifier():
+def congruency_classifier(allow_flip=False):
     return CountingClassifier(PreMapClassifier(
         NestedClassifier(
-            [LenClassifier, SumClassifier, lambda: CyclicClassifier(allow_flip=False)]
+            [LenClassifier, SumClassifier, lambda: CyclicClassifier(allow_flip=allow_flip)]
         ),
         _face_to_array))
 
