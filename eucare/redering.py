@@ -212,11 +212,8 @@ class SvgwriteRenderer:
         ps, vs = graph.get_position_view()
         bbox = np.array([[f(ps[:, i]) for f in [np.min, np.max]] for i in [0, 1]])
         aspect_ratio = (bbox[0, 1] - bbox[0, 0]) / (bbox[1, 1] - bbox[1, 0])
-        print(bbox)
         scale = height / (bbox[1, 1] - bbox[1, 0])
-        print(scale)
         width = height * aspect_ratio
-        print(width)
         dwg = svgwrite.Drawing(filename, size=(width*unit, height*unit), viewBox=f'0 0 {width} {height}')
 
         if render_faces:
