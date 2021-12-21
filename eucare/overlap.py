@@ -18,6 +18,7 @@ from .half import rotate_by
 from .base import orientation
 from .conversions import EHEG_from_nx
 from .redering import SvgwriteRenderer
+from .layout import *
 
 
 def intervals_overlapping(interval1, interval2):
@@ -747,6 +748,23 @@ def fold_complete(G, initial_face=None, overlap_eps=1e-6, area_eps=0):
 
 
 def save_results(results, path='results', render_settings=None, min_foldable_length=None, bbox=None):
+    """
+    Saves .png and .svg versions of crease pattern as well as top and bottom views of folded state in a directory.
+    Additionally, a .svg of the crease pattern optimized for scoring with a cutting plotter or laser cutter is saved.
+    The dimensions of the latter are adjusted such that they fit in the specified bounding box.
+    :param results: dict
+    Output of fold_complete.
+    :param path: str
+    Path to save results in. Will be overwritten if already present.
+    :param render_settings: dict, optional
+    Render settings for everything but the CP for cutting.
+    :param min_foldable_length: float, optional
+    Minimum length a fold should have. If bbox is None, the CP for cutting will be scaled such that the shortest fold
+    has this length.
+    :param bbox: list or tuple, optional
+    Bounding box dimensions in cm. The CP for cutting will be scaled to fit into this box.
+    :return:
+    """
     if render_settings is None:
         render_settings = dict(
             figsize=(7, 7),
@@ -757,6 +775,28 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
             for_cutting=False,
             line_width=3,
         )
+    # optimize rotation and save for cutting
+
+
+
+    SRG = results['CP']
+    if bbox is not None:
+        optimize_rotation(SRG, angle_offset=0 if bbox[0] < bbox[1] else np.pi / 2)
+        scale = max(angle_to_height(SRG, 0) / bbox[0], angle_to_height(SRG, np.pi / 2) / bbox[1])
+        if min_foldable_length is not None:
+            assert min_edge_length(SRG) / scale <= min_foldable_length, \
+                f'Sheet to small, would result in a crease with length of only {min_edge_length(SRG) / scale:4.2}cm.' \
+                f'Specify a larger bbox or set min_foldable_length to None to ignore this.'
+    else:
+        optimize_rotation(SRG, angle_offset=0)
+        min_foldable_length = 0.5 if min_foldable_length is None else min_foldable_length
+        scale = min_edge_length(SRG) / min_foldable_length
+
+    folded = results['folded_state']
+    folded_angle = optimize_rotation(folded, angle_offset=0)
+    rotate_graph(results['folded_view_top'], folded_angle)
+    rotate_graph(results['folded_view_bottom'], folded_angle)
+
     os.makedirs(path, exist_ok=True)
     cp_settings = render_settings.copy()
     cp_settings.update(dict(filename=os.path.join(path, 'CP'), render_faces=False))
@@ -777,51 +817,20 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
         f['color_key'] = [0, 0, 0, 1 - 0.85 ** (len(f['original_faces']))]
     results['folded_state'].show(**backlight_settings)
 
-    # optimize rotation and save for cutting
-
-    def angle_to_height(G, angle):
-        border_positions = np.array([v['pos'] for v in G.border_vertex_iter()])
-        rot_border_positions = border_positions @ np.array([[np.cos(angle)], [-np.sin(angle)]])
-        return np.max(rot_border_positions) - np.min(rot_border_positions)
-
-    def optimize_rotation(G, angle_offset=0):
-        border_positions = np.array([v['pos'] for v in G.border_vertex_iter()])
-
-        def angle_to_height(angle):
-            rot_border_positions = border_positions @ np.array([[np.cos(angle)], [-np.sin(angle)]])
-            return np.max(rot_border_positions) - np.min(rot_border_positions)
-
-        angles = np.linspace(0, np.pi, 10000)
-        heights = [angle_to_height(a) for a in angles]
-        angle = angles[np.argmin(heights)] + angle_offset
-        ps = G.get_position_view(return_vertices=False)
-        ps[:] = ps @ np.array([[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]])
-
-    def min_edge_length(G):
-        edges = copy(G.halfedges)
-        min_length = np.inf
-        while edges:
-            e = edges.pop()
-            edges.remove(e.rev)
-            min_length = min(((e.orig['pos'] - e.dest['pos']) ** 2).sum(), min_length)
-        return np.sqrt(min_length)
-
-    SRG = results['CP']
-    if bbox is not None:
-        optimize_rotation(SRG, angle_offset=0 if bbox[0] < bbox[1] else np.pi / 2)
-        scale = max(angle_to_height(SRG, 0) / bbox[0], angle_to_height(SRG, np.pi / 2) / bbox[1])
-        sheet_height = angle_to_height(SRG, np.pi / 2) / scale
-        print(f'The shortest fold has a length of {min_edge_length(SRG) / scale:4.2f}cm.')
-    else:
-        optimize_rotation(SRG, angle_offset=0)
-        min_foldable_length = 0.5 if min_foldable_length is None else min_foldable_length
-        sheet_height = angle_to_height(SRG, np.pi / 2) * min_foldable_length / min_edge_length(SRG)
-
-    folded = results['folded_state']
-    optimize_rotation(folded, angle_offset=0)
-    print(f"The folded model has a size of {angle_to_height(folded):4.2} x {angle_to_height(folded):4.2}cm.")
+    sheet_height = angle_to_height(SRG, np.pi / 2) / scale
 
     plotter = SvgwriteRenderer()
     plotter.render_graph(os.path.join(path, 'cp_for_cutting.svg'), SRG, height=sheet_height)
 
-from functools import lru_cache
+    text = f'{len([h for h in SRG.halfedges if not (h.on_border() or h.rev.on_border())])//2} creases, ' \
+           f'{len([h for h in SRG.halfedges if h.on_border()])} edges on border, ' \
+           f'{len(SRG.faces)} faces.' \
+           f'\nThe shortest fold has a length of {min_edge_length(SRG) / scale:4.2f}cm.' \
+           f'\nThe crease pattern fits in a box of {angle_to_height(SRG, np.pi/2)/scale:4.2f}cm x ' \
+           f'{angle_to_height(SRG, 0)/scale:4.2f}cm.' \
+           f'\nThe folded model fits in a box of {angle_to_height(folded, np.pi/2)/scale:4.2f}cm x ' \
+           f'{angle_to_height(folded, 0)/scale:4.2f}cm.'
+    with open(os.path.join(path, 'info.txt'), 'w') as f:
+        f.write(text)
+
+    print(text)
