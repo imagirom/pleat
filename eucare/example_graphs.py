@@ -41,6 +41,25 @@ def rosette(n=8):
     return G
 
 
+def complete_vertex(G, v):
+    assert v in G.vertices, f'{v} not in the vertices of {G}'
+    while v.on_border():
+        G.execute_edge_instruction(v.get_outgoing_border())
+
+
+def add_vertex_ring(G):
+    for v in [h.orig for h in G.border_edges()]:
+        if v in G.vertices:
+            complete_vertex(G, v)
+
+
+def complete_closest_vertices(G, eps=1e-6):
+    assert isinstance(G, GeometricHEG)
+    vertex_dists = {e.orig: G.geometry.distance_to_origin(e.orig['pos']) for e in G.border_edge_iter()}
+    d_min = np.min(list(vertex_dists.values()))
+    [complete_vertex(G, v) for v, d in vertex_dists.items() if d-d_min < eps and v.on_border()]
+
+
 def from_tiles(tiles, rings=2, vertex_based=True, base_tile=-1, add_positions=True):
     if isinstance(base_tile, int):
         base_tile = tiles[base_tile]
@@ -54,9 +73,7 @@ def from_tiles(tiles, rings=2, vertex_based=True, base_tile=-1, add_positions=Tr
         G = InAngleHEG(other=base_tile)
     if vertex_based:
         for i in range(rings):
-            for v in [h.orig for h in G.border_edges()]:
-                while v in G.vertices and v.on_border():
-                    G.execute_edge_instruction(v.get_outgoing_border())
+            add_vertex_ring(G)
     else:
         for i in range(rings):
             for h in G.border_edges():
