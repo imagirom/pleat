@@ -962,6 +962,7 @@ class GeometricHEG(InAngleHEG):
 
     def show(self, render_faces=True, render_edges=True, render_vertices=True, block=True,
              figsize=None, for_cutting=False, filename='output', **kwargs):
+        figsize = (5, 5) if figsize is None else figsize
         from .redering import CairoRenderer
         import matplotlib.image as mpimg
         render_position_key = 'euclidean_pos'
@@ -972,12 +973,18 @@ class GeometricHEG(InAngleHEG):
                                         render_vertices=render_vertices, for_cutting=for_cutting)
         filename = filename + '.png'
         surface.write_to_png(filename)
+
+        from IPython.display import display, Image
+        display(Image(filename))
+        return
+
         # surface.finish()
         img = mpimg.imread(filename)
         if figsize is not None:
             plt.figure(figsize=figsize)
         plt.imshow(img)
         plt.axis('off')
+        plt.tight_layout()
         plt.show(block=block)
 
 

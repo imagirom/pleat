@@ -9,10 +9,12 @@ except ImportError:
     svgwrite = None
 
 
-def inset_corner(a, b, c, dist):
+def inset_corner(a, b, c, dist, eps=1e-10):
     # insets angle abc
     w = b - a
     v = b - c
+    if np.linalg.norm(v - w) < eps:  # 180 degree "corner"
+        return b
     alpha = ((angle_to_axis(v) - angle_to_axis(w)) % (2 * np.pi)) / 2
     diag_dist = dist / np.sin(alpha)
     return b + diag_dist * unit_vector(angle_to_axis(v) - alpha)
@@ -36,13 +38,17 @@ def is_color(obj):
 
 
 class CairoRenderer:
-    def __init__(self, width=1000, height=1000, line_width=0.03, scale='auto', face_inset=0.06, path='output.svg',
+    def __init__(self, width=None, height=None, line_width=0.1, vertex_radius=None,
+                 scale='auto', face_inset=None, path='output.svg',
                  position_key='pos'):
-        self.width = width
-        self.height = height
+        if width is None and height is None:
+            width, height = 512, 512
+        self.width = width if width is not None else height
+        self.height = height if height is not None else width
         self.scale = scale
         self.line_width = line_width
-        self.face_inset = face_inset
+        self.vertex_radius = vertex_radius if vertex_radius is not None else line_width
+        self.face_inset = face_inset if face_inset is not None else line_width
         self.position_key = position_key
 
         #self.surface = cairo.ImageSurface(
@@ -73,14 +79,14 @@ class CairoRenderer:
             color = face.attributes.get(color_key, None)
             if not is_color(color):
                 color = random_color(color)
-            stroke_color = color #* 0.5
+            # stroke_color = color #* 0.5
         else:
-            color = np.array((0.0, 0.0, 0.0, 0.1))
-            stroke_color = np.array((0.0, 0.0, 0.0, 0.0))
+            color = np.array((0.0, 0.0, 1.0, 0.25))
+            # stroke_color = np.array((0.0, 0.0, 0.0, 0.0))
 
         self.set_source_color(color)
         dc.fill_preserve()
-        self.set_source_color(stroke_color)
+        dc.set_line_width(0)
         dc.stroke()
         return self.surface
 
@@ -94,30 +100,54 @@ class CairoRenderer:
 
     def render_edge(self, edge, color_key='color_key', last_pos=None, tol=1e-6):
         dc = self.dc
-        if True or last_pos is None or np.linalg.norm(last_pos - edge.orig[self.position_key]) > tol:
-            dc.move_to(*edge.orig[self.position_key])
-        else:
-            pass
-        dc.line_to(*edge.dest[self.position_key])
-        #dc.set_source_rgb(0.0, 0.0, 0.0)
-        # set color. TODO: this interacts weirdly with delayed dc.stroke..
-        if color_key in edge.attributes:
-            self.set_source_color(edge.attributes.get(color_key, None))
-        else:
-            self.set_source_color((0.0, 0.0, 0.0))
 
-        if edge.attributes.get('delete', False):
-            dc.set_dash([self.line_width*2, self.line_width*3])
-            dc.stroke()
-            dc.set_dash([])
+        if 'line_width' in edge.orig.attributes and 'line_width' in edge.dest.attributes:
+            lw_orig = edge.orig['line_width']
+            lw_dest = edge.dest['line_width']
+            direction = edge.dest['pos'] - edge.orig['pos']
+            direction /= np.linalg.norm(direction)
+            dc.set_line_width(0)
+            points = [
+                inset_corner(edge.pre.orig['pos'], edge.orig['pos'], edge.dest['pos'], lw_orig),
+                edge.orig['pos'] - direction * lw_orig / 2,
+                inset_corner(edge.dest['pos'], edge.orig['pos'], edge.rev.nex.dest['pos'], lw_orig),
+                inset_corner(edge.rev.pre.orig['pos'], edge.dest['pos'], edge.orig['pos'], lw_dest),
+                edge.dest['pos'] + direction * lw_dest / 2,
+                inset_corner(edge.orig['pos'], edge.dest['pos'], edge.nex.dest['pos'], lw_dest),
+            ]
+            dc.move_to(*points[-1])
+            for point in points:
+                dc.line_to(*point)
+            self.set_source_color(edge.attributes.get(color_key, edge.attributes.get(color_key, (0.5, 0.5, 1.0))))
+            dc.fill_preserve()
         else:
-            pass
-            #dc.stroke()
+
+            dc.set_line_width(edge.attributes.get('line_width', self.line_width))
+            if True or last_pos is None or np.linalg.norm(last_pos - edge.orig[self.position_key]) > tol:
+                dc.move_to(*edge.orig[self.position_key])
+            else:
+                pass
+            dc.line_to(*edge.dest[self.position_key])
+            #dc.set_source_rgb(0.0, 0.0, 0.0)
+            # set color. TODO: this interacts weirdly with delayed dc.stroke..
+            if color_key in edge.attributes:
+                self.set_source_color(edge.attributes.get(color_key, None))
+            else:
+                self.set_source_color((0.5, 0.5, 1.0))
+
+            if edge.attributes.get('delete', False):
+                dc.set_dash([self.line_width*2, self.line_width*3])
+                dc.stroke()
+                dc.set_dash([])
+            else:
+                pass
+                #dc.stroke()
         return self.surface if last_pos is None else (self.surface, edge.dest[self.position_key])
 
     def render_vertex(self, vertex):
         dc = self.dc
-        dc.arc(*vertex[self.position_key], 2*self.line_width, 0, 2*np.pi)
+        dc.set_line_width(0)
+        dc.arc(*vertex[self.position_key], self.vertex_radius, 0, 2*np.pi)
         if vertex.attributes.get('join', False):
             dc.set_source_rgb(0.0, 1.0, 0.0)
         elif vertex.attributes.get('delete', False):
@@ -127,12 +157,14 @@ class CairoRenderer:
         dc.fill_preserve()
         dc.set_source_rgb(0.0, 0.0, 0.0)
         dc.stroke()
+        dc.set_line_width(self.line_width)
 
     def autoscale(self, graph):
         positions = np.array([v[self.position_key] for v in graph.vertices])
         max_abs_pos = np.max(np.abs(positions), axis=0)
         scale = np.min(np.array([self.width, self.height]) / max_abs_pos) / 2.2
         self.dc.scale(scale, scale)
+        self.dc.set_line_width(self.line_width)
         return self
 
     def autocenterscale(self, graph):
@@ -142,7 +174,7 @@ class CairoRenderer:
         relative_margin = 0.05
         scale = np.min(np.array([self.width, self.height]) / max_abs_pos) / 2 / (1 + 2 * relative_margin)
         self.dc.scale(scale, scale)
-        self.dc.set_line_width(self.line_width / scale)
+        self.dc.set_line_width(self.line_width)
         self.dc.translate(-offset[0] * (1 + 0 * relative_margin), -offset[1] * (1))
         return self
 
@@ -170,6 +202,7 @@ class CairoRenderer:
                     self.render_edge(h)
                     self.dc.stroke()
             else:
+                raise NotImplementedError
                 # order the edges such that the plotting takes less time
                 edges = list(graph.halfedges)
                 edge_to_index = {e: i for i, e in enumerate(edges)}
