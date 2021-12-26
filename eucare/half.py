@@ -8,16 +8,26 @@ from collections import deque
 from .base import unit_vector, angle_to_axis, edge_lengths_and_in_angles, signed_area
 from .geometries import *
 
+# TODO: Origami
+# - Automatic way to clean up border of CP
+# - Method to extend folds to border of paper
+# - Algorithm for alternating flagstones
+
 # TODO: the big ones
+# - saving and loading of HEG objects (pickle might be enough, but more future-proof file format would be better)
 # - add rendering for proto tiles
-# - conway: add border styles
-# - add non euclidean geometries
-# - add functions to expand tilings, e.g. all border edges / vertices,
+# - conway: add border styles (partially done)
+# - add non euclidean geometries (done)
+# - deletion of parts of graphs (done)
+# - add functions to expand tilings, e.g. all border edges / vertices (done),
 #   or until a certain region (rectangle or sphere or more general..) is filled with the tiling.
-#   (partially done, confusion on what is best..)
+# - related: tilings on the torus / klein bottle etc.
 
 # TODO: optional stuff
-# - add functionality to select parts of the tiling (all borders with pentagons adjacent to them)
+# - implemente 'fill holes' method
+# - detect symmetries and construct prototiles from tilings
+# - add functionality to select parts of the tiling (all borders with pentagons adjacent to them) (don't think really
+#   necessary, can do this pretty easily on a case-by-case basis with list comprehensions)
 # - a class without explicit faces
 
 # TODO: cleanup stuff
@@ -251,7 +261,7 @@ class HalfEdgeGraph:
             self.vertices = set()
             self.faces = set()
             self._any_border = None
-        self.simply_connected=False
+        self.simply_connected = False
 
     def add_graph(self, other):
         if not isinstance(other, HalfEdgeGraph):
@@ -287,45 +297,188 @@ class HalfEdgeGraph:
         self.halfedges.update(hs)
 
     def delete_face(self, f):
-        # removes the face from the mesh, together with all of its edges that lie on the border
-        self.faces.remove(f)
-        # mark edges that will be deleted
-        any_deletions = False
-        adjacent_halfedges = list(f.halfedge_iter())
-        n_edge_deletions = 0
+        self.delete_faces({f})
+
+        # # removes the face from the mesh, together with all of its edges that lie on the border
+        # self.faces.remove(f)
+        # # mark edges that will be deleted
+        # any_deletions = False
+        # adjacent_halfedges = list(f.halfedge_iter())
+        # n_edge_deletions = 0
+        # for h in adjacent_halfedges:
+        #     h.face = None
+        #     if h.rev.on_border():
+        #         h['to_delete'] = True
+        #         any_deletions = True
+        #         n_edge_deletions += 1
+        # if not any_deletions:
+        #     # nothing left to do
+        #     return
+        # #print(f'deleting {n_edge_deletions} edges that do not have a face anymore')
+        # # update pre and nex where necessary, remove the edges
+        # for h in adjacent_halfedges:
+        #     if 'to_delete' in h.attributes:
+        #         if 'to_delete' not in h.rev.nex.rev.attributes:
+        #             h2 = h
+        #             while 'to_delete' in h2.attributes:
+        #                 h2 = h2.rev.nex
+        #             h.pre.nex = h2
+        #             h2.pre = h.pre
+        #             h.orig.any_outgoing = h.pre.rev
+        #         if 'to_delete' not in h.rev.pre.rev.attributes:
+        #             # TODO?: while 'to_delete' h.nex.pre ...
+        #             # (this is not necessary, if borders of the tilings are sufficiently far apart..)
+        #             h2 = h
+        #             while 'to_delete' in h2.attributes:
+        #                 h2 = h.rev.pre
+        #             h.nex.pre = h2
+        #             h2.nex = h.nex
+        #             h.dest.any_outgoing = h.nex
+        #         else:
+        #             # remove vertex surrounded by border
+        #             self.vertices.remove(h.dest)
+        #         self.halfedges.difference_update({h, h.rev})
+
+    def fill_holes(self):
+        """Fill all 'holes' inside the graph: Add faces to enclosed areas which are not yet a face"""
+        raise NotImplementedError
+
+    def delete_faces(self, fs):
+        self.faces.difference_update(set(fs))
+        # 1. Determine edges that have to be deleted, remove them and their rev's from Graph
+        # 2. Determine which still existing edges should be updated.
+        #    These are the .nex and .pre's from the deleted ones and their rev's. Update the corresponding properties.
+        # 3. Update any_outgoing of affected vertices, delete those where it's impossible
+        affected_halfedges = {h for f in fs for h in f.halfedge_iter()}
+        affected_vertices = {v for f in fs for v in f.vertex_iter()}
+        for h in affected_halfedges:
+            h.face = None
+        # if arbitrary halfedges would be deleted, it might lead to more faces being deleted. This cannot happen here.
+        deleted_halfedges = {h for h in affected_halfedges if h.rev.face is None}
+        deleted_halfedges = deleted_halfedges.union({h.rev for h in deleted_halfedges})
+        self.halfedges.difference_update(deleted_halfedges)
+
+        # update properties of .nex and .pre edges of affected halfedges
+        for h in deleted_halfedges:
+            if h.pre in self.halfedges:
+                while h.pre.nex not in self.halfedges:
+                    # walk around the vertex h.orig in clockwise order
+                    h.pre.nex = h.pre.nex.rev.nex
+                    if h.pre.nex is h.pre.rev:
+                        break
+
+            if h.nex in self.halfedges:
+                while h.nex.pre not in self.halfedges:
+                    h.nex.pre = h.nex.pre.rev.pre
+                    # walk around the vertex h.dest in counterclockwise order
+                    if h.nex.pre is h.nex.rev:
+                        break
+
+        # delete affected vertices that no longer have a connection to the graph
+        for v in affected_vertices:
+            if v.any_outgoing not in self.halfedges:
+                for h in v.outgoing_iter():
+                    if h in self.halfedges:
+                        v.any_outgoing = h
+                        break
+                if v.any_outgoing not in self.halfedges:  # no outgoing edge is still in graph
+                    self.vertices.remove(v)
+
+    def delete_subset(self, *items):
+        parsed_items = []
+        for item in items:
+            if isinstance(items, (Face, HalfEdge, Vertex)):
+                parsed_items.append(item)
+            else:
+                parsed_items.extend(item)
+        faces = {f for f in parsed_items if isinstance(f, Face)}
+        edges = {h for h in parsed_items if isinstance(h, HalfEdge)}
+        vertices = {v for v in parsed_items if isinstance(v, Vertex)}
+
+        # FIXME: if all border edges are deleted, there no longer is a border.
+        # FIXME: this is currently not checking for non-simply connected faces. Those could appear.
+        faces = set() if faces is None else set(faces)
+        edges = set() if edges is None else set(edges)
+        vertices = set() if vertices is None else set(vertices)
+
+        # deleting a vertex for now amounts to deleting all outgoing edges
+        # the only alternative definition that comes to mind is joining degree 2 vertices
+        edges.update({h for v in vertices for h in v.outgoing_iter()})
+
+        # implications from deleting the faces
+        self.faces.difference_update(set(faces))
+        adjacent_halfedges = {h for f in faces for h in f.halfedge_iter()}
         for h in adjacent_halfedges:
             h.face = None
-            if h.rev.on_border():
-                h['to_delete'] = True
-                any_deletions = True
-                n_edge_deletions += 1
-        if not any_deletions:
-            # nothing left to do
-            return
-        #print(f'deleting {n_edge_deletions} edges that do not have a face anymore')
-        # update pre and nex where necessary, remove the edges
-        for h in adjacent_halfedges:
-            if 'to_delete' in h.attributes:
-                if 'to_delete' not in h.rev.nex.rev.attributes:
-                    h2 = h
-                    while 'to_delete' in h2.attributes:
-                        h2 = h2.rev.nex
-                    h.pre.nex = h2
-                    h2.pre = h.pre
-                    h.orig.any_outgoing = h.pre.rev
-                if 'to_delete' not in h.rev.pre.rev.attributes:
-                    # TODO?: while 'to_delete' h.nex.pre ...
-                    # (this is not necessary, if borders of the tilings are sufficiently far apart..)
-                    h2 = h
-                    while 'to_delete' in h2.attributes:
-                        h2 = h.rev.pre
-                    h.nex.pre = h2
-                    h2.nex = h.nex
-                    h.dest.any_outgoing = h.nex
-                else:
-                    # remove vertex surrounded by border
-                    self.vertices.remove(h.dest)
-                self.halfedges.difference_update({h, h.rev})
+
+        edges.update({h for h in adjacent_halfedges if h.rev.face is None})  # edges with no face are deleted
+        edges.update({h.rev for h in edges})
+        self.halfedges.difference_update(edges)
+
+        adjacent_vertices = {h.orig for h in edges}
+        adjacent_vertices.update(h.dest for h in edges)
+
+        # update properties of .nex and .pre of deleted edges
+        for h in edges:
+            if h.pre in self.halfedges:
+                while h.pre.nex not in self.halfedges:
+                    # walk around the vertex h.orig in clockwise order
+                    h.pre.nex = h.pre.nex.rev.nex
+                    if h.pre.nex is h.pre.rev:
+                        break
+
+            if h.nex in self.halfedges:
+                while h.nex.pre not in self.halfedges:
+                    h.nex.pre = h.nex.pre.rev.pre
+                    # walk around the vertex h.dest in counterclockwise order
+                    if h.nex.pre is h.nex.rev:
+                        break
+
+        # sort out face references
+        edges_to_check = self.halfedges.intersection({h.nex for h in edges}.union({h.pre for h in edges}))
+        new_faces = set()
+        while edges_to_check:
+            h = edges_to_check.pop()
+            if h.face is None:
+                continue
+            h2 = h
+            new_face = None
+            while h2.face is not None: #and h2.face not in self.faces:
+                h2 = h2.nex
+                new_face = new_face if h2.face not in self.faces else h2.face
+                if h is h2:
+                    break
+            if h2.face is None:  # connected to border, faces will be deleted
+                new_face = None
+            # new_face = None if h is h2 and (h2.face not in self.faces) else h2.face
+            new_faces.add(new_face)
+            if new_face:
+                new_face.any_side = h2
+            h3 = h2
+            while True:
+                assert h3 in self.halfedges
+                if h3.face and h3.face is not new_face:
+                    self.faces.discard(h3.face)
+                h3.face = new_face
+                h3 = h3.nex
+                edges_to_check.discard(h3)
+                if h3 is h2:
+                    break
+
+        # ..and delete faces that no longer have any edge
+        for e in edges:
+            if e.face not in new_faces:
+                self.faces.discard(e.face)
+
+        # delete affected vertices that no longer have a connection to the graph
+        for v in adjacent_vertices:
+            if v.any_outgoing not in self.halfedges:
+                for h in v.outgoing_iter():
+                    if h in self.halfedges:
+                        v.any_outgoing = h
+                        break
+                if v.any_outgoing not in self.halfedges:  # no outgoing edge is still in graph
+                    self.vertices.remove(v)
 
     def delete_edge(self, h):
         if h.on_border():
