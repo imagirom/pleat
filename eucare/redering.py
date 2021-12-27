@@ -38,7 +38,7 @@ def is_color(obj):
 
 
 class CairoRenderer:
-    def __init__(self, width=None, height=None, line_width=0.1, vertex_radius=None,
+    def __init__(self, width=None, height=None, line_width='auto', vertex_radius=None,
                  scale='auto', face_inset=None, path='output.svg',
                  position_key='pos'):
         if width is None and height is None:
@@ -47,8 +47,8 @@ class CairoRenderer:
         self.height = height if height is not None else width
         self.scale = scale
         self.line_width = line_width
-        self.vertex_radius = vertex_radius if vertex_radius is not None else line_width
-        self.face_inset = face_inset if face_inset is not None else line_width
+        self.vertex_radius = vertex_radius
+        self.face_inset = face_inset
         self.position_key = position_key
 
         #self.surface = cairo.ImageSurface(
@@ -60,7 +60,6 @@ class CairoRenderer:
         dc.set_line_cap(cairo.LINE_CAP_ROUND)
         dc.set_line_join(cairo.LINE_JOIN_ROUND)
         self.line_width = line_width
-        dc.set_line_width(self.line_width)
         dc.translate(self.width / 2, self.height / 2)
         dc.set_source_rgb(1, 1, 1)
         dc.paint()
@@ -164,7 +163,6 @@ class CairoRenderer:
         max_abs_pos = np.max(np.abs(positions), axis=0)
         scale = np.min(np.array([self.width, self.height]) / max_abs_pos) / 2.2
         self.dc.scale(scale, scale)
-        self.dc.set_line_width(self.line_width)
         return self
 
     def autocenterscale(self, graph):
@@ -174,7 +172,6 @@ class CairoRenderer:
         relative_margin = 0.05
         scale = np.min(np.array([self.width, self.height]) / max_abs_pos) / 2 / (1 + 2 * relative_margin)
         self.dc.scale(scale, scale)
-        self.dc.set_line_width(self.line_width)
         self.dc.translate(-offset[0] * (1 + 0 * relative_margin), -offset[1] * (1))
         return self
 
@@ -186,6 +183,12 @@ class CairoRenderer:
         else:
             self.dc.scale(self.scale, self.scale)
         #self.dc.set_font_size(18.0 / self.scale)
+
+        if self.line_width == 'auto':
+            lengths = np.array([np.linalg.norm(h.dest['pos'] - h.orig['pos']) for h in graph.halfedges])
+            self.line_width = max(np.min(lengths) / 5, np.mean(lengths) / 10)
+        self.vertex_radius = self.vertex_radius if self.vertex_radius is not None else self.line_width
+        self.face_inset = self.face_inset if self.face_inset is not None else self.line_width
 
         if render_faces:
             for f in graph.faces:
