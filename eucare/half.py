@@ -387,9 +387,11 @@ class HalfEdgeGraph:
     def delete_subset(self, *items):
         parsed_items = []
         for item in items:
-            if isinstance(items, (Face, HalfEdge, Vertex)):
+            if isinstance(item, (Face, HalfEdge, Vertex)):
                 parsed_items.append(item)
             else:
+                for i in item:
+                    assert isinstance(i, (Face, HalfEdge, Vertex)), f'{type(i)}, {i}'
                 parsed_items.extend(item)
         faces = {f for f in parsed_items if isinstance(f, Face)}
         edges = {h for h in parsed_items if isinstance(h, HalfEdge)}
@@ -997,6 +999,8 @@ class GeometricHEG(InAngleHEG):
     def recompute_lengths_and_angles(self):
         for f in self.faces:
             f.recompute_lengths_and_angles(geometry=self.geometry)
+        for h in self.border_edges():
+            h['length'] = h.rev['length']
 
     def get_position_view(self, vertices=None, return_vertices=True):
         vertices = list(self.vertices) if vertices is None else vertices
