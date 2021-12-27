@@ -1,4 +1,5 @@
 import numpy as np
+from numba import jit
 
 pi = np.pi
 tau = 2 * np.pi
@@ -87,13 +88,15 @@ def nearest_neighbor(data, query, return_index=True):
     return data[index], index if return_index else data[index]
 
 
+@jit(nopython=True)
 def signed_area(pts):
-    pts = np.array(pts)
+    # pts = np.array(pts) # delete for jit
     assert pts.shape[1] == 2
-    pts_rot = np.concatenate([pts[1:], pts[:1]])
+    pts_rot = np.concatenate((pts[1:], pts[:1]))
     return np.sum(pts[:, 0] * pts_rot[:, 1] - pts[:, 1] * pts_rot[:, 0]) / 2.0
 
 
+@jit(nopython=True)
 def orientation(pts, eps=0):
     area = signed_area(pts)
     if abs(area) <= eps:

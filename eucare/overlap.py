@@ -12,12 +12,13 @@ import itertools
 from collections import defaultdict
 from functools import cmp_to_key
 from copy import copy
+from numba import jit
 
 from .utils import random_directed_set
 from .half import rotate_by
 from .base import orientation
 from .conversions import EHEG_from_nx
-from .redering import SvgwriteRenderer
+from .redering import SvgwriteRenderer, CairoRenderer
 from .layout import *
 
 
@@ -78,15 +79,18 @@ def get_potential_intersections(segments, epsilon=1e-12):
     return possibly_intersecting
 
 
+@jit(nopython=True)
 def _on_segment(p, q, r):
     """Checks if q lies on segment pr. Points are assumed to be collinear."""
     return (min(p[0], r[0]) <= q[0] <= max(p[0], r[0])) and (min(p[1], r[1]) <= q[1] <= max(p[1], r[1]))
 
 
+@jit(nopython=True)
 def _det(a, b):
     return a[0] * b[1] - a[1] * b[0]
 
 
+@jit(nopython=True)
 def line_segment_intersections(s1, s2, eps=1e-12):
     """
     see https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
@@ -96,19 +100,24 @@ def line_segment_intersections(s1, s2, eps=1e-12):
     #         return []  # separated in x
     #     if not intervals_overlapping([min(s1[:, 1]), max(s1[:, 1])], [min(s2[:, 1]), max(s2[:, 1])]):
     #         return []  # separated in y
+    if s1.dtype is not np.float64:
+        s1 = s1.astype(np.float64)
+    if s2.dtype is not np.float64:
+        s2 = s2.astype(np.float64)
 
-    p1, q1 = s1
-    p2, q2 = s2
+    p1, q1 = s1[0], s1[1]
+    p2, q2 = s2[0], s2[1]
     # FIXME: eps here is arbitrary; should be scaled with edge lengths
     l1, l2 = np.linalg.norm(p1 - q1), np.linalg.norm(p2 - q2)
     # In particular: if one edge length is very small, the orientation will always be almost zero
-    o1 = orientation([p1, q1, p2], eps * l1)  # divide eps by l1, since area/base = height = distance to segment
-    o2 = orientation([p1, q1, q2], eps * l1)
-    o3 = orientation([p2, q2, p1], eps * l2)
-    o4 = orientation([p2, q2, q1], eps * l2)
+    o1 = orientation(np.stack((p1, q1, p2)), eps * l1)  # divide eps by l1, since area/base = height = distance to segment
+    o2 = orientation(np.stack((p1, q1, q2)), eps * l1)
+    o3 = orientation(np.stack((p2, q2, p1)), eps * l2)
+    o4 = orientation(np.stack((p2, q2, q1)), eps * l2)
 
     # General case
-    if (o1 != o2 and o3 != o4):
+    # result = []
+    if o1 != o2 and o3 != o4:
         xdiff = (p1[0] - q1[0], p2[0] - q2[0])
         ydiff = (p1[1] - q1[1], p2[1] - q2[1])
         div = _det(xdiff, ydiff)
@@ -118,7 +127,8 @@ def line_segment_intersections(s1, s2, eps=1e-12):
         d = (_det(p1, q1), _det(p2, q2))
         x = _det(d, xdiff) / div
         y = _det(d, ydiff) / div
-        return [[x, y]]
+        return [np.array((x, y))]
+        # return [[x, y]]
 
     # Special Cases (or no intersection)
     result = []
