@@ -80,7 +80,8 @@ class CairoRenderer:
                 color = random_color(color)
             # stroke_color = color #* 0.5
         else:
-            color = np.array((0.0, 0.0, 1.0, 0.25))
+            color = np.array((0.0, 0.0, 1.0, 0.15))
+            # color = np.array((0.0, 0.0, 0.0, 0.2))
             # stroke_color = np.array((0.0, 0.0, 0.0, 0.0))
 
         self.set_source_color(color)
@@ -175,6 +176,11 @@ class CairoRenderer:
         self.dc.translate(-offset[0] * (1 + 0 * relative_margin), -offset[1] * (1))
         return self
 
+    @staticmethod
+    def auto_line_width(graph):
+        lengths = np.array([np.linalg.norm(h.dest['pos'] - h.orig['pos']) for h in graph.halfedges])
+        return min(np.min(lengths) / 2, np.mean(lengths) / 10)
+
     def render_graph(self, graph, render_vertices=True, render_faces=True, render_edges=True, for_cutting=False):
         global _seed_offset
         _seed_offset = np.random.randint(2**16)
@@ -185,8 +191,7 @@ class CairoRenderer:
         #self.dc.set_font_size(18.0 / self.scale)
 
         if self.line_width == 'auto':
-            lengths = np.array([np.linalg.norm(h.dest['pos'] - h.orig['pos']) for h in graph.halfedges])
-            self.line_width = max(np.min(lengths) / 5, np.mean(lengths) / 10)
+            self.line_width = self.auto_line_width(graph)
         self.vertex_radius = self.vertex_radius if self.vertex_radius is not None else self.line_width
         self.face_inset = self.face_inset if self.face_inset is not None else self.line_width
 

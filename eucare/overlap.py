@@ -779,10 +779,9 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
             for_cutting=False,
             line_width=3,
         )
+    render_settings = copy(render_settings)
+
     # optimize rotation and save for cutting
-
-
-
     SRG = results['CP']
     if bbox is not None:
         optimize_rotation(SRG, angle_offset=0 if bbox[0] < bbox[1] else np.pi / 2)
@@ -800,6 +799,8 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
     folded_angle = optimize_rotation(folded, angle_offset=0)
     rotate_graph(results['folded_view_top'], folded_angle)
     rotate_graph(results['folded_view_bottom'], folded_angle)
+
+    render_settings['line_width'] = CairoRenderer.auto_line_width(results['CP'])
 
     os.makedirs(path, exist_ok=True)
     cp_settings = render_settings.copy()
