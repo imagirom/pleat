@@ -57,9 +57,13 @@ def get_potential_intersections(segments, epsilon=1e-12):
     assert segments.shape[1:] == (2, 2), f'{segments.shape}'
     x_coords = segments[:, :, 0]
     x_coords.sort(axis=1)
+
+    # create tuples (position, index, is_start)
     points = [(s[0][0] - epsilon, i, 1) for i, s in enumerate(segments)] + [(s[1][0], i, 0) for i, s in
                                                                             enumerate(segments)]
     points = np.array(points, dtype=tuple)
+
+    # sort by first coordinate
     points = points[np.argsort(points[:, 0])]
     active_labels = set()
     possibly_intersecting = list()

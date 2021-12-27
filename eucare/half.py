@@ -525,9 +525,73 @@ class HalfEdgeGraph:
                 h.face.any_side = h
         self.vertices.remove(v)
 
-    def subdivide_edge(self, h, v=None):
-        v = Vertex if v is None else v
-        raise NotImplementedError
+    def subdivide_edge(self, h, **vertex_attributes):
+        """
+        Insert a new vertex v on the edge h. For this, a new edge h2 is created, it will be related to h by h.nex = h2.
+        :param h: HalfEdge
+        HalfEdge to insert the new vertex on.
+        :param vertex_attributes: dict, optional
+        Parameters to set on the new vertex
+        :return:
+        The newly inserted vertex
+        """
+        # new vertex
+        v = Vertex(any_outgoing=h.rev)
+
+        h2 = HalfEdge(nex=h.nex, pre=h, orig=v, dest=h.dest, face=h.face)
+        h2.nex.pre = h2
+
+        h2rev = HalfEdge(rev=h2, nex=h.rev, pre=h.rev.pre, orig=h2.dest, dest=h2.orig, face=h.rev.face)
+        h2rev.pre.nex = h2rev
+        h2rev.orig.any_outgoing = h2rev
+
+        h2.rev = h2rev
+
+        h.nex = h2
+        h.dest = v
+        h.rev.pre = h2rev
+        h.rev.orig = v
+
+        for key, value in vertex_attributes.items():
+            v[key] = value
+
+        self.add_vertex(v)
+        self.add_halfedges([h2, h2rev])
+
+        return v
+
+    def subdivide_face(self, f, v1, v2):
+        """
+        Subdivide the face f by an edge from v1 to v2. For this, two new halfedges, h12 (from v1 to h2) and h21 (from v2
+        to v1) are added, and a new face f2, which will be h12.face. h21.face will be the old face f.
+        :param f: Face
+        The face to be subdivided.
+        :param v1: Vertex
+        :param v2: Vertex
+        :return: the newly added face f2
+        """
+
+        v1_out = next(h for h in v1.outgoing_iter() if h.face is f)
+        v2_out = next(h for h in v2.outgoing_iter() if h.face is f)
+
+        # create the new face and halfedges and set their attributes; add them to the graph
+        f2 = Face(any_side=v2_out)
+        h12 = HalfEdge(rev=None, nex=v2_out, pre=v1_out.pre, orig=v1, dest=v2, face=f2)
+        h21 = HalfEdge(rev=h12, nex=v1_out, pre=v2_out.pre, orig=v2, dest=v1, face=f)
+        h12.rev = h21
+        self.add_face(f2)
+        self.add_halfedges([h12, h21])
+
+        # update attributes of the affected existing face and adjacent halfedges
+        f.any_side = v1_out
+        v1_out.pre.nex = h12
+        v1_out.pre = h21
+        v2_out.pre.nex = h21
+        v2_out.pre = h12
+        for h in f2.halfedge_iter():
+            h.face = f2
+
+        return f2
 
     def to_networkx_undirected(self):
         result = nx.Graph()
