@@ -9,6 +9,7 @@ from .base import unit_vector, angle_to_axis, edge_lengths_and_in_angles, signed
 from .geometries import *
 
 # TODO: Origami
+# - make recompute_positions more stable in the presence of very small edges
 # - Automatic way to clean up border of CP
 # - Method to extend folds to border of paper
 # - Algorithm for alternating flagstones
@@ -594,6 +595,18 @@ class HalfEdgeGraph:
             h.face = f2
 
         return f2
+
+    def halfedges_representing_edges(self):
+        """
+        Create a representative set of halfedges, containing exactly one instance of (h, h.rev).
+        :return: set of HalfEdge
+        """
+        result = set()
+        for h in self.halfedges:
+            if h.rev not in result:
+                result.add(h)
+        return result
+
 
     def to_networkx_undirected(self):
         result = nx.Graph()
