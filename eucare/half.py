@@ -35,6 +35,11 @@ from .geometries import *
 # - separate InAngleHEG and EuclideanPositionHEG?
 # - make up mind about e or h for halfedges
 
+# TODO: real world stuff
+# fold big complex hyperbolic patter
+# lasercut untersetzer für Topf
+# Bierdeckel beidseitig bedrucken mit crease pattern und folded form / backlight
+
 
 class AttributeObject:
     def __init__(self):
@@ -169,6 +174,12 @@ class Vertex(IdObject):
     def vertex_iter(self):
         for h in self.outgoing_iter():
             yield h.dest
+
+    def common_faces_iter(self, other):
+        fs = set(other.face_iter())
+        for f in self.face_iter():
+            if f in fs and f is not None:
+                yield f
 
     def on_border(self):
         return any(h.on_border() for h in self.outgoing_iter())
