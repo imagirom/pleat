@@ -51,7 +51,7 @@ def intervals_overlapping(interval1, interval2):
 def get_potential_intersections(segments, epsilon=1e-12):
     # list of start and end points, with index of corresponding segment and flag whether it is a start or an end point.
     segments = np.array(segments).copy()
-    segments.sort(axis=1)  # sort by y coordinate
+    segments.sort(axis=1)  # sort each segment by y coordinate
     # move all segments start point by epsilon in x and y, to also register just non-intersections
     segments[:, 0, :] -= epsilon
     assert len(segments.shape) == 3, f'{segments.shape}'
@@ -208,6 +208,15 @@ def fast_group_closeby(pts, eps):
 
 
 def faster_group_closeby_nx(arr, eps):
+    """
+    Cluster closeby points using (approximage) single linkage clustering implemented via connected components in networkx.
+    :param arr: np.ndarray of shape (N, D)
+    Array cointaining positions to be clustered.
+    :param eps: float
+    Clustering radius, points less than epsilon apart will get the same label.
+    :return: np.ndarray of shape (N)
+    Array which maps each input point to its cluster label.
+    """
     scaled = arr / eps / 2
     G = nx.Graph()
     for offset in itertools.product([0, 0.5], repeat=arr.shape[-1]):
@@ -262,12 +271,12 @@ def overlap_graph(G, eps=1e-10):
     # ------ get all crossings ------
     # TODO implement sweeping line algorithm https://www.geeksforgeeks.org/given-a-set-of-line-segments-find-if-any-two-segments-intersect/
 
-    # crossing_dict = {i: {} for i in range(len(line_segments))}
+    # This will be a list of the positions of crossings between line segments. This includes the original vertices.
     crossings = []
+    # This will be a list mapping the index of a crossing to the pair (i, j) of indices of the corresponding edges.
     crossings_to_edges = []
-    # crossing_dict[i][j] is a list of points where edges[i] and edges[j] cross.
-    # iterate over all pairs
 
+    # iterate over all pairs
     potential_intersections = get_potential_intersections(line_segments, epsilon=eps)
     timer.round('potential intersections')
     for i, j in potential_intersections:
@@ -288,9 +297,12 @@ def overlap_graph(G, eps=1e-10):
     timer.round('clustered crossings')
     print('reduced n crossings', np.max(clustering) + 1)
     first_occurences = np.argmax(clustering[None] == np.arange(np.max(clustering) + 1)[:, None], axis=1)
+    # filtered_crossings consists of one exemplar per cluster
     filtered_crossings = crossings[first_occurences]
-
     n_filtered_crossings = len(filtered_crossings)
+
+    # construct an array mapping crossings to all involved edges,
+    # and on mapping edges to all crossings they are involved in.
     filtered_crossings_to_edges = [set() for i in range(n_filtered_crossings)]  # TODO: get rid of
     edges_to_crossings = [set() for i in range(len(edges))]
     for i, edge_ids in enumerate(crossings_to_edges):
@@ -304,6 +316,7 @@ def overlap_graph(G, eps=1e-10):
     # nodes = np.arange(n_filtered_crossings)
     nx_edges = []
     edge_to_ordered_ids = []
+    # for each edge (=line segment), order the crossings on it from its orig to dest.
     for i in tqdm(range(len(line_segments))):
         e = edges[i]
         crossing_ids = np.array(list(edges_to_crossings[i]))
@@ -313,6 +326,7 @@ def overlap_graph(G, eps=1e-10):
         order = np.argsort(progression_along_edge)
         ordered_ids = crossing_ids[order]
         edge_to_ordered_ids.append(ordered_ids)
+        # add line segments between crossings along the edge to the nx graph
         nx_edges.append(np.stack([ordered_ids[:-1], ordered_ids[1:]], axis=-1))
     nx_edges = np.concatenate(nx_edges)
     timer.round('crossing orders')
@@ -321,13 +335,13 @@ def overlap_graph(G, eps=1e-10):
     nx_graph = nx.Graph()
     nx_graph.add_edges_from(nx_edges)
     nx_positions = {i: pos for i, pos in enumerate(filtered_crossings)}
-    timer.round('nx graph')
+    timer.round('nx graph constructed.')
     print('order of nx graph:', nx_graph.order())
     print('converting to EHEG..')
 
     overlap_G, v_lookup = EHEG_from_nx(nx_graph, nx_positions, return_v_lookup=True)
     overlap_G.recompute_lengths_and_angles()
-    timer.round('EHEG')
+    timer.round('EHEG constructed.')
 
     # ------ assign original vertices, edges ------
     overlap_G.check_consistency()
@@ -337,6 +351,9 @@ def overlap_graph(G, eps=1e-10):
     for e in overlap_G.halfedges:
         e['original_edges'] = set()
         # to keep track of which faces adjacent to original edges were next to each other
+        # this dict will be a map from folds (=sets {h, h.rev} for h in the original graph) aligned with a new halfedge
+        # to the faces corresponding to that fold on that side of the halfedge.
+        # So the values can have two or one elements, respectively if the fold is a true (180°) fold, or lying flat.
         e['original_face_groups'] = dict()
     for f in overlap_G.faces:
         f['original_faces'] = set()
@@ -349,45 +366,64 @@ def overlap_graph(G, eps=1e-10):
     for i in tqdm(range(len(edges))):
         ordered_ids_0 = edge_to_ordered_ids[i]
         if len(ordered_ids_0) == 0:
-            assert False, f'this should not happen..'
+            assert False, f'this should not happen, as orig and dest of every edge should be crossings. {edges[i]}'
         for e in (edges[i], edges[i].rev):
             ordered_ids = ordered_ids_0
             if e is edges[i].rev:
+                # reverse order of crossings (=nodes in nx graph) for reversed edge
                 ordered_ids = ordered_ids[::-1]
+            # this for loop sets adds the orig of the original edge to the 'original_vertices' attribute
+            # of the first crossing along the edge that is a vertex in the overlap graph. By doing this for every edge
+            # and it's reverse, every original vertex is addressed.
+            # TODO: figure out why exactly this is necessary, i.e. in which cases it can happen that the first crossing
+            #  along the edge is no vertex in the overlap graph. Show an example!
             for idx in ordered_ids:
-                if idx in v_lookup and 'original_vertices' in v_lookup[idx]:  # FIXME: this is sketchy..
+                if idx in v_lookup and 'original_vertices' in v_lookup[idx]:
                     v_lookup[idx]['original_vertices'].add(e.orig)
                     break
+            # to assign original edges and face_groups, revert the order of the edge if the face is oriented negatively.
             if not e.on_border() and not face_orientations[e.face]:
                 ordered_ids = ordered_ids[::-1]
+            # iterate along segments between crossings on the original edge
             for k, l in zip(ordered_ids[:-1], ordered_ids[1:]):
                 if k not in v_lookup or l not in v_lookup:
                     continue  # this can happen if dangling edges were deleted
-                for new_edge in v_lookup[k].outgoing_iter():
-                    if v_lookup[l] is new_edge.dest:
-                        new_edge['original_edges'].add(e)
-                        #new_edge.rev['original_edges'].add(e)
-                        if not e.on_border():
-                            if frozenset((e, e.rev)) not in new_edge['original_face_groups']:
-                                new_edge['original_face_groups'][frozenset((e, e.rev))] = set()
-                            new_edge['original_face_groups'][frozenset((e, e.rev))].add(e.face)
+                # find the halfedge in the overlap graph between crossings k and l
 
+                new_edge = next(h for h in v_lookup[k].outgoing_iter() if h.dest is v_lookup[l])
+                new_edge['original_edges'].add(e)
+                if not e.on_border():
+                    if frozenset((e, e.rev)) not in new_edge['original_face_groups']:
+                        new_edge['original_face_groups'][frozenset((e, e.rev))] = set()
+                    new_edge['original_face_groups'][frozenset((e, e.rev))].add(e.face)
+
+                ## old method that is equivalent as long as there is a unique edge from k to l,
+                ## which should always be the case.
+                # for new_edge in v_lookup[k].outgoing_iter():
+                #     if v_lookup[l] is new_edge.dest:
+                #         new_edge['original_edges'].add(e)
+                #         #new_edge.rev['original_edges'].add(e)
+                #         if not e.on_border():
+                #             if frozenset((e, e.rev)) not in new_edge['original_face_groups']:
+                #                 new_edge['original_face_groups'][frozenset((e, e.rev))] = set()
+                #             new_edge['original_face_groups'][frozenset((e, e.rev))].add(e.face)
+
+    # convert the face groups from a dict to a list of sets, as the information which edge the individual original faces
+    # were coming from is no longer required.
     for e in overlap_G.halfedges:
         e['original_face_groups'] = [frozenset(group) for group in e['original_face_groups'].values()]
-    # print([len(e['original_face_groups'][0]) for e in overlap_G.halfedges if e['original_face_groups']])
-    # print(len([len(e['original_face_groups'][0]) for e in overlap_G.halfedges if e['original_face_groups'] and len(e['original_face_groups'][0]) == 2]))
-    # print(len(set([tuple(e['original_face_groups']) for e in overlap_G.halfedges if e['original_face_groups'] and len(e['original_face_groups'][0]) == 2 ])))
 
     # ------ assign original faces ------
     print('assigning original faces..')
+    # start on the border where there are no original faces crossing the edge (as can and does happen in the middle of
+    # the folded model).
     initial_edge = next(overlap_G.border_edge_iter()).rev
     assert not initial_edge.on_border()
     frontier = [(initial_edge, {e_orig.face for e_orig in initial_edge['original_edges'] if not e_orig.on_border()})]
     yet_to_assign = set(overlap_G.faces)
     while yet_to_assign:
         current_halfedge, original_faces = frontier.pop()
-        if current_halfedge.on_border():
-            assert False
+        assert not current_halfedge.on_border()
         current_face = current_halfedge.face
         if current_face not in yet_to_assign:
             continue
