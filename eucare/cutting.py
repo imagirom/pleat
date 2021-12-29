@@ -113,8 +113,12 @@ def get_ordered_crossings(segments1, segments2, eps=1e-10):
         for _ in range(len(intersections)):
             crossings_to_edges.append((i, j))
     crossings = np.array(crossings)
+    if len(crossings) == 0:
+        return np.zeros(0, dtype=np.int32), \
+               [], [], \
+               [[] for _ in range(len(segments1))], [[] for _ in range(len(segments2))]
 
-    # ------ group closeby crossings ------
+        # ------ group closeby crossings ------
     clustering = group_closeby(crossings, eps)
     first_occurences = np.argmax(clustering[None] == np.arange(np.max(clustering) + 1)[:, None], axis=1)
     # filtered_crossings consists of one exemplar per cluster

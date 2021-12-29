@@ -171,6 +171,11 @@ class Vertex(IdObject):
         for h in self.outgoing_iter():
             yield h.face
 
+    def true_face_iter(self):
+        for f in self.face_iter():
+            if f is not None:
+                yield f
+
     def vertex_iter(self):
         for h in self.outgoing_iter():
             yield h.dest
@@ -239,6 +244,30 @@ class Face(IdObject):
     def face_iter(self):
         for h in self.halfedge_iter():
             yield h.rev.face
+
+    def true_face_iter(self):
+        for f in self.face_iter():
+            if f is not None:
+                yield f
+
+    def common_halfedge_iter(self, other):
+        assert isinstance(other, Face)
+        hs = set(h.rev for h in other.halfedge_iter())
+        for h in self.halfedge_iter():
+            if h in hs:
+                yield h
+
+    def common_vertex_iter(self, other):
+        vs = set(other.vertex_iter())
+        for v in self.vertex_iter():
+            if v in vs:
+                yield v
+
+    def common_face_iter(self, other):
+        fs = set(other.face_iter())
+        for f in self.face_iter():
+            if f in fs:
+                yield f
 
     def midpoint(self):
         return np.mean([v['pos'] for v in self.vertex_iter()], axis=0)
@@ -539,7 +568,7 @@ class HalfEdgeGraph:
                 h.face.any_side = h
         self.vertices.remove(v)
 
-    def subdivide_edge(self, h, **vertex_attributes):
+    def subdivide_edge(self, h, copy_edge_attributes=True, **vertex_attributes):
         """
         Insert a new vertex v on the edge h. For this, a new edge h2 is created, it will be related to h by h.nex = h2.
         :param h: HalfEdge
@@ -565,6 +594,10 @@ class HalfEdgeGraph:
         h.dest = v
         h.rev.pre = h2rev
         h.rev.orig = v
+
+        if copy_edge_attributes:
+            h2.attributes = copy(h.attributes)
+            h2rev.attributes = copy(h.rev.attributes)
 
         for key, value in vertex_attributes.items():
             v[key] = value
@@ -1026,11 +1059,11 @@ class GeometricHEG(InAngleHEG):
         for h in self.border_edges():
             h['length'] = h.rev['length']
 
-    def get_position_view(self, vertices=None, return_vertices=True):
+    def get_position_view(self, vertices=None, return_vertices=True, position_key='pos'):
         vertices = list(self.vertices) if vertices is None else vertices
-        positions = np.stack([v['pos'] for v in vertices])
+        positions = np.stack([v[position_key] for v in vertices])
         for v, p in zip(vertices, positions):
-            v['pos'] = p
+            v[position_key] = p
         if return_vertices:
             return positions, vertices
         else:
@@ -1078,6 +1111,18 @@ class GeometricHEG(InAngleHEG):
         plt.axis('off')
         plt.tight_layout()
         plt.show(block=block)
+
+    def central_face(self):
+        if self.geometry is not EuclideanGeometry:
+            raise NotImplementedError
+        fs = list(self.faces)
+        return fs[np.argmin([np.linalg.norm(f.midpoint()) for f in fs])]
+
+    def central_vertex(self):
+        if self.geometry is not EuclideanGeometry:
+            raise NotImplementedError
+        vs = list(self.vertices)
+        return vs[np.argmin([np.linalg.norm(v['pos']) for v in vs])]
 
 
 class EuclideanPositionHEG(GeometricHEG):

@@ -217,6 +217,8 @@ def faster_group_closeby_nx(arr, eps):
     :return: np.ndarray of shape (N)
     Array which maps each input point to its cluster label.
     """
+    if len(arr) == 0:
+        return np.zeros(0, dtype=np.int32)
     scaled = arr / eps / 2
     G = nx.Graph()
     for offset in itertools.product([0, 0.5], repeat=arr.shape[-1]):
