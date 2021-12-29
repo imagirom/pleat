@@ -4,7 +4,8 @@ import numba
 from numba import jit, njit
 
 import eucare as ec
-from eucare.overlap import line_segment_intersections
+from eucare.overlap import line_segment_intersections, intervals_overlapping, group_closeby
+from eucare.half import rotate_by
 from eucare.redering import inset_poly
 
 
@@ -12,7 +13,7 @@ from eucare.redering import inset_poly
 
 
 @jit(nopython=True)
-def pointinpolygon(x,y,poly):
+def pointinpolygon(x, y, poly):
     n = len(poly)
     inside = False
     p2x = 0.0
@@ -52,6 +53,233 @@ def polygon_line_segment_intersections(poly, line_segment, eps=1e-12):
     return intersections
 
 
+def get_potential_intersections_2(segments1, segments2, epsilon=1e-12):
+    # returns list of start and end points, with index of corresponding segment and flag whether it is a start or an end point.
+    if len(segments2) == 0 or len(segments1) == 0:
+        return []
+    ns1 = len(segments1)
+    segments = np.concatenate((segments1, segments2))
+
+    # sort each segment by y coordinate
+    segments.sort(axis=1)
+    # move all segments start point by epsilon in x and y, to also register just non-intersections
+    segments[:, 0, :] -= epsilon
+    assert len(segments.shape) == 3 and segments.shape[1:] == (2, 2), f'{segments.shape}'
+    x_coords = segments[:, :, 0]
+    x_coords.sort(axis=1)
+
+    # create tuples (position, index, is_start)
+    points = [(s[0][0] - epsilon, i, 1) for i, s in enumerate(segments)] + [(s[1][0], i, 0) for i, s in
+                                                                            enumerate(segments)]
+    points = np.array(points, dtype=tuple)
+
+    # sort by first coordinate
+    points = points[np.argsort(points[:, 0])]
+    active_labels_1 = set()
+    active_labels_2 = set()
+    possibly_intersecting = list()
+    for i, is_start in points[:, 1:]:
+
+        if i < ns1:  # segment in segments1
+            if is_start:
+                for j in active_labels_2:
+                    if intervals_overlapping(segments[i, :, 1], segments[j, :, 1]):
+                        possibly_intersecting.append((i, j - ns1))
+                active_labels_1.add(i)
+            else:
+                active_labels_1.remove(i)
+        else:  # segment in segments1
+            if is_start:
+                for j in active_labels_1:
+                    if intervals_overlapping(segments[i, :, 1], segments[j, :, 1]):
+                        possibly_intersecting.append((j, i - ns1))
+                active_labels_2.add(i)
+            else:
+                active_labels_2.remove(i)
+    return possibly_intersecting
+
+
+def get_ordered_crossings(segments1, segments2, eps=1e-10):
+    crossings = []
+    # This will be a list mapping the index of a crossing to the pair (i, j) of indices of the corresponding edges.
+    crossings_to_edges = []
+
+    for i, j in get_potential_intersections_2(segments1, segments2, epsilon=eps):
+        l1, l2 = segments1[i], segments2[j]
+        intersections = line_segment_intersections(l1, l2, eps=eps)
+        if not intersections:
+            continue
+        crossings.extend(intersections)
+        for _ in range(len(intersections)):
+            crossings_to_edges.append((i, j))
+    crossings = np.array(crossings)
+
+    # ------ group closeby crossings ------
+    clustering = group_closeby(crossings, eps)
+    first_occurences = np.argmax(clustering[None] == np.arange(np.max(clustering) + 1)[:, None], axis=1)
+    # filtered_crossings consists of one exemplar per cluster
+    filtered_crossings = crossings[first_occurences]
+    n_filtered_crossings = len(filtered_crossings)
+
+    # construct an array mapping crossings to all involved edges,
+    # and on mapping edges to all crossings they are involved in.
+    filtered_crossings_to_segments1 = [set() for i in range(n_filtered_crossings)]
+    filtered_crossings_to_segments2 = [set() for i in range(n_filtered_crossings)]
+    segments1_to_crossings = [set() for i in range(len(segments1))]
+    segments2_to_crossings = [set() for i in range(len(segments2))]
+    for i, edge_ids in enumerate(crossings_to_edges):
+        i_filtered = clustering[i]
+        filtered_crossings_to_segments1[i_filtered].add(edge_ids[0])
+        filtered_crossings_to_segments2[i_filtered].add(edge_ids[1])
+        segments1_to_crossings[edge_ids[0]].add(clustering[i])
+        segments2_to_crossings[edge_ids[1]].add(clustering[i])
+
+    # ------ get crossing orders ------
+    def order_crossings(segments, segments_to_crossings):
+        segments_dirs = segments[:, 1] - segments[:, 0]
+        segments_dirs /= np.linalg.norm(segments_dirs, axis=1, keepdims=True)
+        for i, crossing_ids in enumerate(segments_to_crossings):
+            if len(crossing_ids) < 2:
+                segments_to_crossings[i] = list(crossing_ids)
+                continue
+            crossing_ids = np.array(list(crossing_ids))
+            progression_along_edge = ((filtered_crossings[crossing_ids] - segments[i, :1]) * segments_dirs[i]).sum(-1)
+            segments_to_crossings[i] = list(crossing_ids[np.argsort(progression_along_edge)])
+
+    order_crossings(segments1, segments1_to_crossings)
+    order_crossings(segments2, segments2_to_crossings)
+
+    return filtered_crossings, \
+           segments1_to_crossings, segments2_to_crossings, \
+           filtered_crossings_to_segments1, filtered_crossings_to_segments2
+
+
+def delete_new_outside(G, border_key='new_border'):
+    # floodfill the outside region and delete it
+    hs = [h for h in G.halfedges if border_key in h.attributes]
+    to_delete = {h.face for h in hs if h.face}
+    border = to_delete.copy()
+    while border:
+        f = border.pop()
+        for h in f.halfedge_iter():
+            if border_key in h.attributes:
+                continue
+            f2 = h.rev.face
+            if f2 and f2 not in to_delete:
+                to_delete.add(f2)
+                border.add(f2)
+    G.delete_subset(to_delete)
+    for h in hs:
+        assert h.on_border(), f'{h}'
+        del h[border_key]
+
+
+def cut_out_poly(G, poly, delete_outside=True, eps=1e-10):
+    poly_segments = np.stack(list(rotate_by(poly, (0, 1))))
+    es = list(G.halfedges_representing_edges())
+    edge_segments = np.array([[e.orig['pos'], e.dest['pos']] for e in es])
+    crossing_positions, segments1_to_crossings, segments2_to_crossings, crossings_to_segments1, crossings_to_segments2 = \
+        get_ordered_crossings(poly_segments, edge_segments, eps=eps)
+
+    crossing_to_vertices = defaultdict(set)
+    vertices_to_connect = set()
+    crossing_specification_to_vertex = defaultdict(set)
+
+    for edge_index, crossing_indices in enumerate(segments2_to_crossings):
+        e = es[edge_index]
+        for i in reversed(crossing_indices):
+            crossing = crossing_positions[i]
+
+            if np.linalg.norm(e.orig['pos'] - crossing) < eps:
+                v = e.orig
+            elif np.linalg.norm(e.dest['pos'] - crossing) < eps:
+                v = e.dest
+            else:
+                v = G.subdivide_edge(e, pos=crossing)
+            crossing_to_vertices[i].add(v)
+            # label the vertex
+            v['poly_side'] = {poly_side: np.argwhere(np.array(segments1_to_crossings[poly_side]) == i)[0, 0]
+                              for poly_side in crossings_to_segments1[i]}
+            for poly_side, j in v['poly_side'].items():
+                crossing_specification_to_vertex[(poly_side, j)].add(v)
+            vertices_to_connect.add(v)
+
+    # for key, val in crossing_specification_to_vertex.items():
+    #     print(key, len(val))
+
+    for v in vertices_to_connect:
+        # attempt to connect it to the next vertex in line
+        for poly_side, crossing_ind_along_side in v['poly_side'].items():
+            f, v2 = None, None
+            corners = []
+            start = (poly_side, crossing_ind_along_side)
+            no_connection = False
+            print(start)
+            while True:
+                crossing_ind_along_side += 1
+                if crossing_ind_along_side >= len(segments1_to_crossings[poly_side]):
+                    # last point on this poly side, go to next side AND add the corner(s) inbetween
+                    poly_side = (poly_side + 1) % len(poly)
+                    crossing_ind_along_side = 0
+                    corner = poly[poly_side]
+                    if not np.linalg.norm(corner - v['pos']) < eps:
+                        corners.append(corner)
+                # print('.', poly_side, crossing_ind_along_side)
+                if (poly_side, crossing_ind_along_side) == start:
+                    no_connection = True
+                    break
+                try:
+                    f, v2 = next(
+                        (f, v2)
+                        for v2 in crossing_specification_to_vertex[(poly_side, crossing_ind_along_side)]
+                        for f in v.common_faces_iter(v2)
+                        if not corners or pointinpolygon(
+                            *corners[0],
+                            inset_poly(np.stack([vf['pos'] for vf in (f.vertex_iter() if f.area() > 0 else reversed(list(f.vertex_iter())))]), -eps)
+                        )
+                    )
+                    break
+                except StopIteration as e:
+                    pass
+            if no_connection:
+                print('no connection found')
+                continue
+            if v2 is v:
+                print('identical vertex')
+                continue
+            corners = [c for c in corners if np.linalg.norm(v2['pos'] - c) > eps]
+            v_out = next(h for h in f.halfedge_iter() if h.orig is v)
+            if not corners and v_out.dest is v2:
+                print('yep')
+                v_out['new_border'] = True
+            elif not corners and v_out.pre.orig is v2:
+                print('yep2')
+                v_out.pre.rev['new_border'] = True
+            else:
+                print(f'connecting {start} and {(poly_side, crossing_ind_along_side)}, {len(corners)}')
+                G.subdivide_face(f, v, v2)
+                # add the corners by subdividing the new edge
+                new_edge = v_out.pre.rev
+                for corner in corners:
+                    new_edge['new_border'] = True
+                    G.subdivide_edge(new_edge, pos=corner)
+                    new_edge = new_edge.nex
+                new_edge['new_border'] = True
+
+    if delete_outside:
+        delete_new_outside(G, border_key='new_border')
+
+    for v in G.vertices:
+        if 'signed_distance' in v.attributes:
+            del v['signed_distance']
+
+
+    # iterate over vertices that need to be connected
+
+    return G
+
+# --------------- old approach, that is still valid for half-planes --------------------
+
 class CuttingRegion:
     def inside(self, points):
         raise NotImplementedError
@@ -85,32 +313,32 @@ class Halfplane(CuttingRegion):
         return (line_segments * mixing_coefficients).sum(1)
 
 
-class Polygon(CuttingRegion):
-    def __init__(self, pts, eps=1e-6):
-        self.pts = np.array(pts)
-        self.eps = eps
-        self.inset_pts = inset_poly(pts, self.eps/2)
-        self.outset_pts = inset_poly(pts, -self.eps/2)
-        assert len(self.pts.shape) == 2 and self.pts.shape[1] == 2, f'{self.pts.shape}'
-
-    def signed_distance(self, points):
-        return 1 - parallelpointinpolygon(points, self.inset_pts) - parallelpointinpolygon(points, self.outset_pts)
-
-    def intersections(self, line_segments):
-        result = []
-        for ls in line_segments:
-            intersections = polygon_line_segment_intersections(self.pts, ls, self.eps)
-            result.append(intersections[0])
-        return np.stack(result)
-
-    def corners(self):
-        return self.pts
-
-
-class Circle(Polygon):
-    def __init__(self, p, r, res=64, **kwargs):
-        t = np.linspace(0, 2*np.pi, res+1)[:-1]
-        super().__init__(p + r * np.stack([np.sin(t), np.cos(t)], axis=-1), **kwargs)
+# class Polygon(CuttingRegion):
+#     def __init__(self, pts, eps=1e-6):
+#         self.pts = np.array(pts)
+#         self.eps = eps
+#         self.inset_pts = inset_poly(pts, self.eps/2)
+#         self.outset_pts = inset_poly(pts, -self.eps/2)
+#         assert len(self.pts.shape) == 2 and self.pts.shape[1] == 2, f'{self.pts.shape}'
+#
+#     def signed_distance(self, points):
+#         return 1 - parallelpointinpolygon(points, self.inset_pts) - parallelpointinpolygon(points, self.outset_pts)
+#
+#     def intersections(self, line_segments):
+#         result = []
+#         for ls in line_segments:
+#             intersections = polygon_line_segment_intersections(self.pts, ls, self.eps)
+#             result.append(intersections[0])
+#         return np.stack(result)
+#
+#     def corners(self):
+#         return self.pts
+#
+#
+# class Circle(Polygon):
+#     def __init__(self, p, r, res=64, **kwargs):
+#         t = np.linspace(0, 2*np.pi, res+1)[:-1]
+#         super().__init__(p + r * np.stack([np.sin(t), np.cos(t)], axis=-1), **kwargs)
 
 
 def cut_graph(G, region, delete_outside=True, eps=1e-6):
@@ -254,24 +482,8 @@ def cut_graph(G, region, delete_outside=True, eps=1e-6):
             h['new_border'] = True
 
     if delete_outside:
-        # floodfill the outside region and delete it
-        to_delete = {h.face for h in G.halfedges if 'new_border' in h.attributes}
-        border = to_delete.copy()
-        while border:
-            f = border.pop()
-            for h in f.halfedge_iter():
-                if 'new_border' in h.attributes:
-                    continue
-                f2 = h.rev.face
-                if f2 and f2 not in to_delete:
-                    to_delete.add(f2)
-                    border.add(f2)
-        G.delete_subset(to_delete)
+        delete_new_outside(G, 'new_border')
 
     for v in G.vertices:
         if 'signed_distance' in v.attributes:
             del v['signed_distance']
-
-    for h in G.halfedges:
-        if 'new_border' in h.attributes:
-            del h['new_border']
