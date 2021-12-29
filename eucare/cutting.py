@@ -210,11 +210,11 @@ def cut_out_poly(G, poly, delete_outside=True, eps=1e-10):
     for v in vertices_to_connect:
         # attempt to connect it to the next vertex in line
         for poly_side, crossing_ind_along_side in v['poly_side'].items():
-            f, v2 = None, None
             corners = []
             start = (poly_side, crossing_ind_along_side)
-            no_connection = False
-            print(start)
+            no_connection = True
+            # print(start)
+            # try to connect via positive area face:
             while True:
                 crossing_ind_along_side += 1
                 if crossing_ind_along_side >= len(segments1_to_crossings[poly_side]):
@@ -226,45 +226,103 @@ def cut_out_poly(G, poly, delete_outside=True, eps=1e-10):
                         corners.append(corner)
                 # print('.', poly_side, crossing_ind_along_side)
                 if (poly_side, crossing_ind_along_side) == start:
-                    no_connection = True
+                    # if no_connection:
+                    # print('no connection found')
                     break
                 try:
                     f, v2 = next(
                         (f, v2)
                         for v2 in crossing_specification_to_vertex[(poly_side, crossing_ind_along_side)]
                         for f in v.common_faces_iter(v2)
-                        if not corners or pointinpolygon(
-                            *corners[0],
-                            inset_poly(np.stack([vf['pos'] for vf in (f.vertex_iter() if f.area() > 0 else reversed(list(f.vertex_iter())))]), -eps)
-                        )
+                        if f.area() > 0 and (not corners or np.all(parallelpointinpolygon(
+                            np.array(corners),
+                            inset_poly(np.stack([vf['pos'] for vf in f.vertex_iter()]), -eps)
+                        )))
                     )
+                    if v2 is v:
+                        # print('identical vertex')
+                        break
+                    corners_this = [c for c in corners if np.linalg.norm(v2['pos'] - c) > eps]
+                    v_out = next(h for h in f.halfedge_iter() if h.orig is v)
+                    if not corners_this and v_out.dest is v2:
+                        # print('yep')
+                        v_out['new_border'] = True
+                    elif not corners_this and v_out.pre.orig is v2:
+                        # print('yep2')
+                        v_out.pre.rev['new_border'] = True
+                    else:
+                        # print(f'connecting {start} and {(poly_side, crossing_ind_along_side)}, {len(corners_this)}')
+                        G.subdivide_face(f, v, v2)
+                        # add the corners by subdividing the new edge
+                        new_edge = v_out.pre.rev
+                        for corner in corners_this:
+                            new_edge['new_border'] = True
+                            G.subdivide_edge(new_edge, pos=corner)
+                            new_edge = new_edge.nex
+                        new_edge['new_border'] = True
+
+                    no_connection = False
                     break
                 except StopIteration as e:
-                    pass
-            if no_connection:
-                print('no connection found')
-                continue
-            if v2 is v:
-                print('identical vertex')
-                continue
-            corners = [c for c in corners if np.linalg.norm(v2['pos'] - c) > eps]
-            v_out = next(h for h in f.halfedge_iter() if h.orig is v)
-            if not corners and v_out.dest is v2:
-                print('yep')
-                v_out['new_border'] = True
-            elif not corners and v_out.pre.orig is v2:
-                print('yep2')
-                v_out.pre.rev['new_border'] = True
-            else:
-                print(f'connecting {start} and {(poly_side, crossing_ind_along_side)}, {len(corners)}')
-                G.subdivide_face(f, v, v2)
-                # add the corners by subdividing the new edge
-                new_edge = v_out.pre.rev
-                for corner in corners:
-                    new_edge['new_border'] = True
-                    G.subdivide_edge(new_edge, pos=corner)
-                    new_edge = new_edge.nex
-                new_edge['new_border'] = True
+                    continue
+
+        for poly_side, crossing_ind_along_side in v['poly_side'].items():
+            corners = []
+            start = (poly_side, crossing_ind_along_side)
+            no_connection = True
+            # try to connect via negative area face:
+            no_connection = True
+            while True:
+                crossing_ind_along_side -= 1
+                if crossing_ind_along_side < 0:
+                    # last point on this poly side, go to next side AND add the corner(s) in between
+                    corner = poly[poly_side]
+                    poly_side = (poly_side - 1) % len(poly)
+                    crossing_ind_along_side = len(segments1_to_crossings[poly_side])
+                    if not np.linalg.norm(corner - v['pos']) < eps:
+                        corners.append(corner)
+                # print('.', poly_side, crossing_ind_along_side)
+                if (poly_side, crossing_ind_along_side) == start:
+                    # if no_connection:
+                    # print('no negative area connection found')
+                    break
+                try:
+                    f, v2 = next(
+                        (f, v2)
+                        for v2 in crossing_specification_to_vertex[(poly_side, crossing_ind_along_side)]
+                        for f in v.common_faces_iter(v2)
+                        if f.area() < 0 and (not corners or np.all(parallelpointinpolygon(
+                            np.array(corners),
+                            inset_poly(np.stack([vf['pos'] for vf in reversed(list(f.vertex_iter()))]), -eps)
+                        )))
+                    )
+                    if v2 is v:
+                        # print('identical vertex')
+                        break
+                    corners_this = [c for c in corners if np.linalg.norm(v2['pos'] - c) > eps]
+                    v_out = next(h for h in f.halfedge_iter() if h.orig is v)
+                    if not corners_this and v_out.dest is v2:
+                        # print('yep')
+                        v_out['new_border'] = True
+                    elif not corners_this and v_out.pre.orig is v2:
+                        # print('yep2')
+                        v_out.pre.rev['new_border'] = True
+                    else:
+                        # print(f'connecting {start} and {(poly_side, crossing_ind_along_side)}, {len(corners_this)}')
+                        G.subdivide_face(f, v, v2)
+                        # add the corners by subdividing the new edge
+                        new_edge = v_out.pre.rev
+                        for corner in corners_this:
+                            new_edge['new_border'] = True
+                            G.subdivide_edge(new_edge, pos=corner)
+                            new_edge = new_edge.nex
+                        new_edge['new_border'] = True
+
+                    no_connection = False
+                    break
+                except StopIteration as e:
+                    continue
+
 
     if delete_outside:
         delete_new_outside(G, border_key='new_border')
