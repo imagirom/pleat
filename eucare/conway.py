@@ -345,6 +345,27 @@ def starify_graph(t=1/3):
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
+def alternating_flagstone_graph(t=1/3):
+    v1 = (0, -1)
+    vf = (1, 0)
+    v2 = (0, 1)
+    v0 = (0, 0)
+    v1f = (t, -1 + t)
+    v2f = (t, 1 - t)
+    G = nx.Graph()
+    nx.add_cycle(G, [v1, v1f, vf, v2f, v2, v0], delete=True)
+    del G.edges[v1, v1f]['delete']
+    del G.edges[v2, v2f]['delete']
+    G.add_edge(v2f, v1, color_key=(1, 0, 0))
+    G.add_nodes_from([v0], join=True)
+    G.add_nodes_from([vf], delete=True)
+    G.add_edges_from([[v0, v2f], [v2f, v1f]])
+
+    # construct EHEG and ConwayOperator
+    heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
+    return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
+
+
 def twist_rotate_graph(t=1/2):
     v1 = (0, -1)
     vf = (1, 0)
