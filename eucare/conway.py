@@ -208,7 +208,8 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         self.geometry = None
 
     def get_tri(self, h):
-        return np.array([h.dest['pos'], h.face.midpoint(), h.orig['pos']])
+        midpoint = self.geometry.center_of_mass(np.stack([v['pos'] for v in h.face.vertex_iter()]))
+        return np.array([h.dest['pos'], midpoint, h.orig['pos']])
 
     def generate_graph_and_corners(self, tri):
 
