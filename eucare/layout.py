@@ -32,11 +32,13 @@ def optimize_rotation(G, angle_offset=0):
     return angle
 
 
-def min_edge_length(G):
+def min_edge_length(G, inculde_border=True):
     edges = copy(G.halfedges)
     min_length = np.inf
     while edges:
         e = edges.pop()
         edges.remove(e.rev)
+        if not inculde_border and (e.on_border() or e.rev.on_border()):
+            continue
         min_length = min(((e.orig['pos'] - e.dest['pos']) ** 2).sum(), min_length)
     return np.sqrt(min_length)

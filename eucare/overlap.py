@@ -799,7 +799,7 @@ def fold_complete(G, initial_face=None, overlap_eps=1e-6, area_eps=0):
     return result
 
 
-def save_results(results, path='results', render_settings=None, min_foldable_length=None, bbox=None):
+def save_results(results, path='results', render_settings=None, min_foldable_length=None, bbox=None, extra_info=None):
     """
     Saves .png and .svg versions of crease pattern as well as top and bottom views of folded state in a directory.
     Additionally, a .svg of the crease pattern optimized for scoring with a cutting plotter or laser cutter is saved.
@@ -815,18 +815,12 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
     has this length.
     :param bbox: list or tuple, optional
     Bounding box dimensions in cm. The CP for cutting will be scaled to fit into this box.
+    :param extra_info: str, optional
+    String containing extra information to write to append to info.txt.
     :return:
     """
     if render_settings is None:
-        render_settings = dict(
-            figsize=(7, 7),
-            render_edges=True,
-            render_faces=False,
-            render_vertices=False,
-            face_inset=0,
-            for_cutting=False,
-            line_width=3,
-        )
+        render_settings = dict(face_inset=0, render_vertices=False, render_faces=False, height=2048)
     render_settings = copy(render_settings)
 
     # optimize rotation and save for cutting
@@ -835,18 +829,16 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
         optimize_rotation(SRG, angle_offset=0 if bbox[0] < bbox[1] else np.pi / 2)
         scale = max(angle_to_height(SRG, 0) / bbox[0], angle_to_height(SRG, np.pi / 2) / bbox[1])
         if min_foldable_length is not None:
-            assert min_edge_length(SRG) / scale <= min_foldable_length, \
+            assert min_edge_length(SRG, inculde_border=False) / scale <= min_foldable_length, \
                 f'Sheet to small, would result in a crease with length of only {min_edge_length(SRG) / scale:4.2}cm.' \
                 f'Specify a larger bbox or set min_foldable_length to None to ignore this.'
     else:
         optimize_rotation(SRG, angle_offset=0)
         min_foldable_length = 0.5 if min_foldable_length is None else min_foldable_length
-        scale = min_edge_length(SRG) / min_foldable_length
+        scale = min_edge_length(SRG, inculde_border=False) / min_foldable_length
 
     folded = results['folded_state']
     folded_angle = optimize_rotation(folded, angle_offset=0)
-    rotate_graph(results['folded_view_top'], folded_angle)
-    rotate_graph(results['folded_view_bottom'], folded_angle)
 
     render_settings['line_width'] = CairoRenderer.auto_line_width(results['CP'])
 
@@ -856,10 +848,15 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
     results['CP'].show(**cp_settings)
 
     folded_settings = render_settings.copy()
-    folded_settings.update(dict(filename=os.path.join(path, 'top')))
-    results['folded_view_top'].show(**folded_settings)
-    folded_settings.update(dict(filename=os.path.join(path, 'bottom')))
-    results['folded_view_bottom'].show(**folded_settings)
+    folded_settings['line_width'] /= 2
+    if 'folded_view_top' in results:
+        rotate_graph(results['folded_view_top'], folded_angle)
+        folded_settings.update(dict(filename=os.path.join(path, 'top')))
+        results['folded_view_top'].show(**folded_settings)
+    if 'folded_view_bottom' in results:
+        rotate_graph(results['folded_view_bottom'], folded_angle)
+        folded_settings.update(dict(filename=os.path.join(path, 'bottom')))
+        results['folded_view_bottom'].show(**folded_settings)
 
     backlight_settings = copy(render_settings)
     backlight_settings['render_edges'] = False
@@ -867,7 +864,10 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
     backlight_settings['line_width'] = 0
     backlight_settings['filename'] = os.path.join(path, 'backlit')
     for f in results['folded_state'].faces:
-        f['color_key'] = [0, 0, 0, 1 - 0.85 ** (len(f['original_faces']))]
+        if 'original_faces' in f:
+            f['color_key'] = [0, 0, 0, 1 - 0.85 ** (len(f['original_faces']))]
+        else:
+            f['color_key'] = [0, 0, 0, 0.15]
     results['folded_state'].show(**backlight_settings)
 
     sheet_height = angle_to_height(SRG, np.pi / 2) / scale
@@ -878,11 +878,14 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
     text = f'{len([h for h in SRG.halfedges if not (h.on_border() or h.rev.on_border())])//2} creases, ' \
            f'{len([h for h in SRG.halfedges if h.on_border()])} edges on border, ' \
            f'{len(SRG.faces)} faces.' \
-           f'\nThe shortest fold has a length of {min_edge_length(SRG) / scale:4.2f}cm.' \
+           f'\nThe shortest fold has a length of {min_edge_length(SRG, inculde_border=False) / scale:4.2f}cm ' \
+           f'({min_edge_length(SRG, inculde_border=True) / scale:4.2f}cm inculding the border).' \
            f'\nThe crease pattern fits in a box of {angle_to_height(SRG, np.pi/2)/scale:4.2f}cm x ' \
            f'{angle_to_height(SRG, 0)/scale:4.2f}cm.' \
            f'\nThe folded model fits in a box of {angle_to_height(folded, np.pi/2)/scale:4.2f}cm x ' \
            f'{angle_to_height(folded, 0)/scale:4.2f}cm.'
+    if extra_info:
+        text += '\n' + extra_info
     with open(os.path.join(path, 'info.txt'), 'w') as f:
         f.write(text)
 
