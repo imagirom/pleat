@@ -86,3 +86,14 @@ def from_tiles(tiles, rings=2, vertex_based=True, base_tile=-1, add_positions=Tr
 def pgg_2x_tiling(rings=15):
     tiles = pgg_2x()
     return from_tiles(tiles, rings)
+
+
+def kised_soccer_ball():
+    from eucare.conway import kis_graph
+    n, k = (5, 3)
+    G = from_tiles(curved_zip(n, k), rings=3)
+    G = kis_graph()(G)
+    G.delete_subset([v for v in G.vertices if v.on_border() and v.order() < 5])
+    G.delete_subset([f for f in G.faces if f.order() > 3])
+    G.convert_to_euclidean()
+    return G
