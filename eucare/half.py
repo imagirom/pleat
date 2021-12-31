@@ -134,6 +134,9 @@ class HalfEdge(IdObject):
     def check_consistency(self):
         assert self.rev.rev is self, f'{self}, {self.rev}, {self.rev.rev}'
 
+    def midpoint(self):
+        return np.mean([v['pos'] for v in (self.orig, self.dest)], axis=0)
+
 
 class Vertex(IdObject):
     printname = 'V'
@@ -198,7 +201,10 @@ class Vertex(IdObject):
 
     def combine_with(self, other):
         # This method might be used in subclasses to e.g. average positions when vertices are combined.
-        # For now, just use one of them.
+        # For now, just use one of them and combine the attributes.
+        attrs = copy(other.attributes)
+        attrs.update(self.attributes)
+        self.attributes = attrs
         return self
 
     def check_consistency(self):
@@ -249,6 +255,12 @@ class Face(IdObject):
         for f in self.face_iter():
             if f is not None:
                 yield f
+
+    def outgoing_edge_at(self, v):
+        return next(h for h in self.halfedge_iter() if h.orig is v)
+
+    def incoming_edge_at(self, v):
+        return next(h for h in self.halfedge_iter() if h.dest is v)
 
     def common_halfedge_iter(self, other):
         assert isinstance(other, Face)
