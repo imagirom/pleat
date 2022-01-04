@@ -199,7 +199,7 @@ def cut_out_poly(G, poly, delete_outside=True, eps=1e-10):
             elif np.linalg.norm(e.dest['pos'] - crossing) < eps:
                 v = e.dest
             else:
-                v = G.subdivide_edge(e, pos=crossing)
+                _, v = G.subdivide_edge(e, pos=crossing)
             crossing_to_vertices[i].add(v)
             # label the vertex
             v['poly_side'] = {poly_side: np.argwhere(np.array(segments1_to_crossings[poly_side]) == i)[0, 0]

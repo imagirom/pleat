@@ -617,7 +617,7 @@ class HalfEdgeGraph:
         self.add_vertex(v)
         self.add_halfedges([h2, h2rev])
 
-        return v
+        return h2, v
 
     def subdivide_face(self, f, v1, v2):
         """
@@ -642,7 +642,8 @@ class HalfEdgeGraph:
         self.add_halfedges([h12, h21])
 
         # update attributes of the affected existing face and adjacent halfedges
-        f.any_side = v1_out
+        if f is not None:
+            f.any_side = v1_out
         v1_out.pre.nex = h12
         v1_out.pre = h21
         v2_out.pre.nex = h21
@@ -650,7 +651,7 @@ class HalfEdgeGraph:
         for h in f2.halfedge_iter():
             h.face = f2
 
-        return f2
+        return h12, f2
 
     def halfedges_representing_edges(self):
         """
