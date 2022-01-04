@@ -87,8 +87,11 @@ class RegularProtoTile(PolygonalProtoTile):
         for _ in range(n-2):
             points.append(geo.construct_next_poly_point(points[-2], points[-1], in_angle, edge_length))
         com = geo.center_of_mass(np.array(points))
-        transform = geo.translation(com, geo.origin())
-        self.points = np.array([transform(point) for point in points])
+        translate = geo.translation(com, geo.origin())
+        points = np.array([translate(point) for point in points])
+        angle = -geo.angle_to_axis(points[0])
+        rotate = geo.rotation(geo.origin(), angle)
+        self.points = np.array([rotate(point) for point in points])
 
 
 
