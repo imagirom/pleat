@@ -294,6 +294,28 @@ def ambo_graph():
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
+def goldberg2_graph():
+    # define vertex positions
+    v1 = (0, -1)
+    vf = (1, 0)
+    v2 = (0, 1)
+    v12 = (0, 0)
+    v1f = (1 / 2, -1 / 2)
+    v2f = (1 / 2, 1 / 2)
+    # construct nx graph with delete and join attributes
+    G = nx.Graph()
+    nx.add_cycle(G, [v1, v1f, vf, v2f, v2, v12], delete=True)
+    del G.edges[v1, v12]['delete']
+    del G.edges[v12, v2]['delete']
+    G.add_nodes_from([vf], delete=True)
+    G.add_nodes_from([v1f, v2f], join=True)
+    G.add_edges_from([[v12, v1f], [v12, v2f]])
+
+    # construct EHEG and ConwayOperator
+    heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
+    return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
+
+
 def truncate_graph(t=1 / 2):
     v1 = (0, -1)
     vf = (1, 0)
