@@ -980,7 +980,7 @@ class InAngleHEG(HalfEdgeGraph):
             if recursive:
                 self.autoclose_vertex(v_next, reverse=reverse, recursive=True)
         elif anglesum > self.tau:
-           print(f'Vertex {v} has anglesum of {anglesum} > {self.tau}')
+           raise RuntimeError(f'Vertex {v} has anglesum of {anglesum} > {self.tau}')
            # assert False, f'Vertex {v} has anglesum of {anglesum} > {self.tau}'
 
     def glue_e2e(self, e1, e2, auto_close=True, auto_close_recursive=True):
@@ -994,7 +994,7 @@ class InAngleHEG(HalfEdgeGraph):
             self.autoclose_vertex(e1.rev.orig, reverse=False, recursive=auto_close_recursive)
         else:
             assert False
-        if e1.rev.dest.on_border():  # this might not be the case, if everything is closed by the previous operation
+        if e1.rev.dest in self.vertices and e1.rev.dest.on_border():  # this might not be the case, if everything is closed by the previous operation
             self.autoclose_vertex(e1.rev.dest, reverse=True, recursive=auto_close_recursive)
 
 
@@ -1202,11 +1202,20 @@ class CyclicHalfedgeGraph(HalfEdgeGraph):
         self.face = f
         self.add_halfedges(inner_hs)
         self.add_halfedges(outer_hs)
-        
+
+
+def make_polygon_graph(positions):
+    vs = [Vertex() for _ in range(len(positions))]
+    G = CyclicHalfedgeGraph(vs)
+    for v, p in zip(vs, positions):
+        v['pos'] = p
+    G = EuclideanPositionHEG(other=G)
+    return G
+
 
 class RegularNGon(CyclicHalfedgeGraph, InAngleHEG):
     def __init__(self, n, *super_args, **super_kwargs):
         super(RegularNGon, self).__init__(vs=[Vertex() for _ in range(n)], *super_args, **super_kwargs)
         f = any_element(self.faces)
         for e in f.halfedge_iter():
-            e['in_angle'] = (n-2) / n * pi 
+            e['in_angle'] = (n-2) / n * pi

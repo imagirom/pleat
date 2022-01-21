@@ -2,6 +2,9 @@ from .half import *
 from .prototiles import *
 from .example_tilesets import *
 
+
+# TODO https://en.wikipedia.org/wiki/File:Planar_Fractalizing_Truncated_Hexagonal_Tiling_II.png
+
 def get_edge_with(graph, func=None, on_border=False):
     assert isinstance(graph, HalfEdgeGraph)
     func = func if func is not None else lambda _: True
@@ -48,7 +51,9 @@ def complete_vertex(G, v):
 
 
 def add_vertex_ring(G):
-    for v in [h.orig for h in G.border_edges()]:
+    vs = [h.orig for h in G.border_edges()]
+    vs = sorted(vs, key=lambda v: -v.angle_sum())
+    for v in vs:
         if v in G.vertices:
             complete_vertex(G, v)
 
@@ -95,5 +100,69 @@ def kised_soccer_ball():
     G = kis_graph()(G)
     G.delete_subset([v for v in G.vertices if v.on_border() and v.order() < 5])
     G.delete_subset([f for f in G.faces if f.order() > 3])
-    G.convert_to_euclidean()
     return G
+
+
+from sympy import *
+def hyperbolic_square_graph(G=None, min_length=0.05, dual=False):
+    import eucare as ec
+
+    def wrapped_elliptic_f(z, m):
+        return complex(N(elliptic_f(z, m)))
+
+    def complex_to_array(z):
+        return np.array([z.real, z.imag])
+
+    def disk_to_square(z, w=1):
+        return np.sqrt(1j) * wrapped_elliptic_f(np.arcsin(w * z), -1)
+        #return np.sqrt(2) * wrapped_elliptic_f(np.arcsin(np.sqrt(z+1)), np.sqrt(2)/2)
+
+    def disk_to_halfplane(z):
+        return (z + 1j) / (1j * z + 1)
+
+    if G is None:
+        G = ec.example_graphs.from_tiles(ec.example_graphs.curved_platonic(7, 3), 1)
+
+    def map_to_square(G):
+        G_square = G.copy()
+        G_square.geometry = ec.geometries.EuclideanGeometry
+        for v in G_square.vertices:
+            if 'square_pos' in v:
+                v['pos'] = v['square_pos']
+            else:
+                v['pos'] = complex_to_array(disk_to_square(v['pos'], np.sqrt(1j).conjugate()))
+
+        return G_square
+
+
+    nv_before = None
+    nv_after = G.order
+    while nv_before != nv_after:
+        nv_before = nv_after
+        print(nv_before)
+        for v in G.vertices:
+            if 'square_pos' not in v:
+                v['square_pos'] = complex_to_array(disk_to_square(v['pos'], np.sqrt(1j).conjugate()))
+                for e in v.outgoing_iter():
+                    if 'square_pos' not in e.dest:
+                        continue
+                    e['square_length'] = e.rev['square_length'] = np.linalg.norm(v['square_pos'] - e.dest['square_pos'])
+
+        queue = {}
+        for v in G.vertices:
+            if not v.on_border():
+                continue
+            v['square_length'] = np.mean([e['square_length'] for e in v.outgoing_iter() if e.on_border()])
+            queue[v] = np.min(9.27037339e-01-np.abs(v['square_pos'])) #v['square_length']
+
+        for v, length in reversed(sorted(queue.items(), key=lambda kv: kv[1])):
+            if length > min_length:
+                if v.on_border():
+                    ec.example_graphs.complete_vertex(G, v)
+        nv_after = G.order
+
+    if dual:
+        G = ec.conway.dual_graph()(G)
+    G_square = map_to_square(G)
+
+    return G_square

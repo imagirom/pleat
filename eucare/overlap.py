@@ -840,7 +840,8 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
     folded = results['folded_state']
     folded_angle = optimize_rotation(folded, angle_offset=0)
 
-    render_settings['line_width'] = CairoRenderer.auto_line_width(results['CP'])
+    if render_settings.get('line_width', 'auto') == 'auto':
+        render_settings['line_width'] = CairoRenderer.auto_line_width(results['CP'])
 
     os.makedirs(path, exist_ok=True)
     cp_settings = render_settings.copy()

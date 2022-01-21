@@ -29,7 +29,7 @@ _seed_offset = np.random.randint(2**16)
 
 def random_color(seed=None):
     if seed is not None:
-        np.random.seed(hash(seed) + _seed_offset)
+        np.random.seed((hash(seed) + _seed_offset) % 2**32)
     return np.random.uniform(0, 1, 3)
 
 
@@ -118,7 +118,7 @@ class CairoRenderer:
             dc.move_to(*points[-1])
             for point in points:
                 dc.line_to(*point)
-            self.set_source_color(edge.attributes.get(color_key, edge.attributes.get(color_key, (0.5, 0.5, 1.0))))
+            self.set_source_color(edge.attributes.get(color_key, edge.attributes.get(color_key, (0.5, 0.5, 1.0, 0.5))))
             dc.fill_preserve()
         else:
 
@@ -153,7 +153,7 @@ class CairoRenderer:
         elif vertex.attributes.get('delete', False):
             dc.set_source_rgb(1.0, 1.0, 1.0)
         else:
-            dc.set_source_rgb(0.0, 0.0, 0.0)
+            dc.set_source_rgba(0.0, 0.0, 0.0, 0.5)
         dc.fill_preserve()
         dc.set_source_rgb(0.0, 0.0, 0.0)
         dc.stroke()
