@@ -1,4 +1,4 @@
-from .half import HalfEdge, CyclicHalfedgeGraph, Vertex, InAngleHEG
+from .half import HalfEdge, CyclicHalfedgeGraph, Vertex, Face, InAngleHEG
 from .base import angle_to_axis, unit_vector, unit_vector_to_vector
 from .instructions import attatch_tile_instruction
 from .geometries import *
@@ -12,13 +12,16 @@ class ProtoTile:
 
 
 class PolygonalProtoTile(ProtoTile):
-    def __init__(self, in_angles, edge_lengths, edge_labels=None, vertex_labels=None, edge_instructions=None):
+    def __init__(self, in_angles, edge_lengths,
+                 edge_labels=None, vertex_labels=None, face_label=None,
+                 edge_instructions=None):
         assert len(in_angles) == len(edge_lengths)
         self.order = len(in_angles)
         self.in_angles = in_angles
         self.edge_lengths = edge_lengths
         self.edge_labels = edge_labels if edge_labels is not None else list(range(self.order))
         self.vertex_labels = vertex_labels if vertex_labels is not None else list(range(self.order))
+        self.face_label = face_label
 
         # edge_instructions can either be a list for all edges, or a dict, mapping a label to an instruction
         self.edge_instructions = edge_instructions if edge_instructions is not None else dict()
@@ -53,7 +56,10 @@ class PolygonalProtoTile(ProtoTile):
         else:
             assert self.edge_instructions is None, f'{self.edge_instructions}'
 
-        graph = CyclicHalfedgeGraph(vs=vertices, inner_hs=inner_edges, outer_hs=outer_edges)
+        f = Face()
+        if self.face_label is not None:
+            f['label'] = self.face_label
+        graph = CyclicHalfedgeGraph(f=f, vs=vertices, inner_hs=inner_edges, outer_hs=outer_edges)
         return graph, outer_edge_dict
 
     def attach_instruction(self, label=None):
