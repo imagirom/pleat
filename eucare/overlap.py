@@ -674,46 +674,16 @@ def fold_wireframe(G, initial_face=None):
 
 
 CREASE_ASSIGNMENT = 'crease_assignment'
-THIS_WAY = 'this_way'
 
 
-def assign_shrink_rotate_creases(SRG):
-    """
-    Assigns crease orientation to shrik rotate cp, given directions on the original graph.
-    """
-    twistfaces = [f for f in SRG.faces if 'twistrotate' in f.attributes]
-    for f in twistfaces:
-        e_twist = f.any_side
-        while e_twist.rev.on_border():
-            e_twist = e_twist.nex
-        # get edge in orig graph that matches e_twist
-        e = None
-        for e_orig in f['pre_conway'].halfedge_iter():
-            if e_orig.rev in e_twist.rev.nex.nex.rev.face['pre_conway'].halfedge_iter():
-                e = e_orig
-                break
-        assert e is not None
-        e_twist_initial = e_twist
-        while True:
-            if THIS_WAY in e.attributes and not e_twist.rev.on_border():
-                e_twist.rev[CREASE_ASSIGNMENT] = MOUNTAIN
-                e_twist.rev.nex.nex.nex[CREASE_ASSIGNMENT] = VALLEY
-                if True: #e_twist.rev['in_angle'] < np.pi / 2:
-                    e_twist.rev.nex[CREASE_ASSIGNMENT] = MOUNTAIN
-                    e_twist.rev.nex.nex[CREASE_ASSIGNMENT] = VALLEY
-                else:
-                    e_twist.rev.nex[CREASE_ASSIGNMENT] = VALLEY
-                    e_twist.rev.nex.nex[CREASE_ASSIGNMENT] = MOUNTAIN
-            e = e.nex
-            e_twist = e_twist.nex
-            if e_twist is e_twist_initial:
-                break
-    for e in SRG.halfedges:  # make crease assignment of e and e.rev consistent
-        if CREASE_ASSIGNMENT in e.attributes:
-            if CREASE_ASSIGNMENT in e.rev.attributes:
-                assert e[CREASE_ASSIGNMENT] == e.rev[CREASE_ASSIGNMENT]
-            else:
-                e.rev[CREASE_ASSIGNMENT] = e[CREASE_ASSIGNMENT]
+def color_creases(G):
+    colors = {
+        0: (0, 0, 0),
+        1: (1, 0, 0),
+        -1: (0, 0, 1)
+    }
+    for e in G.halfedges:
+        e['color_key'] = colors[e.attributes.get('crease_assignment', 0)]
 
 
 def get_over_under_pairs_from_creases(G, two_coloring_key='color_key'):
