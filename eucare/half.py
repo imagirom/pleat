@@ -288,7 +288,10 @@ class Face(IdObject):
                 yield f
 
     def midpoint(self):
-        return np.mean([v['pos'] for v in self.vertex_iter()], axis=0)
+        return self.attributes.get('midpoint', np.mean([v['pos'] for v in self.vertex_iter()], axis=0))
+
+    def pseudo_incenter(self):
+        return pseudo_incenter(self)
 
     def recompute_lengths_and_angles(self, geometry):
         points = np.stack([v['pos'] for v in self.vertex_iter()])
@@ -306,6 +309,17 @@ class Face(IdObject):
         for e in self.halfedge_iter():
             assert e.face is self, f'{self}, {e.face}, {e}'
         assert self.order() > 1, f'{self}, {self.order()}'
+
+
+def pseudo_incenter(f):
+    """
+    If f has an incenter, this is it.
+    Otherwise, this is the mean of all the incenters of triangles with corners being a set of adjacent corners of f.
+    """
+    ps = np.array([v['pos'] for v in f.vertex_iter()])
+    lengths = np.linalg.norm(np.roll(ps, 1, axis=0) - np.roll(ps, 2, axis=0), axis=-1)
+    incenter = np.sum(lengths[:, None] * ps, axis=0) / np.sum(lengths)
+    return incenter
 
 
 class HalfEdgeGraph:
