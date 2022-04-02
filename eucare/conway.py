@@ -1,6 +1,7 @@
 from .half import *
 from .conversions import EHEG_from_nx
 from .base import barycentric_to_euclidean_map, euclidean_to_barycentric_map
+from .utils import invert_mapping
 from copy import deepcopy
 
 
@@ -18,13 +19,26 @@ class TopologicalConwayOperator:
     def get_tri(self, h):
         return None
 
-    def generate_graph_and_corners(self, tri):
+    def generate_graph_and_corners(self, tri, h=None):
         graph, (v_map, _, _) = self.graph.copy(deepcopy_attributes=False, return_mappings=True)
+        if h is not None:
+            for v in graph.vertices:
+                if not v.on_border():  # todo: also assign 'pre_conway' to border vertices, as a set
+                    v['pre_conway'] = h
         return graph, (v_map[self.v1], v_map[self.vf], v_map[self.v2])
         #return deepcopy((self.graph, (self.v1, self.vf, self.v2)))
 
-    def __call__(self, graph, faces=None, delete_on_border=True, delete_inner_border=False):
-        # TODO: add option to copy graph. take care of face mapping
+    def __call__(self, graph, faces=None, delete_on_border=True, delete_inner_border=False, copy_graph=False):
+        if copy_graph:
+            graph, (v_map, h_map, f_map) = graph.copy(return_mappings=True)
+            v_map, h_map, f_map = [invert_mapping(m) for m in (v_map, h_map, f_map)]
+            obj_map = dict()
+            obj_map.update(v_map)
+            obj_map.update(h_map)
+            obj_map.update(f_map)
+            for obj in obj_map.keys():
+                if obj is not None and 'pre_conway' in obj:
+                    del obj['pre_conway']
 
         # apply the operator to a set of halfedges in a graph
         assert isinstance(graph, HalfEdgeGraph)
@@ -40,7 +54,7 @@ class TopologicalConwayOperator:
         vf_lookup = dict()
         vf_set = set()
 
-        graphs_and_corners = map(self.generate_graph_and_corners, [self.get_tri(h) for h in halfedges])
+        graphs_and_corners = [self.generate_graph_and_corners(self.get_tri(h), h) for h in halfedges]
 
         for gc, h in zip(graphs_and_corners, halfedges):
             orig_face = h.face
@@ -195,6 +209,12 @@ class TopologicalConwayOperator:
         for v in to_join:
             if v.order() is 2:  # TODO: check this beforehand
                 HalfEdgeGraph.join_vertex(graph, v)
+
+        if copy_graph:
+            for objs in (graph.vertices, graph.halfedges, graph.faces):
+                for obj in objs:
+                    if 'pre_conway' in obj.attributes:
+                        obj['pre_conway'] = obj_map[obj['pre_conway']]
         return graph
 
 
@@ -211,9 +231,9 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         midpoint = self.geometry.center_of_mass(np.stack([v['pos'] for v in h.face.vertex_iter()]))
         return np.array([h.dest['pos'], midpoint, h.orig['pos']])
 
-    def generate_graph_and_corners(self, tri):
+    def generate_graph_and_corners(self, tri, h=None):
 
-        result, corners = super(GeometricConwayOperator, self).generate_graph_and_corners(tri)
+        result, corners = super(GeometricConwayOperator, self).generate_graph_and_corners(tri, h)
 
         to_euclidean = self.geometry.barycentric_to_euclidean_map(tri)
         # this could be vectorized
