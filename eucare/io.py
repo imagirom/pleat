@@ -117,12 +117,17 @@ def dict_to_graph(graph_dict):
     return G
 
 
-def save_graph(filename, graph, overwrite=False):
+def save_graph(filename, graph, overwrite=False,
+               extra_attributes_to_save=None, attributes_to_save=('pos', 'length', 'in_angle', 'color_key')):
     if not filename.endswith('.heg'):
         filename += '.heg'
     if not overwrite:
         assert not os.path.exists(filename), f'File exists: {filename}. Set overwrite=True to overwrite.'
-    graph_dict = graph_to_dict(graph)
+    if extra_attributes_to_save is not None:
+        if isinstance(extra_attributes_to_save, str):
+            extra_attributes_to_save = (extra_attributes_to_save,)
+        attributes_to_save = tuple(extra_attributes_to_save) + tuple(attributes_to_save)
+    graph_dict = graph_to_dict(graph, attributes_to_save=attributes_to_save)
     with open(filename, 'w') as f:
         f.write(yaml.dump(graph_dict))
 
