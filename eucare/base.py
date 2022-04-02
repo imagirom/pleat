@@ -118,3 +118,20 @@ def barycentric_to_euclidean_map(tri):
     def inner(barycentric_coords):
         return tri.T @ barycentric_coords
     return inner
+
+
+def project_to_line(line, points):
+    v = line[1] - line[0]
+    v /= np.linalg.norm(v)
+    return np.sum((points - line[0]) * v, axis=-1, keepdims=True) * v + line[0]
+
+
+def line_intersection(line1, line2):
+    diff = np.stack([l[0] - l[1] for l in (line1, line2)])
+
+    div = np.linalg.det(diff)
+    if div == 0:
+        raise Exception('lines do not intersect')
+
+    d = np.array([np.linalg.det(l) for l in (line1, line2)])
+    return np.array([np.linalg.det(np.stack([d, dif])) for dif in diff.T]) / div
