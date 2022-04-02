@@ -891,3 +891,23 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
         f.write(text)
 
     print(text)
+
+
+def remove_duplicates(G, eps=1e-6, exclude_edges=()):
+    vs = list(G.vertices)
+    pos = np.stack([v['pos'] for v in vs])
+
+    groups = group_closeby(pos, eps)
+    _, index, inverse = np.unique(groups, return_index=True, return_inverse=True)
+    node_mapping = {i:j for i,j in enumerate(index[inverse])}
+    v_index = {v: node_mapping[i] for i, v in enumerate(vs)}
+
+    nxG = nx.Graph()
+    nxG.add_nodes_from(v_index.values())
+    nx_positions = {i: pos[i] for i in node_mapping.values()}
+    nxG.add_edges_from([(v_index[e.orig], v_index[e.dest]) for e in G.halfedges_representing_edges()
+                        if e not in set(exclude_edges).union({e.rev for e in exclude_edges})])
+
+    G2 = EHEG_from_nx(nxG, nx_positions)
+    G2.recompute_lengths_and_angles()
+    return G2
