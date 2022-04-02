@@ -40,7 +40,7 @@ def is_color(obj):
 class CairoRenderer:
     def __init__(self, width=None, height=None, line_width='auto', vertex_radius=None,
                  scale='auto', face_inset=None, path='output.svg',
-                 position_key='pos'):
+                 position_key='pos', curve_position_key='curve_pos'):
         if width is None and height is None:
             width, height = 512, 512
         self.width = width if width is not None else height
@@ -50,6 +50,7 @@ class CairoRenderer:
         self.vertex_radius = vertex_radius
         self.face_inset = face_inset
         self.position_key = position_key
+        self.curve_position_key = curve_position_key
 
         #self.surface = cairo.ImageSurface(
         #    cairo.FORMAT_RGB24, self.width, self.height)
@@ -67,7 +68,12 @@ class CairoRenderer:
 
     def render_face(self, face, color_key='color_key'):
         dc = self.dc
-        points = [v[self.position_key] for v in face.vertex_iter()]
+        points = []
+        for h in face.halfedge_iter():
+            if self.curve_position_key not in h.attributes:
+                points.append(h.orig[self.position_key])
+            else:
+                points.extend(h[self.curve_position_key][:-1])
         inset = self.face_inset
         if inset != 0:
             points = inset_poly(points, inset)
@@ -123,11 +129,14 @@ class CairoRenderer:
         else:
 
             dc.set_line_width(edge.attributes.get('line_width', self.line_width))
-            if True or last_pos is None or np.linalg.norm(last_pos - edge.orig[self.position_key]) > tol:
+            if self.curve_position_key not in edge.attributes:
                 dc.move_to(*edge.orig[self.position_key])
+                dc.line_to(*edge.dest[self.position_key])
             else:
-                pass
-            dc.line_to(*edge.dest[self.position_key])
+                curve = edge['curve_pos']
+                dc.move_to(*curve[0])
+                for pos in curve[1:]:
+                    dc.line_to(*pos)
             #dc.set_source_rgb(0.0, 0.0, 0.0)
             # set color. TODO: this interacts weirdly with delayed dc.stroke..
             if color_key in edge.attributes:
@@ -144,14 +153,16 @@ class CairoRenderer:
                 #dc.stroke()
         return self.surface if last_pos is None else (self.surface, edge.dest[self.position_key])
 
-    def render_vertex(self, vertex):
+    def render_vertex(self, vertex, color_key='color_key'):
         dc = self.dc
         dc.set_line_width(0)
         dc.arc(*vertex[self.position_key], self.vertex_radius, 0, 2*np.pi)
-        if vertex.attributes.get('join', False):
+        if color_key in vertex.attributes:
+            self.set_source_color(vertex[color_key])
+        elif vertex.attributes.get('join', False):
             dc.set_source_rgb(0.0, 1.0, 0.0)
         elif vertex.attributes.get('delete', False):
-            dc.set_source_rgb(1.0, 1.0, 1.0)
+            dc.set_source_rgb(1.0, 0.0, 0.0)
         else:
             dc.set_source_rgba(0.0, 0.0, 0.0, 0.5)
         dc.fill_preserve()
@@ -242,10 +253,49 @@ class CairoRenderer:
 
 class SvgwriteRenderer:
     """This is to be used with a cutting plotter"""
-    def __init__(self, position_key='pos'):
+    def __init__(self, position_key='pos', curve_position_key='curve_pos'):
         assert svgwrite is not None, f'SvgwriteRenderer requires the svgwrite package. You can install it via pip.'
         self.position_key = position_key
-        
+        self.curve_position_key = curve_position_key
+
+    def _render_halfedges(self, halfedges, dwg, bbox, scale):
+        edges = list(halfedges)
+        edge_to_index = {e: i for i, e in enumerate(edges)}
+        n_edges = len(edges)
+        rendered = np.zeros(n_edges, dtype=np.int32)
+        origs = np.stack([e.orig[self.position_key] for e in edges])
+        current = int(np.argmin(origs[:, 0]))
+        id_range = np.arange(n_edges)
+        polylines = []
+        current_polyline = [edges[current].orig[self.position_key]]
+        while True:
+            e = edges[current]
+            last_pos = e.dest[self.position_key]
+            if self.curve_position_key not in e:
+                current_polyline.append(last_pos)
+            else:
+                current_polyline.extend(e[self.curve_position_key][1:])
+            rendered[current] = 1
+            rendered[edge_to_index[e.rev]] = 1
+            if all(rendered):
+                break
+            dists = np.linalg.norm(origs[rendered == 0] - e.dest[self.position_key][None], axis=1)
+            current = id_range[rendered == 0][np.argmin(dists)]
+            if np.min(dists) > 1e-6:  # TODO: hardcoding this is bad, use relative deviation..
+                polylines.append(current_polyline)
+                current_polyline = [edges[current].orig[self.position_key]]
+        polylines.append(current_polyline)
+
+        for pts in polylines:
+            pts = np.array(pts)
+            pts -= bbox[:, 0][None]
+            pts *= scale
+            pth = dwg.path(fill_opacity=0, stroke_width='0.05', stroke='black')
+            pth.push('M', *pts)
+            pth.push('M', *pts)
+            dwg.add(pth)
+
+
     def render_graph(self, filename, graph, render_vertices=False, render_faces=False, render_edges=True,
                      for_cutting=True, height=30, unit=svgwrite.cm):
 
@@ -264,38 +314,22 @@ class SvgwriteRenderer:
             if not for_cutting:
                 raise NotImplementedError
             else:
-                # order the edges such that the plotting takes less time
-                edges = list(graph.halfedges)
-                edge_to_index = {e: i for i, e in enumerate(edges)}
-                n_edges = len(edges)
-                rendered = np.zeros(n_edges, dtype=np.int32)
-                origs = np.stack([e.orig[self.position_key] for e in edges])
-                current = int(np.argmin(origs[:, 0]))
-                id_range = np.arange(n_edges)
-                polylines = []
-                current_polyline = [edges[current].orig[self.position_key]]
-                while True:
-                    e = edges[current]
-                    last_pos = e.dest[self.position_key]
-                    current_polyline.append(last_pos)
-                    rendered[current] = 1
-                    rendered[edge_to_index[e.rev]] = 1
-                    if all(rendered):
-                        break
-                    dists = np.linalg.norm(origs[rendered == 0] - e.dest[self.position_key][None], axis=1)
-                    current = id_range[rendered == 0][np.argmin(dists)]
-                    if np.min(dists) > 1e-6:  # TODO: hardcoding this is bad, use relative deviation..
-                        polylines.append(current_polyline)
-                        current_polyline = [edges[current].orig[self.position_key]]
-                polylines.append(current_polyline)
+                self._render_halfedges(graph.halfedges, dwg, bbox, scale)
 
-                for pts in polylines:
-                    pts = np.array(pts)
-                    pts -= bbox[:, 0][None]
-                    pts *= scale
-                    pth = dwg.path(fill_opacity=0, stroke_width='0.05', stroke='black')
-                    pth.push('M', *pts)
-                    dwg.add(pth)
+                assert filename.endswith('.svg')
+                filename_border = '.'.join(filename.split('.')[:-1]) + '_borders.svg'
+                dwg_border = svgwrite.Drawing(filename_border, size=(width*unit, height*unit),
+                                              viewBox=f'0 0 {width} {height}')
+                border_edges = {h for h in graph.halfedges if h.on_border() or h.rev.on_border()}
+                self._render_halfedges(border_edges, dwg_border, bbox, scale)
+                dwg_border.save()
+
+                filename_interior = '.'.join(filename.split('.')[:-1]) + '_interior.svg'
+                interior_edges = graph.halfedges.difference(border_edges)
+                dwg_interior = svgwrite.Drawing(filename_interior, size=(width*unit, height*unit),
+                                                viewBox=f'0 0 {width} {height}')
+                self._render_halfedges(interior_edges, dwg_interior, bbox, scale)
+                dwg_interior.save()
 
         if render_vertices:
             raise NotImplementedError

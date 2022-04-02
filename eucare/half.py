@@ -64,6 +64,9 @@ class AttributeObject:
     def __contains__(self, item):
         return item in self.attributes
 
+    def get(self, attr, *args, **kwargs):
+        return self.attributes.get(attr, *args, **kwargs)
+
     def keys(self):
         return self.attributes.keys()
 
@@ -255,6 +258,9 @@ class Face(IdObject):
         for f in self.face_iter():
             if f is not None:
                 yield f
+
+    def on_border(self):
+        return any(h.rev.on_border() for h in self.halfedge_iter())
 
     def outgoing_edge_at(self, v):
         return next(h for h in self.halfedge_iter() if h.orig is v)
@@ -1075,8 +1081,21 @@ class GeometricHEG(InAngleHEG):
     def get_position_view(self, vertices=None, return_vertices=True, position_key='pos'):
         vertices = list(self.vertices) if vertices is None else vertices
         positions = np.stack([v[position_key] for v in vertices])
+        curved_hs = [h for h in self.halfedges if 'curve_pos' in h]
+        if len(curved_hs) > 0:
+            curved_pos = np.concatenate([h['curve_pos'] for h in curved_hs])
+            positions = np.concatenate([positions, curved_pos])
+            # assign curve positions
+            i = len(vertices)
+            for h in curved_hs:
+                j = i + len(h['curve_pos'])
+                h['curve_pos'] = positions[i:j]
+                i = j
+
+        # assign vertex positions
         for v, p in zip(vertices, positions):
             v[position_key] = p
+
         if return_vertices:
             return positions, vertices
         else:
