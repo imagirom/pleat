@@ -446,6 +446,90 @@ def loft_graph(t=1/2):
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
+def lace_graph(t=1/2, join=False):
+    assert t < 1
+    v1 = (0, -1)
+    vf = (1, 0)
+    v2 = (0, 1)
+    vc = (t, 0)
+    v1f = (t, -1 + t)
+    v2f = (t, 1 - t)
+
+    G = nx.Graph()
+    nx.add_cycle(G, [v1, v1f, vf, v2f, v2], delete=True)
+    if not join:
+        del G.edges[v1, v2]['delete']
+
+    G.add_edges_from([[vc, v1], [vc, v2], [vc, v1f], [vc, v2f]])
+    G.add_nodes_from([v1f, v2f], join=True)
+    G.add_nodes_from([vf], delete=True)
+
+    # construct EHEG and ConwayOperator
+    heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
+    return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
+
+
+def expand_graph(t=1/2):
+    assert t < 1
+    v1 = (0, -1)
+    vf = (1, 0)
+    v2 = (0, 1)
+    v12 = (0, -1 + t)
+    v21 = (0, 1 - t)
+    v1f = (t, -1 + t)
+    v2f = (t, 1 - t)
+
+    G = nx.Graph()
+    nx.add_cycle(G, [v2, v21, v12, v1, v1f, vf, v2f], delete=True)
+
+    G.add_edges_from([[v1f, v12], [v2f, v21], [v1f, v2f]])
+    G.add_nodes_from([v12, v21, v1f, v2f], join=True)
+    G.add_nodes_from([vf], delete=True)
+
+    # construct EHEG and ConwayOperator
+    heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
+    return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
+
+
+def flagstone_pvitelli_graph(t=1/4):
+    assert t < 1
+    v1 = (0, -1)
+    vf = (1, 0)
+    v2 = (0, 1)
+    vL1 = (0, -1 + t)
+    vL2 = (0, 1 - t)
+    vL1f = (t/2, -1 + t/2)
+    vL2f = (t/2, 1 - t/2)
+    vV1 = (t, -1 + t)
+    vV2 = (t, 1 - t)
+    vN1 = (t/2, -1 + 3/2*t)
+    vN2 = (t/2, 1 - 3/2*t)
+    vN1e = (0, -1 + 3/2*t)
+    vN2e = (0, 1 - 3/2*t)
+
+    G = nx.Graph()
+    nx.add_cycle(G, [v2, vL2, vN2e, vN1e, vL1, v1, vL1f, vV1, vf, vV2, vL2f], delete=True)
+    nx.add_cycle(G, [vL2, vN2, vN1, vL1, vV1, vV2])
+    G.add_edges_from([[vL1f, vL1], [vL2f, vL2], [vN1e, vN1], [vN2e, vN2], [vN1, vV1], [vN2, vV2]])
+    G.add_nodes_from([vL1f, vL2f, vN1e, vN2e], join=True)
+
+    # label the points which will be joined that are closer to v1
+    G.add_nodes_from([vL1], label='L')
+    G.add_nodes_from([vV1], label='V')
+    # label both copies of the inner node
+    G.add_nodes_from([vN1], label='N1')
+    G.add_nodes_from([vN2], label='N2')
+
+    G.add_nodes_from([v1, v2, vf], delete=True)
+
+    # construct EHEG and ConwayOperator
+    heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
+
+    v_lookup[vf].get_outgoing_border().rev.face['is_central_polygon'] = True
+
+    return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
+
+
 def chamfer_graph(t=1/2):
     assert t < 1
     result = loft_graph(t)
