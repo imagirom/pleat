@@ -258,16 +258,11 @@ Join all straight degree 2 vertices that
 def overlap_graph(G, eps=1e-10):
     from .utils import VerboseTimer
     # TODO: first step: group points in graph
-    edges = [e for e in G.halfedges if e.face is not None]
-    new_edges = []
-    for e in edges:
-        if e.rev not in new_edges:
-            new_edges.append(e)
-    edges = new_edges
+    # list of halfedges representing edges, on the border using the inside halfedge
+    edges = [h.rev if h.on_border() else h for h in G.halfedges_representing_edges()]
 
     print('number of edges:', len(edges))
     line_segments = np.array([[e.orig['pos'], e.dest['pos']] for e in edges])
-    print(line_segments.shape)
 
     timer = VerboseTimer()
     # ------ get all crossings ------
@@ -294,11 +289,13 @@ def overlap_graph(G, eps=1e-10):
 
     # ------ group closeby crossings ------
 
-    print('n crossings:', len(crossings))
+    print('n crossings:', len(crossings), '. clustering them..')
     clustering = group_closeby(crossings, eps)
     timer.round('clustered crossings')
     print('reduced n crossings', np.max(clustering) + 1)
-    first_occurences = np.argmax(clustering[None] == np.arange(np.max(clustering) + 1)[:, None], axis=1)
+
+    # first_occurences = np.argmax(np.equal(clustering[None], np.arange(np.max(clustering) + 1)[:, None]), axis=1)
+    first_occurences = np.array([np.argmax(clustering == i) for i in range(max(clustering)+1)])  # memory efficient
     # filtered_crossings consists of one exemplar per cluster
     filtered_crossings = crossings[first_occurences]
     n_filtered_crossings = len(filtered_crossings)
@@ -365,7 +362,7 @@ def overlap_graph(G, eps=1e-10):
     for f in G.faces:
         face_orientations[f] = f.area() > 0
 
-    for i in tqdm(range(len(edges))):
+    for i in tqdm(range(len(edges)), desc='assigning original vertices, edges, faces'):
         ordered_ids_0 = edge_to_ordered_ids[i]
         if len(ordered_ids_0) == 0:
             assert False, f'this should not happen, as orig and dest of every edge should be crossings. {edges[i]}'
@@ -452,16 +449,18 @@ SORTED_ORIGINAL_FACES = 'sorted_original_faces'
 
 def find_triplet_overlap_areas(G):
     result = defaultdict(float)
-    for f in G.faces:
+    bar = tqdm(G.faces, desc='finding triplet overlap areas')
+    for f in bar:
         area = f.area()
         for triplet in itertools.combinations(f[ORIGINAL_FACES], 3):
             result[frozenset(triplet)] += area
+        bar.set_description(f'finding triplet overlap areas ({len(result)} so far)')
     return result
 
 
 def find_fold_over_facet_lengths(G):
     result = defaultdict(float)
-    for e in G.halfedges:
+    for e in tqdm(G.halfedges, desc='finding fold over facet lengths'):
         if e.on_border() or e.rev.on_border():
             continue
         over_both = e.face[ORIGINAL_FACES].intersection(e.rev.face[ORIGINAL_FACES])
@@ -476,7 +475,7 @@ def find_fold_over_facet_lengths(G):
 
 def find_conincident_fold_lengths(G):
     result = defaultdict(float)
-    for e in G.halfedges:
+    for e in tqdm(G.halfedges, desc='finding conicident fold lengths'):
         if e.on_border():
             continue
         folds_on_edge = [group for group in e[FACES_OF_FOLDS_ON_EDGE] if len(group) == 2]
@@ -530,11 +529,14 @@ def infer_additional_over_under_pairs(over_under_pairs, facet_triplets):
     return [(over, under) for over, under_set in over_dict.items() for under in under_set]
 
 
-def find_folded_face_order(G, over_under_pairs=(), solver=None, double_fold_weight=1, allow_slack=True, problem_file=None):
+def find_folded_face_order(G, over_under_pairs=(), solver=None, double_fold_weight=0, allow_slack=True, problem_file=None):
     if problem_file is None:  # by default, use temporary file
         with tempfile.TemporaryDirectory() as directory_name:
             filename = os.path.join(directory_name, 'Problem.lp')
-            return find_folded_face_order(G, over_under_pairs, solver, allow_slack, problem_file=filename)
+            return find_folded_face_order(G, over_under_pairs, solver,
+                                          double_fold_weight=double_fold_weight,
+                                          allow_slack=allow_slack,
+                                          problem_file=filename)
     print(f'Processing overlap graph with {G.order} facets..')
     triplet_overlap_areas = find_triplet_overlap_areas(G)
     fold_over_facet_lengths = find_fold_over_facet_lengths(G)
@@ -583,15 +585,15 @@ def find_folded_face_order(G, over_under_pairs=(), solver=None, double_fold_weig
             if not allow_slack:
                 assert constraint is True, f'{constraint}'
 
-    for a, b, c in tqdm(triplet_overlap_areas):
+    for a, b, c in tqdm(triplet_overlap_areas, desc='adding triplet overlap constraints'):
         val = over(a, b) + over(b, c) + over(c, a)
         add_constraint(val <= 2)
         add_constraint(val >= 1)
 
-    for (a, b), c in tqdm(fold_over_facet_lengths):
+    for (a, b), c in tqdm(fold_over_facet_lengths, desc='adding fold over facet constraints'):
         add_constraint(over(a, c) + over(c, b) == 1)
 
-    for (a, b), (c, d) in tqdm(coincident_fold_lengths):
+    for (a, b), (c, d) in tqdm(coincident_fold_lengths, desc='adding coincident fold constraints'):
         # use auxilliary variable to check if expression is even
         if double_fold_weight == 0:
             even_between_0_and_4 = 2 * pulp.LpVariable(get_varname(), 0, 2, pulp.LpInteger)
@@ -603,7 +605,7 @@ def find_folded_face_order(G, over_under_pairs=(), solver=None, double_fold_weig
             objective += double_fold_weight * zero_or_2
 
     if n_vars > 0:
-        if objective != 0:
+        if double_fold_weight > 0 and objective != 0:
             prob.setObjective(objective)
         # write ILP to file and solve it
         print(f'Writing problem to file {problem_file} ..')
@@ -705,35 +707,48 @@ TOP = 'top_side'
 BOTTOM = 'bottom_side'
 
 
-def face_order_to_clean_graph(G, side=TOP):
-    from .classifiers import CountingClassifier, RepresentationClassifier, lambda_classifier
-    from .conversions import EHEG_from_nx
-    assert side in (TOP, BOTTOM)
-    cc = CountingClassifier(RepresentationClassifier())
-    G = G.copy()
-    for f in G.faces:
-        try:
-            f['color_key'] = cc.classify(f['sorted_original_faces'][0 if side is TOP else -1])
-        except IndexError:
-            f['color_key'] = 1000
+def face_order_to_clean_graph(G, side=TOP, top_color=(0.5, 0.5, 0.9), bottom_color=(0.8, 0.8, 0.8)):
+    view = G.copy()
 
-    to_delete = [e
-                 for e in G.halfedges
-                 if not (e.on_border() or e.rev.on_border()) and e.face['color_key'] is e.rev.face['color_key']]
+    color_key_mapping = {
+        True: bottom_color,
+        False: top_color,
+    }
 
-    G.halfedges.difference_update(to_delete)
-    G = EHEG_from_nx(G.to_networkx_undirected(), {v: v['pos'] for v in G.vertices})
-#     to_join = []
-#     for v in G.vertices:
-#         if not v.on_border() and v.order() == 2:
-#             to_join.append(v)
-#     for v in to_join:
-#         G.join_vertex(v)
-    G.recompute_lengths_and_angles()
-    cc = CountingClassifier(lambda_classifier(lambda f: f.area()//0.0001)())
-    for f in G.faces:
-        f['color_key'] = cc.classify(f)
-    return G
+    if side == TOP:
+        layer = 0
+    else:
+        layer = -1
+    for f in view.faces:
+        key = f['sorted_original_faces'][layer].attributes['color_key']
+        if side == BOTTOM:
+            key = not key
+        f['color_key'] = color_key_mapping[key]
+
+    to_delete = [e for e in view.halfedges
+                 if not (e.on_border() or e.rev.on_border())
+                 and e.face['sorted_original_faces'][layer] is e.rev.face['sorted_original_faces'][layer]]
+    view.delete_subset(to_delete)
+    view.recompute_lengths_and_angles()
+
+    # join unnecessary vertices
+    to_join = []
+    for v in view.vertices:
+        if v.order() != 2:
+            continue
+        h = v.any_outgoing.pre
+        if h.on_border():
+            h = h.rev.pre
+        assert not h.on_border()
+        if v.order() == 2 and np.allclose(h['in_angle'] - np.pi, 0):
+            to_join.append(v)
+    for v in to_join:
+        view.join_vertex(v)
+
+    for e in view.halfedges:
+        e['color_key'] = (0, 0, 0)
+
+    return view
 
 
 def color_creases(G, colors=None, color_border=False):
@@ -769,7 +784,8 @@ def fold_complete(G, initial_face=None, overlap_eps=1e-6, area_eps=0):
     return result
 
 
-def save_results(results, path='results', render_settings=None, min_foldable_length=None, bbox=None, extra_info=None):
+def save_results(results, path='results', render_settings=None, min_foldable_length=None, bbox=None, extra_info=None,
+                 opacity=0.15):
     """
     Saves .png and .svg versions of crease pattern as well as top and bottom views of folded state in a directory.
     Additionally, a .svg of the crease pattern optimized for scoring with a cutting plotter or laser cutter is saved.
@@ -787,10 +803,12 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
     Bounding box dimensions in cm. The CP for cutting will be scaled to fit into this box.
     :param extra_info: str, optional
     String containing extra information to write to append to info.txt.
+    :param opacity: float, optional
+    opacity of paper for folded state
     :return:
     """
     if render_settings is None:
-        render_settings = dict(face_inset=0, render_vertices=False, render_faces=False, height=2048)
+        render_settings = dict(face_inset=0, render_vertices=False, render_faces=True, height=2048)
     render_settings = copy(render_settings)
 
     # optimize rotation and save for cutting
@@ -836,9 +854,9 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
     backlight_settings['filename'] = os.path.join(path, 'backlit')
     for f in results['folded_state'].faces:
         if 'original_faces' in f:
-            f['color_key'] = [0, 0, 0, 1 - 0.85 ** (len(f['original_faces']))]
+            f['color_key'] = [0, 0, 0, 1 - (1-opacity) ** (len(f['original_faces']))]
         else:
-            f['color_key'] = [0, 0, 0, 0.15]
+            f['color_key'] = [0, 0, 0, opacity]
     results['folded_state'].show(**backlight_settings)
 
     sheet_height = angle_to_height(SRG, np.pi / 2) / scale

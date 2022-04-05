@@ -4,6 +4,7 @@ import networkx as nx
 from copy import copy, deepcopy
 from math import pi
 import numpy as np
+import heapq
 from collections import deque
 from .base import unit_vector, angle_to_axis, edge_lengths_and_in_angles, signed_area
 from .geometries import *
@@ -1042,8 +1043,10 @@ class GeometricHEG(InAngleHEG):
         if len(faces) == 0:
             return  # nothing to do
         if edge_to_start is None:
-            # get any edge of faces
-            edge_to_start = next(next(iter(faces)).halfedge_iter())
+            # select longest edge
+            hs = [h for h in self.halfedges if not h.on_border()]
+            lengths = [h['length'] for h in hs]
+            edge_to_start = hs[np.argmax(lengths)]
         if edge_to_start.on_border():
             assert False, f'{edge_to_start}'
 
@@ -1055,10 +1058,15 @@ class GeometricHEG(InAngleHEG):
                 del v['pos']
 
         # compute positions for new vertices, face by face
-        yet_to_process = {(edge_to_start.face, edge_to_start.nex)}
+        yet_to_process = [(0, 0, (edge_to_start.face, edge_to_start.nex))]  # (error, iteration, (face, edge))
+        heapq.heapify(yet_to_process)
         processed_faces = set()
+        err_dict = {edge_to_start.orig: 0, edge_to_start.dest: 0}
+        i = 0
         while yet_to_process:
-            f, initial = yet_to_process.pop()
+            err, _, (f, initial) = heapq.heappop(yet_to_process)
+            if f in processed_faces:
+                continue
             processed_faces.add(f)
             e = initial
             while True:
@@ -1072,9 +1080,11 @@ class GeometricHEG(InAngleHEG):
                         a=e.pre.orig['pos'], b=e.orig['pos'],
                         angle=e.pre['in_angle'], length=e['length']
                     )
+                    err_dict[e.dest] = err_dict[e.orig] + 1
                 opposite_face = e.rev.face
                 if opposite_face in faces and opposite_face not in processed_faces:
-                    yet_to_process.add((opposite_face, e.rev.nex))
+                    i += 1
+                    heapq.heappush(yet_to_process, (max(err_dict[e.orig], err_dict[e.dest]), i, (opposite_face, e.rev.nex)))
                 e = e.nex
                 if e is initial:
                     break
