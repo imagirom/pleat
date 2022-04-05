@@ -259,6 +259,7 @@ class SvgwriteRenderer:
         self.curve_position_key = curve_position_key
 
     def _render_halfedges(self, halfedges, dwg, bbox, scale):
+        #TODO: adapt this to get an even better path: https://stackoverflow.com/a/44080908
         edges = list(halfedges)
         edge_to_index = {e: i for i, e in enumerate(edges)}
         n_edges = len(edges)
@@ -285,13 +286,13 @@ class SvgwriteRenderer:
                 polylines.append(current_polyline)
                 current_polyline = [edges[current].orig[self.position_key]]
         polylines.append(current_polyline)
+        # print(f'Rendering {len(polylines)} polylines, with {[len(line) for line in polylines]} line segments.')
 
         for pts in polylines:
             pts = np.array(pts)
             pts -= bbox[:, 0][None]
             pts *= scale
             pth = dwg.path(fill_opacity=0, stroke_width='0.05', stroke='black')
-            pth.push('M', *pts)
             pth.push('M', *pts)
             dwg.add(pth)
 
