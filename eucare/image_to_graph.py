@@ -101,7 +101,7 @@ def pruning(skeleton, size=None):
     return skeleton
 
 
-def image_to_graph(image, threshold=None, closing_iterations=3, edge_length_cutoff=None):
+def image_to_graph(image, threshold=None, closing_iterations=3, edge_length_cutoff=None, max_size=1000):
     if isinstance(image, str):
         rgb = io.imread(image)
     else:
@@ -110,7 +110,7 @@ def image_to_graph(image, threshold=None, closing_iterations=3, edge_length_cuto
         rbg = image
 
     # downsample the image until one of the sides is smaller than 1000px
-    while min(rgb.shape[:2]) >= 1000:
+    while min(rgb.shape[:2]) >= max_size:
         rgb = downscale_local_mean(rgb, (2, 2, 1))
 
     plot_image(rgb/255, figheight=5, title='original image')

@@ -296,17 +296,21 @@ class SvgwriteRenderer:
             pth.push('M', *pts)
             dwg.add(pth)
 
+    def create_drawing(self, filename, pts, height, unit=svgwrite.cm):
+        self.bbox = np.array([[f(pts[:, i]) for f in [np.min, np.max]] for i in [0, 1]])
+        aspect_ratio = (self.bbox[0, 1] - self.bbox[0, 0]) / (self.bbox[1, 1] - self.bbox[1, 0])
+        self.scale = height / (self.bbox[1, 1] - self.bbox[1, 0])
+        self.width = height * aspect_ratio
+        self.height = height
+        self.dwg = svgwrite.Drawing(filename, size=(self.width*unit, height*unit), viewBox=f'0 0 {self.width} {height}')
 
     def render_graph(self, filename, graph, render_vertices=False, render_faces=False, render_edges=True,
-                     for_cutting=True, height=30, unit=svgwrite.cm):
+                     for_cutting=True, height=30, unit=svgwrite.cm, render_interior_and_borders=True,
+                     extra_render_keys=('drawing_edge',)):
 
         # get bbox of points that will be rendered
         ps, vs = graph.get_position_view()
-        bbox = np.array([[f(ps[:, i]) for f in [np.min, np.max]] for i in [0, 1]])
-        aspect_ratio = (bbox[0, 1] - bbox[0, 0]) / (bbox[1, 1] - bbox[1, 0])
-        scale = height / (bbox[1, 1] - bbox[1, 0])
-        width = height * aspect_ratio
-        dwg = svgwrite.Drawing(filename, size=(width*unit, height*unit), viewBox=f'0 0 {width} {height}')
+        self.create_drawing(filename=filename, pts=ps, height=height, unit=unit)
 
         if render_faces:
             raise NotImplementedError
@@ -315,25 +319,40 @@ class SvgwriteRenderer:
             if not for_cutting:
                 raise NotImplementedError
             else:
-                self._render_halfedges(graph.halfedges, dwg, bbox, scale)
+                halfedges = set(graph) if isinstance(graph, (list, tuple)) else graph.halfedges
+                self._render_halfedges(halfedges, self.dwg, self.bbox, self.scale)
+                self.dwg.save()
 
-                assert filename.endswith('.svg')
-                filename_border = '.'.join(filename.split('.')[:-1]) + '_borders.svg'
-                dwg_border = svgwrite.Drawing(filename_border, size=(width*unit, height*unit),
-                                              viewBox=f'0 0 {width} {height}')
-                border_edges = {h for h in graph.halfedges if h.on_border() or h.rev.on_border()}
-                self._render_halfedges(border_edges, dwg_border, bbox, scale)
-                dwg_border.save()
+                if render_interior_and_borders:
+                    assert filename.endswith('.svg')
+                    filename_border = '.'.join(filename.split('.')[:-1]) + '_borders.svg'
+                    dwg_border = svgwrite.Drawing(filename_border, size=(self.width*unit, height*unit),
+                                                  viewBox=f'0 0 {self.width} {height}')
+                    border_edges = {h for h in halfedges if h.on_border() or h.rev.on_border()}
+                    self._render_halfedges(border_edges, dwg_border, self.bbox, self.scale)
+                    dwg_border.save()
 
-                filename_interior = '.'.join(filename.split('.')[:-1]) + '_interior.svg'
-                interior_edges = graph.halfedges.difference(border_edges)
-                dwg_interior = svgwrite.Drawing(filename_interior, size=(width*unit, height*unit),
-                                                viewBox=f'0 0 {width} {height}')
-                self._render_halfedges(interior_edges, dwg_interior, bbox, scale)
-                dwg_interior.save()
+                    filename_interior = '.'.join(filename.split('.')[:-1]) + '_interior.svg'
+                    interior_edges = halfedges.difference(border_edges)
+                    dwg_interior = svgwrite.Drawing(filename_interior, size=(self.width*unit, height*unit),
+                                                    viewBox=f'0 0 {self.width} {height}')
+                    self._render_halfedges(interior_edges, dwg_interior, self.bbox, self.scale)
+                    dwg_interior.save()
+
+                if extra_render_keys:
+                    for key in extra_render_keys:
+                        key_edges = [h for h in halfedges if h.attributes.get(key)]
+                        if not key_edges:
+                            print(f'skipping redering of {key} as no edges are present')
+                            continue
+                        assert filename.endswith('.svg')
+                        key_filename = '.'.join(filename.split('.')[:-1]) + f'{key}.svg'
+                        dwg_key = svgwrite.Drawing(key_filename, size=(self.width*unit, height*unit),
+                                                      viewBox=f'0 0 {self.width} {height}')
+                        self._render_halfedges(key_edges, dwg_key, self.bbox, self.scale)
+                        dwg_key.save()
 
         if render_vertices:
             raise NotImplementedError
 
-        dwg.save()
-        return dwg
+        return self.dwg

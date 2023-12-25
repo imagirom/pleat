@@ -1,0 +1,33 @@
+name: eucare
+
+# extra requirement: fancy from github.com/imagirom/fancy
+# extra requirement: cplex from IBM (free for academics)
+
+channels:
+  - pytorch
+  - conda-forge
+
+dependencies:
+  - python=3.10  # official cplex bindings are available up to python 3.10 as of 12-2023.
+  - jupyter
+  - numpy
+  - matplotlib
+  - tqdm
+  - scipy
+  - scikit-learn
+  - pycairo
+  - numba
+  - networkx  # TODO: find out compatible version
+  - fastcluster  # TODO: remove dependency
+  - pulp  # for LP
+  - meshio  # for 3D printing
+  - widgetsnbextension
+  - ipywidgets
+  - cpuonly  # for pytorch
+  - pytorch
+  - einops
+
+  - pip>=23
+  - pip:
+      - sdfcat[jupyter]  # @ git+https://gitlab.com/nobodyinperson/sdfCAD'"
+      - svgwrite

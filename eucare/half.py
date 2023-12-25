@@ -601,6 +601,36 @@ class HalfEdgeGraph:
                 h.face.any_side = h
         self.vertices.remove(v)
 
+    def join_edge(self, h):
+        """
+        Contract the halfedge h (and its reverse), merging the adjacent vertices
+        :param h: HalfEdge
+        :return:
+        The remaining vertex orignally adjacent to h (h.orig).
+        """
+        assert h.on_border() or h.face.order() > 1
+        assert h.rev.on_border() or h.rev.face.order() > 1
+
+        v1, v2 = h.orig, h.dest
+
+        self.halfedges.difference_update((h, h.rev))
+        self.vertices.remove(v2)
+
+        for h2 in v2.outgoing_iter():
+            h2.orig = v1
+            h2.rev.dest = v1
+
+        v1.combine_with(v2)
+
+        for h2 in [h, h.rev]:
+            h2.pre.nex = h2.nex
+            h2.nex.pre = h2.pre
+            if not h2.on_border():
+                h2.face.any_side = h2.nex
+            h2.dest.any_outgoing = h2.nex
+
+        return v1
+
     def subdivide_edge(self, h, copy_edge_attributes=True, **vertex_attributes):
         """
         Insert a new vertex v on the edge h. For this, a new edge h2 is created, it will be related to h by h.nex = h2.
@@ -640,7 +670,7 @@ class HalfEdgeGraph:
 
         return h2, v
 
-    def subdivide_face(self, f, v1, v2):
+    def subdivide_face(self, f, v1, v2, **halfedge_attributes):
         """
         Subdivide the face f by an edge from v1 to v2. For this, two new halfedges, h12 (from v1 to h2) and h21 (from v2
         to v1) are added, and a new face f2, which will be h12.face. h21.face will be the old face f.
@@ -658,6 +688,8 @@ class HalfEdgeGraph:
         f2 = Face(any_side=v2_out)
         h12 = HalfEdge(rev=None, nex=v2_out, pre=v1_out.pre, orig=v1, dest=v2, face=f2)
         h21 = HalfEdge(rev=h12, nex=v1_out, pre=v2_out.pre, orig=v2, dest=v1, face=f)
+        for key, value in halfedge_attributes.items():
+            h12[key] = h21[key] = value
         h12.rev = h21
         self.add_face(f2)
         self.add_halfedges([h12, h21])
@@ -1035,6 +1067,12 @@ class GeometricHEG(InAngleHEG):
         super().glue_graph_e2e(graph, e1, e2)
         e = (e1 if e1 in graph.halfedges else e2).rev
         self.recompute_positions(edge_to_start=e, faces=graph.faces)
+
+    def join_edge(self, h):
+        new_pos = (h.orig['pos'] + h.dest['pos']) / 2
+        v = super().join_edge(h)
+        v['pos'] = new_pos
+        return v
 
     def recompute_positions(self, edge_to_start=None, faces=None):
         """ recompute all positions of nodes part of faces based on the lengths and angles. """
