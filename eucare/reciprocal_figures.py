@@ -180,7 +180,7 @@ def shrink_rotate_graph(G, alpha=np.pi/5, factor=0.5, **reciprocal_figure_kwargs
 
     twistfaces = list(filter(lambda f: 'twistrotate' in f.attributes, SRG.faces))
     for f in twistfaces:
-        ps, vs = np.array([[v['pos'], v] for v in f.vertex_iter()]).T
+        ps, vs = np.array([[v['pos'], v] for v in f.vertex_iter()], dtype=object).T
         ps = np.stack(ps)
 
         midpoint = np.mean(ps, axis=0, keepdims=True)
@@ -190,7 +190,7 @@ def shrink_rotate_graph(G, alpha=np.pi/5, factor=0.5, **reciprocal_figure_kwargs
             v['base_pos'] = p
 
     for f in twistfaces:
-        ps, vs = np.array([[v['base_pos'], v] for v in f.vertex_iter()]).T
+        ps, vs = np.array([[v['base_pos'], v] for v in f.vertex_iter()], dtype=object).T
         ps = np.stack(ps)
         assert 'pre_conway' in f.attributes
         f['pre_conway'] = inverse_f_map[f['pre_conway']]

@@ -207,7 +207,7 @@ class TopologicalConwayOperator:
 
         to_join = {v for v in graph.vertices if v.attributes.get('join', False)}
         for v in to_join:
-            if v.order() is 2:  # TODO: check this beforehand
+            if v.order() == 2:  # TODO: check this beforehand
                 HalfEdgeGraph.join_vertex(graph, v)
 
         if copy_graph:

@@ -193,7 +193,7 @@ def get_over_under_pairs(G, two_coloring_key='color_key'):
         crease_type = e.attributes.get('crease_type', None)
         if crease_type in ('mountain', 'valley') and not (e.on_border() or e.rev.on_border()):
             e_above = e if e.face[two_coloring_key] else e.rev
-            if crease_type is 'mountain':
+            if crease_type == 'mountain':
                 e_above = e_above.rev
             over_under_pairs.append([e_above.face, e_above.rev.face])
     print('number of pairs', len(over_under_pairs))

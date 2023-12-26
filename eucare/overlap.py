@@ -556,7 +556,7 @@ def find_folded_face_order(G, over_under_pairs=(), solver=None, double_fold_weig
     def get_varname():
         nonlocal n_vars
         n_vars += 1
-        return n_vars
+        return 'x' + str(n_vars)
 
     over_dict = dict()
 
@@ -624,14 +624,13 @@ def find_folded_face_order(G, over_under_pairs=(), solver=None, double_fold_weig
         print('Skipping ILP since everything is already determined..')
 
     def comparison_func(a, b):
-        result = over_dict.get((a, b), 0.5)
-        result = 1 - over_dict.get((b, a), 0.5) if result is 0.5 else result
-        if not isinstance(result, (int, float, bool)):
+        result = over_dict.get((a, b), 1 - over_dict.get((b, a), 0.5))
+        if isinstance(result, (pulp.LpVariable, pulp.LpAffineExpression)):
             result = result.value()
         if result is None:
             result = 0
         result = int(1 - 2 * result)
-        if result is 0:
+        if result == 0:
             print('order unclear!')
         return result
 

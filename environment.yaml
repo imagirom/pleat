@@ -23,6 +23,7 @@ dependencies:
   - meshio  # for 3D printing
   - widgetsnbextension
   - ipywidgets
+  - ipympl
   - cpuonly  # for pytorch
   - pytorch
   - einops

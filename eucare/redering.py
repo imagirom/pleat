@@ -2,7 +2,7 @@ import cairo
 from .base import angle_to_axis, unit_vector
 from .half import rotate_by
 import numpy as np
-from collections import Iterable
+from typing import Iterable
 try:
     import svgwrite
 except ImportError:
@@ -195,7 +195,7 @@ class CairoRenderer:
     def render_graph(self, graph, render_vertices=True, render_faces=True, render_edges=True, for_cutting=False):
         global _seed_offset
         _seed_offset = np.random.randint(2**16)
-        if self.scale is 'auto':
+        if self.scale == 'auto':
             self.autocenterscale(graph)
         else:
             self.dc.scale(self.scale, self.scale)
