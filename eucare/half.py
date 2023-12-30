@@ -1163,15 +1163,15 @@ class GeometricHEG(InAngleHEG):
         else:
             return positions
 
-    # def normalize_positions(self):
-    #     ps, vs = self.get_position_view()
-    #     k = ps.copy()
-    #     k = np.array([complex(*ki) for ki in k])
-    #     k -= np.mean(k)
-    #     k = k / np.max(np.abs(k))
-    #     k = np.stack([k.real, k.imag], axis=-1)
-    #     ps[:] = k
-    #     self.recompute_lengths_and_angles()
+    def normalize_positions(self):
+        ps, vs = self.get_position_view()
+        k = ps.copy()
+        k = np.array([complex(*ki) for ki in k])
+        k -= np.mean(k)
+        k = k / np.max(np.abs(k))
+        k = np.stack([k.real, k.imag], axis=-1)
+        ps[:] = k
+        self.recompute_lengths_and_angles()
 
     def convert_to_euclidean(self):
         for v in self.vertices:
