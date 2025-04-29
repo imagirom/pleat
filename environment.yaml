@@ -15,11 +15,11 @@ dependencies:
   - tqdm
   - scipy
   - scikit-learn
-  - pycairo
+  - pycairo==1.25.*
   - numba
-  - networkx  # TODO: find out compatible version
+  - networkx==3.2  # TODO: find out compatible version
   - fastcluster  # TODO: remove dependency
-  - pulp  # for LP
+  - pulp==2.*  # for LP
   - meshio  # for 3D printing
   - widgetsnbextension
   - ipywidgets
