@@ -13,3 +13,4 @@ import eucare.layout
 import eucare.io
 import eucare.cutting
 import eucare.search_trees
+import eucare.svg
