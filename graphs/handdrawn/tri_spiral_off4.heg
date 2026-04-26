@@ -1,0 +1,6734 @@
+faces:
+  f0:
+    any_side: h86
+  f1:
+    any_side: h87
+  f10:
+    any_side: h489
+  f100:
+    any_side: h522
+  f101:
+    any_side: h16
+  f102:
+    any_side: h444
+  f103:
+    any_side: h329
+  f104:
+    any_side: h483
+  f105:
+    any_side: h151
+  f106:
+    any_side: h475
+  f107:
+    any_side: h18
+  f108:
+    any_side: h266
+  f109:
+    any_side: h19
+  f11:
+    any_side: h98
+  f110:
+    any_side: h269
+  f111:
+    any_side: h20
+  f112:
+    any_side: h423
+  f113:
+    any_side: h22
+  f114:
+    any_side: h276
+  f115:
+    any_side: h303
+  f116:
+    any_side: h280
+  f117:
+    any_side: h370
+  f118:
+    any_side: h283
+  f119:
+    any_side: h24
+  f12:
+    any_side: h103
+  f120:
+    any_side: h306
+  f121:
+    any_side: h307
+  f122:
+    any_side: h30
+  f123:
+    any_side: h318
+  f124:
+    any_side: h27
+  f125:
+    any_side: h326
+  f126:
+    any_side: h441
+  f127:
+    any_side: h331
+  f128:
+    any_side: h29
+  f129:
+    any_side: h339
+  f13:
+    any_side: h101
+  f130:
+    any_side: h299
+  f131:
+    any_side: h374
+  f132:
+    any_side: h130
+  f133:
+    any_side: h345
+  f134:
+    any_side: h31
+  f135:
+    any_side: h440
+  f136:
+    any_side: h34
+  f137:
+    any_side: h352
+  f138:
+    any_side: h200
+  f139:
+    any_side: h403
+  f14:
+    any_side: h104
+  f140:
+    any_side: h36
+  f141:
+    any_side: h359
+  f142:
+    any_side: h37
+  f143:
+    any_side: h372
+  f144:
+    any_side: h398
+  f145:
+    any_side: h382
+  f146:
+    any_side: h38
+  f147:
+    any_side: h394
+  f148:
+    any_side: h39
+  f149:
+    any_side: h397
+  f15:
+    any_side: h107
+  f150:
+    any_side: h40
+  f151:
+    any_side: h406
+  f152:
+    any_side: h44
+  f153:
+    any_side: h445
+  f154:
+    any_side: h558
+  f155:
+    any_side: h446
+  f156:
+    any_side: h224
+  f157:
+    any_side: h477
+  f158:
+    any_side: h46
+  f159:
+    any_side: h286
+  f16:
+    any_side: h109
+  f160:
+    any_side: h205
+  f161:
+    any_side: h373
+  f162:
+    any_side: h50
+  f163:
+    any_side: h256
+  f164:
+    any_side: h55
+  f165:
+    any_side: h56
+  f166:
+    any_side: h57
+  f167:
+    any_side: h387
+  f168:
+    any_side: h59
+  f169:
+    any_side: h551
+  f17:
+    any_side: h111
+  f170:
+    any_side: h61
+  f171:
+    any_side: h354
+  f172:
+    any_side: h63
+  f173:
+    any_side: h64
+  f174:
+    any_side: h67
+  f175:
+    any_side: h68
+  f176:
+    any_side: h70
+  f177:
+    any_side: h71
+  f178:
+    any_side: h89
+  f179:
+    any_side: h75
+  f18:
+    any_side: h114
+  f180:
+    any_side: h77
+  f181:
+    any_side: h78
+  f182:
+    any_side: h470
+  f183:
+    any_side: h99
+  f184:
+    any_side: h81
+  f185:
+    any_side: h146
+  f186:
+    any_side: h85
+  f19:
+    any_side: h116
+  f2:
+    any_side: h185
+  f20:
+    any_side: h337
+  f21:
+    any_side: h118
+  f22:
+    any_side: h119
+  f23:
+    any_side: h241
+  f24:
+    any_side: h123
+  f25:
+    any_side: h126
+  f26:
+    any_side: h461
+  f27:
+    any_side: h128
+  f28:
+    any_side: h129
+  f29:
+    any_side: h385
+  f3:
+    any_side: h91
+  f30:
+    any_side: h516
+  f31:
+    any_side: h371
+  f32:
+    any_side: h327
+  f33:
+    any_side: h134
+  f34:
+    any_side: h328
+  f35:
+    any_side: h544
+  f36:
+    any_side: h136
+  f37:
+    any_side: h138
+  f38:
+    any_side: h140
+  f39:
+    any_side: h141
+  f4:
+    any_side: h92
+  f40:
+    any_side: h142
+  f41:
+    any_side: h271
+  f42:
+    any_side: h148
+  f43:
+    any_side: h149
+  f44:
+    any_side: h315
+  f45:
+    any_side: h152
+  f46:
+    any_side: h153
+  f47:
+    any_side: h564
+  f48:
+    any_side: h319
+  f49:
+    any_side: h155
+  f5:
+    any_side: h93
+  f50:
+    any_side: h540
+  f51:
+    any_side: h158
+  f52:
+    any_side: h553
+  f53:
+    any_side: h278
+  f54:
+    any_side: h163
+  f55:
+    any_side: h164
+  f56:
+    any_side: h247
+  f57:
+    any_side: h167
+  f58:
+    any_side: h171
+  f59:
+    any_side: h173
+  f6:
+    any_side: h94
+  f60:
+    any_side: h174
+  f61:
+    any_side: h176
+  f62:
+    any_side: h274
+  f63:
+    any_side: h182
+  f64:
+    any_side: h186
+  f65:
+    any_side: h187
+  f66:
+    any_side: h191
+  f67:
+    any_side: h192
+  f68:
+    any_side: h193
+  f69:
+    any_side: h208
+  f7:
+    any_side: h156
+  f70:
+    any_side: h210
+  f71:
+    any_side: h0
+  f72:
+    any_side: h211
+  f73:
+    any_side: h1
+  f74:
+    any_side: h336
+  f75:
+    any_side: h2
+  f76:
+    any_side: h213
+  f77:
+    any_side: h3
+  f78:
+    any_side: h218
+  f79:
+    any_side: h4
+  f8:
+    any_side: h465
+  f80:
+    any_side: h219
+  f81:
+    any_side: h5
+  f82:
+    any_side: h312
+  f83:
+    any_side: h438
+  f84:
+    any_side: h225
+  f85:
+    any_side: h6
+  f86:
+    any_side: h228
+  f87:
+    any_side: h7
+  f88:
+    any_side: h235
+  f89:
+    any_side: h76
+  f9:
+    any_side: h96
+  f90:
+    any_side: h236
+  f91:
+    any_side: h8
+  f92:
+    any_side: h267
+  f93:
+    any_side: h11
+  f94:
+    any_side: h239
+  f95:
+    any_side: h13
+  f96:
+    any_side: h244
+  f97:
+    any_side: h476
+  f98:
+    any_side: h363
+  f99:
+    any_side: h15
+halfedges:
+  h0:
+    attributes:
+      in_angle: 3.0430140516325737
+      length: 518.481677593336
+    dest: v38
+    face: f71
+    nex: h429
+    orig: v70
+    pre: h519
+    rev: h10
+  h1:
+    attributes:
+      in_angle: 0.6906838798665353
+      length: 203.23736208488393
+    dest: v27
+    face: f73
+    nex: h52
+    orig: v40
+    pre: h21
+    rev: h54
+  h10:
+    attributes:
+      in_angle: 0.9099530440854284
+      length: 518.481677593336
+    dest: v70
+    face: f77
+    nex: h3
+    orig: v38
+    pre: h455
+    rev: h0
+  h100:
+    attributes:
+      in_angle: 1.776916146189091
+      length: 201.54681355842763
+    dest: v74
+    face: f12
+    nex: h316
+    orig: v16
+    pre: h103
+    rev: h478
+  h101:
+    attributes:
+      in_angle: 1.2728479282271365
+      length: 78.86702063882237
+    dest: v30
+    face: f13
+    nex: h379
+    orig: v5
+    pre: h112
+    rev: h375
+  h102:
+    attributes:
+      in_angle: 0.9086525248784632
+      length: 406.9399696378925
+    dest: v60
+    face: f186
+    nex: h305
+    orig: v78
+    pre: h85
+    rev: h311
+  h103:
+    attributes:
+      in_angle: 0.9364700407452347
+      length: 262.4386833147888
+    dest: v16
+    face: f12
+    nex: h100
+    orig: v100
+    pre: h316
+    rev: h88
+  h104:
+    attributes:
+      in_angle: 1.0699323060214139
+      length: 138.10996021689067
+    dest: v52
+    face: f14
+    nex: h288
+    orig: v5
+    pre: h389
+    rev: h285
+  h105:
+    attributes:
+      length: 826.0278445669976
+    dest: v85
+    face: null
+    nex: h43
+    orig: v86
+    pre: h436
+    rev: h222
+  h106:
+    attributes:
+      in_angle: 0.8113182461099899
+      length: 361.68525297863926
+    dest: v53
+    face: f136
+    nex: h34
+    orig: v100
+    pre: h88
+    rev: h31
+  h107:
+    attributes:
+      in_angle: 0.9306258528146776
+      length: 104.1846651117353
+    dest: v95
+    face: f15
+    nex: h294
+    orig: v5
+    pre: h420
+    rev: h296
+  h108:
+    attributes:
+      in_angle: 1.0773791932290462
+      length: 277.7395362565438
+    dest: v15
+    face: f124
+    nex: h434
+    orig: v86
+    pre: h27
+    rev: h436
+  h109:
+    attributes:
+      in_angle: 1.1726722857102485
+      length: 83.67828604575698
+    dest: v29
+    face: f16
+    nex: h411
+    orig: v5
+    pre: h375
+    rev: h420
+  h11:
+    attributes:
+      in_angle: 0.9241562380473541
+      length: 239.18484251492373
+    dest: v100
+    face: f93
+    nex: h290
+    orig: v39
+    pre: h313
+    rev: h289
+  h110:
+    attributes:
+      in_angle: 2.179145470226821
+      length: 416.00163594763796
+    dest: v44
+    face: f130
+    nex: h299
+    orig: v86
+    pre: h222
+    rev: h27
+  h111:
+    attributes:
+      in_angle: 1.1824544648934956
+      length: 238.18745900025888
+    dest: v24
+    face: f17
+    nex: h139
+    orig: v35
+    pre: h347
+    rev: h127
+  h112:
+    attributes:
+      in_angle: 0.6787986180742217
+      length: 81.2110590443882
+    dest: v5
+    face: f13
+    nex: h101
+    orig: v9
+    pre: h379
+    rev: h91
+  h113:
+    attributes:
+      in_angle: 0.4230713686498615
+      length: 823.5071341524614
+    dest: v83
+    face: f83
+    nex: h124
+    orig: v50
+    pre: h438
+    rev: h121
+  h114:
+    attributes:
+      in_angle: 0.9208571042913763
+      length: 345.71122794176074
+    dest: v23
+    face: f18
+    nex: h539
+    orig: v35
+    pre: h292
+    rev: h536
+  h115:
+    attributes:
+      in_angle: 0.9607762897415228
+      length: 66.89730936293327
+    dest: v12
+    face: f3
+    nex: h412
+    orig: v9
+    pre: h91
+    rev: h409
+  h116:
+    attributes:
+      in_angle: 0.7126286253349252
+      length: 521.0335881687475
+    dest: v70
+    face: f19
+    nex: h443
+    orig: v50
+    pre: h517
+    rev: h438
+  h117:
+    attributes:
+      in_angle: 1.476573416949708
+      length: 305.0845607960377
+    dest: v19
+    face: f20
+    nex: h337
+    orig: v35
+    pre: h536
+    rev: h347
+  h118:
+    attributes:
+      in_angle: 0.7407733207795548
+      length: 94.70282466748286
+    dest: v11
+    face: f21
+    nex: h323
+    orig: v9
+    pre: h409
+    rev: h320
+  h119:
+    attributes:
+      in_angle: 0.9917641467508442
+      length: 242.09841103361254
+    dest: v58
+    face: f22
+    nex: h197
+    orig: v35
+    pre: h127
+    rev: h198
+  h12:
+    attributes:
+      in_angle: 1.1018153341619323
+      length: 139.2502244163362
+    dest: v58
+    face: f85
+    nex: h195
+    orig: v4
+    pre: h6
+    rev: h196
+  h120:
+    attributes:
+      in_angle: 2.742861586157666
+      length: 93.48863567300573
+    dest: v43
+    face: f23
+    nex: h241
+    orig: v9
+    pre: h320
+    rev: h238
+  h121:
+    attributes:
+      length: 823.5071341524614
+    dest: v50
+    face: null
+    nex: h515
+    orig: v83
+    pre: h435
+    rev: h113
+  h122:
+    attributes:
+      in_angle: 1.3219063283251187
+      length: 230.36778037761948
+    dest: v39
+    face: f79
+    nex: h4
+    orig: v35
+    pre: h198
+    rev: h16
+  h123:
+    attributes:
+      in_angle: 1.3447448781314617
+      length: 53.3391272894486
+    dest: v30
+    face: f24
+    nex: h369
+    orig: v9
+    pre: h238
+    rev: h379
+  h124:
+    attributes:
+      in_angle: 3.140348541550616
+      length: 298.93979326948096
+    dest: v70
+    face: f83
+    nex: h438
+    orig: v83
+    pre: h113
+    rev: h532
+  h125:
+    attributes:
+      in_angle: 0.8682374908925843
+      length: 295.0790295506536
+    dest: v100
+    face: f101
+    nex: h289
+    orig: v35
+    pre: h16
+    rev: h292
+  h126:
+    attributes:
+      in_angle: 1.1922341527211113
+      length: 95.39523048874089
+    dest: v8
+    face: f25
+    nex: h145
+    orig: v7
+    pre: h468
+    rev: h137
+  h127:
+    attributes:
+      in_angle: 1.132444923539043
+      length: 238.18745900025888
+    dest: v35
+    face: f22
+    nex: h119
+    orig: v24
+    pre: h197
+    rev: h111
+  h128:
+    attributes:
+      in_angle: 0.6359220178115346
+      length: 150.1869668113715
+    dest: v56
+    face: f27
+    nex: h425
+    orig: v7
+    pre: h168
+    rev: h416
+  h129:
+    attributes:
+      in_angle: 1.19280737222536
+      length: 257.669483059209
+    dest: v58
+    face: f28
+    nex: h194
+    orig: v24
+    pre: h202
+    rev: h197
+  h13:
+    attributes:
+      in_angle: 0.8056275313894368
+      length: 410.4113113017775
+    dest: v14
+    face: f95
+    nex: h463
+    orig: v38
+    pre: h437
+    rev: h455
+  h130:
+    attributes:
+      in_angle: 1.1026900061108869
+      length: 378.36069100793225
+    dest: v47
+    face: f132
+    nex: h333
+    orig: v28
+    pre: h35
+    rev: h327
+  h131:
+    attributes:
+      in_angle: 0.9685045461350017
+      length: 248.2353973550106
+    dest: v96
+    face: f30
+    nex: h203
+    orig: v24
+    pre: h516
+    rev: h202
+  h132:
+    attributes:
+      in_angle: 2.7111320505842724
+      length: 160.1025062264798
+    dest: v36
+    face: f31
+    nex: h371
+    orig: v7
+    pre: h416
+    rev: h468
+  h133:
+    attributes:
+      in_angle: 0.7062044649304546
+      length: 586.1228540161184
+    dest: v50
+    face: f32
+    nex: h513
+    orig: v28
+    pre: h327
+    rev: h515
+  h134:
+    attributes:
+      in_angle: 1.1561890123919545
+      length: 222.87343817611912
+    dest: v51
+    face: f33
+    nex: h514
+    orig: v24
+    pre: h526
+    rev: h516
+  h135:
+    attributes:
+      in_angle: 1.3481881487181697
+      length: 91.00137361600648
+    dest: v66
+    face: f34
+    nex: h328
+    orig: v7
+    pre: h547
+    rev: h168
+  h136:
+    attributes:
+      in_angle: 1.0109288559585017
+      length: 275.4421949843158
+    dest: v6
+    face: f36
+    nex: h528
+    orig: v24
+    pre: h353
+    rev: h526
+  h137:
+    attributes:
+      in_angle: 1.2966146730463324
+      length: 95.39523048874089
+    dest: v7
+    face: f29
+    nex: h385
+    orig: v8
+    pre: h494
+    rev: h126
+  h138:
+    attributes:
+      in_angle: 1.4366439436184488
+      length: 409.93901985539264
+    dest: v57
+    face: f37
+    nex: h430
+    orig: v81
+    pre: h183
+    rev: h433
+  h139:
+    attributes:
+      in_angle: 0.8075442584595341
+      length: 301.0880316083285
+    dest: v19
+    face: f17
+    nex: h347
+    orig: v24
+    pre: h111
+    rev: h353
+  h14:
+    attributes:
+      in_angle: 2.2701786675845987
+      length: 202.3123273005818
+    dest: v74
+    face: f97
+    nex: h476
+    orig: v39
+    pre: h481
+    rev: h313
+  h140:
+    attributes:
+      in_angle: 1.3300621453938337
+      length: 117.94351873295592
+    dest: v79
+    face: f38
+    nex: h492
+    orig: v8
+    pre: h510
+    rev: h494
+  h141:
+    attributes:
+      in_angle: 0.9775862437012428
+      length: 464.01400840922895
+    dest: v71
+    face: f39
+    nex: h180
+    orig: v81
+    pre: h264
+    rev: h183
+  h142:
+    attributes:
+      in_angle: 1.1816752638039114
+      length: 347.3975068675329
+    dest: v19
+    face: f40
+    nex: h350
+    orig: v37
+    pre: h524
+    rev: h344
+  h143:
+    attributes:
+      in_angle: 1.1399330203932296
+      length: 183.352801996588
+    dest: v16
+    face: f8
+    nex: h95
+    orig: v8
+    pre: h465
+    rev: h93
+  h144:
+    attributes:
+      in_angle: 0.8430309717289077
+      length: 472.1750205167571
+    dest: v60
+    face: f111
+    nex: h272
+    orig: v37
+    pre: h20
+    rev: h271
+  h145:
+    attributes:
+      in_angle: 0.5867425217889146
+      length: 168.5817679940509
+    dest: v36
+    face: f25
+    nex: h468
+    orig: v8
+    pre: h126
+    rev: h465
+  h146:
+    attributes:
+      in_angle: 0.8393078701611489
+      length: 332.3431961090824
+    dest: v87
+    face: f185
+    nex: h250
+    orig: v81
+    pre: h83
+    rev: h254
+  h147:
+    attributes:
+      in_angle: 1.4185278510677541
+      length: 381.0771283845014
+    dest: v6
+    face: f41
+    nex: h530
+    orig: v37
+    pre: h271
+    rev: h524
+  h148:
+    attributes:
+      in_angle: 0.9885323681130243
+      length: 118.64761668252939
+    dest: v22
+    face: f42
+    nex: h504
+    orig: v8
+    pre: h479
+    rev: h510
+  h149:
+    attributes:
+      in_angle: 0.9072071116942513
+      length: 408.7493459050153
+    dest: v93
+    face: f43
+    nex: h265
+    orig: v81
+    pre: h254
+    rev: h264
+  h15:
+    attributes:
+      in_angle: 1.2590772855554606
+      length: 121.87176079899275
+    dest: v101
+    face: f99
+    nex: h259
+    orig: v4
+    pre: h53
+    rev: h482
+  h150:
+    attributes:
+      in_angle: 1.0971402482335146
+      length: 130.00013354694008
+    dest: v74
+    face: f5
+    nex: h478
+    orig: v8
+    pre: h93
+    rev: h479
+  h151:
+    attributes:
+      in_angle: 0.8445293252412733
+      length: 378.2783366781661
+    dest: v18
+    face: f105
+    nex: h17
+    orig: v37
+    pre: h220
+    rev: h20
+  h152:
+    attributes:
+      in_angle: 1.4291753373350953
+      length: 412.56514637084894
+    dest: v21
+    face: f45
+    nex: h165
+    orig: v78
+    pre: h361
+    rev: h159
+  h153:
+    attributes:
+      in_angle: 0.23896283480963776
+      length: 519.042387479096
+    dest: v67
+    face: f46
+    nex: h542
+    orig: v59
+    pre: h302
+    rev: h540
+  h154:
+    attributes:
+      in_angle: 0.8641660126059647
+      length: 206.5656507155911
+    dest: v40
+    face: f47
+    nex: h181
+    orig: v20
+    pre: h564
+    rev: h169
+  h155:
+    attributes:
+      in_angle: 1.165722083625938
+      length: 151.7327008261568
+    dest: v11
+    face: f49
+    nex: h566
+    orig: v20
+    pre: h242
+    rev: h564
+  h156:
+    attributes:
+      in_angle: 0.9730010395621498
+      length: 464.4615161668402
+    dest: v48
+    face: f7
+    nex: h356
+    orig: v78
+    pre: h311
+    rev: h361
+  h157:
+    attributes:
+      in_angle: 0.9290839992698579
+      length: 657.70662152665
+    dest: v25
+    face: f50
+    nex: h355
+    orig: v59
+    pre: h540
+    rev: h357
+  h158:
+    attributes:
+      in_angle: 1.184503483717248
+      length: 149.94362366495548
+    dest: v61
+    face: f51
+    nex: h248
+    orig: v20
+    pre: h273
+    rev: h247
+  h159:
+    attributes:
+      in_angle: 3.167251136549604
+      length: 412.56514637084894
+    dest: v78
+    face: f10
+    nex: h489
+    orig: v21
+    pre: h360
+    rev: h152
+  h16:
+    attributes:
+      in_angle: 0.9147358870072807
+      length: 230.36778037761948
+    dest: v35
+    face: f101
+    nex: h125
+    orig: v39
+    pre: h289
+    rev: h122
+  h160:
+    attributes:
+      in_angle: 1.0009886774863173
+      length: 121.616199578839
+    dest: v63
+    face: f52
+    nex: h216
+    orig: v66
+    pre: h553
+    rev: h217
+  h161:
+    attributes:
+      in_angle: 2.6348405167966273
+      length: 222.82350078032613
+    dest: v98
+    face: f53
+    nex: h278
+    orig: v20
+    pre: h554
+    rev: h273
+  h162:
+    attributes:
+      length: 831.8755916601953
+    dest: v69
+    face: null
+    nex: h301
+    orig: v21
+    pre: h358
+    rev: h360
+  h163:
+    attributes:
+      in_angle: 0.801418832717629
+      length: 153.7556909515872
+    dest: v34
+    face: f54
+    nex: h338
+    orig: v66
+    pre: h217
+    rev: h341
+  h164:
+    attributes:
+      in_angle: 0.9335736547069289
+      length: 238.8968425678518
+    dest: v76
+    face: f55
+    nex: h549
+    orig: v20
+    pre: h169
+    rev: h554
+  h165:
+    attributes:
+      in_angle: 1.0745429798516741
+      length: 279.3787751422788
+    dest: v48
+    face: f45
+    nex: h361
+    orig: v21
+    pre: h152
+    rev: h358
+  h166:
+    attributes:
+      in_angle: 1.1013565840955295
+      length: 150.7647173578752
+    dest: v43
+    face: f56
+    nex: h240
+    orig: v20
+    pre: h247
+    rev: h242
+  h167:
+    attributes:
+      in_angle: 1.007853210448352
+      length: 275.0200276798037
+    dest: v65
+    face: f57
+    nex: h189
+    orig: v26
+    pre: h321
+    rev: h190
+  h168:
+    attributes:
+      in_angle: 1.134233260265728
+      length: 91.00137361600648
+    dest: v7
+    face: f27
+    nex: h128
+    orig: v66
+    pre: h425
+    rev: h135
+  h169:
+    attributes:
+      in_angle: 1.014821466118423
+      length: 206.5656507155911
+    dest: v20
+    face: f55
+    nex: h164
+    orig: v40
+    pre: h549
+    rev: h154
+  h17:
+    attributes:
+      in_angle: 0.704625977423571
+      length: 588.5543730191799
+    dest: v46
+    face: f105
+    nex: h220
+    orig: v18
+    pre: h151
+    rev: h221
+  h170:
+    attributes:
+      in_angle: 0.9517951282510158
+      length: 252.0882781884156
+    dest: v72
+    face: f2
+    nex: h567
+    orig: v26
+    pre: h185
+    rev: h565
+  h171:
+    attributes:
+      in_angle: 1.1131403302907081
+      length: 138.85108930073253
+    dest: v56
+    face: f58
+    nex: h419
+    orig: v66
+    pre: h341
+    rev: h425
+  h172:
+    attributes:
+      in_angle: 1.4724940681806888
+      length: 131.70938125703535
+    dest: v1
+    face: f117
+    nex: h370
+    orig: v40
+    pre: h42
+    rev: h21
+  h173:
+    attributes:
+      in_angle: 1.1528595436905549
+      length: 222.4324179510613
+    dest: v77
+    face: f59
+    nex: h184
+    orig: v26
+    pre: h190
+    rev: h185
+  h174:
+    attributes:
+      in_angle: 0.7618724308359097
+      length: 574.8260606479146
+    dest: v2
+    face: f60
+    nex: h469
+    orig: v71
+    pre: h261
+    rev: h466
+  h175:
+    attributes:
+      in_angle: 1.3569765162532281
+      length: 218.2939531915625
+    dest: v76
+    face: f163
+    nex: h256
+    orig: v40
+    pre: h54
+    rev: h549
+  h176:
+    attributes:
+      in_angle: 0.8174046232277137
+      length: 301.4015639935827
+    dest: v42
+    face: f61
+    nex: h324
+    orig: v26
+    pre: h277
+    rev: h321
+  h177:
+    attributes:
+      length: 279.0286723618202
+    dest: v57
+    face: null
+    nex: h435
+    orig: v71
+    pre: h466
+    rev: h430
+  h178:
+    attributes:
+      in_angle: 1.1559758311683983
+      length: 149.97046005426816
+    dest: v10
+    face: f148
+    nex: h39
+    orig: v40
+    pre: h560
+    rev: h42
+  h179:
+    attributes:
+      in_angle: 1.269999687444073
+      length: 239.7750247627972
+    dest: v98
+    face: f62
+    nex: h274
+    orig: v26
+    pre: h249
+    rev: h277
+  h18:
+    attributes:
+      in_angle: 0.5990207994794505
+      length: 166.44026289065732
+    dest: v96
+    face: f107
+    nex: h33
+    orig: v1
+    pre: h335
+    rev: h30
+  h180:
+    attributes:
+      in_angle: 1.2443192238024208
+      length: 398.7698096786053
+    dest: v93
+    face: f39
+    nex: h264
+    orig: v71
+    pre: h141
+    rev: h261
+  h181:
+    attributes:
+      in_angle: 2.116100628688301
+      length: 151.11162173116338
+    dest: v11
+    face: f47
+    nex: h564
+    orig: v40
+    pre: h154
+    rev: h560
+  h182:
+    attributes:
+      in_angle: 1.2339329031510244
+      length: 254.49538851967
+    dest: v61
+    face: f63
+    nex: h246
+    orig: v26
+    pre: h565
+    rev: h249
+  h183:
+    attributes:
+      in_angle: 0.638427945681774
+      length: 464.01400840922895
+    dest: v81
+    face: f37
+    nex: h138
+    orig: v71
+    pre: h430
+    rev: h141
+  h184:
+    attributes:
+      in_angle: 0.8318411121903004
+      length: 275.51029989316584
+    dest: v65
+    face: f59
+    nex: h190
+    orig: v77
+    pre: h173
+    rev: h188
+  h185:
+    attributes:
+      in_angle: 1.0407960818802513
+      length: 222.4324179510613
+    dest: v26
+    face: f2
+    nex: h170
+    orig: v77
+    pre: h567
+    rev: h173
+  h186:
+    attributes:
+      in_angle: 1.2793450348329654
+      length: 197.77583147060426
+    dest: v33
+    face: f64
+    nex: h393
+    orig: v77
+    pre: h252
+    rev: h388
+  h187:
+    attributes:
+      in_angle: 0.9879871545693963
+      length: 274.7205651000464
+    dest: v87
+    face: f65
+    nex: h251
+    orig: v77
+    pre: h188
+    rev: h252
+  h188:
+    attributes:
+      in_angle: 1.1699525370633672
+      length: 275.51029989316584
+    dest: v77
+    face: f65
+    nex: h187
+    orig: v65
+    pre: h251
+    rev: h184
+  h189:
+    attributes:
+      in_angle: 0.8814554779452204
+      length: 338.47202873518387
+    dest: v42
+    face: f57
+    nex: h321
+    orig: v65
+    pre: h167
+    rev: h317
+  h19:
+    attributes:
+      in_angle: 0.8480397784494187
+      length: 333.44768871760243
+    dest: v54
+    face: f109
+    nex: h505
+    orig: v44
+    pre: h304
+    rev: h503
+  h190:
+    attributes:
+      in_angle: 1.156891997708938
+      length: 275.0200276798037
+    dest: v26
+    face: f59
+    nex: h173
+    orig: v65
+    pre: h184
+    rev: h167
+  h191:
+    attributes:
+      in_angle: 0.9555506942104306
+      length: 384.27855610293363
+    dest: v25
+    face: f66
+    nex: h396
+    orig: v65
+    pre: h317
+    rev: h400
+  h192:
+    attributes:
+      in_angle: 1.1792162897050398
+      length: 303.8269707004301
+    dest: v87
+    face: f67
+    nex: h255
+    orig: v65
+    pre: h263
+    rev: h251
+  h193:
+    attributes:
+      in_angle: 0.9121060891472534
+      length: 355.54486013644527
+    dest: v93
+    face: f68
+    nex: h260
+    orig: v65
+    pre: h400
+    rev: h263
+  h194:
+    attributes:
+      in_angle: 1.3044176516359407
+      length: 160.43885127985678
+    dest: v96
+    face: f28
+    nex: h202
+    orig: v58
+    pre: h129
+    rev: h200
+  h195:
+    attributes:
+      in_angle: 0.9575603245400239
+      length: 150.35404975516224
+    dest: v39
+    face: f85
+    nex: h6
+    orig: v58
+    pre: h12
+    rev: h4
+  h196:
+    attributes:
+      in_angle: 1.3464979166648228
+      length: 139.2502244163362
+    dest: v4
+    face: f87
+    nex: h7
+    orig: v58
+    pre: h334
+    rev: h12
+  h197:
+    attributes:
+      in_angle: 1.017383583299905
+      length: 257.669483059209
+    dest: v24
+    face: f22
+    nex: h127
+    orig: v58
+    pre: h119
+    rev: h129
+  h198:
+    attributes:
+      in_angle: 0.645888953308853
+      length: 242.09841103361254
+    dest: v35
+    face: f79
+    nex: h122
+    orig: v58
+    pre: h4
+    rev: h119
+  h199:
+    attributes:
+      in_angle: 1.067378579242754
+      length: 149.10273304000836
+    dest: v31
+    face: f138
+    nex: h332
+    orig: v58
+    pre: h200
+    rev: h334
+  h2:
+    attributes:
+      in_angle: 1.2913126142721565
+      length: 105.66403782218863
+    dest: v29
+    face: f75
+    nex: h414
+    orig: v73
+    pre: h298
+    rev: h417
+  h20:
+    attributes:
+      in_angle: 1.0986688542529333
+      length: 378.2783366781661
+    dest: v37
+    face: f111
+    nex: h144
+    orig: v18
+    pre: h272
+    rev: h151
+  h200:
+    attributes:
+      in_angle: 1.1724632205319263
+      length: 160.43885127985678
+    dest: v58
+    face: f138
+    nex: h199
+    orig: v96
+    pre: h332
+    rev: h194
+  h201:
+    attributes:
+      in_angle: 1.0999321480475786
+      length: 152.68661737362578
+    dest: v27
+    face: f158
+    nex: h46
+    orig: v96
+    pre: h377
+    rev: h41
+  h202:
+    attributes:
+      in_angle: 0.6443676297284924
+      length: 248.2353973550106
+    dest: v24
+    face: f28
+    nex: h129
+    orig: v96
+    pre: h194
+    rev: h131
+  h203:
+    attributes:
+      in_angle: 2.8637173885428386
+      length: 225.15897161783272
+    dest: v51
+    face: f30
+    nex: h516
+    orig: v96
+    pre: h131
+    rev: h377
+  h204:
+    attributes:
+      in_angle: 0.9300850234937028
+      length: 659.3307212620992
+    dest: v37
+    face: f165
+    nex: h207
+    orig: v80
+    pre: h56
+    rev: h206
+  h205:
+    attributes:
+      in_angle: 0.24255889835842703
+      length: 519.8470929032883
+    dest: v46
+    face: f160
+    nex: h51
+    orig: v80
+    pre: h48
+    rev: h56
+  h206:
+    attributes:
+      in_angle: 2.460846674363128
+      length: 659.3307212620992
+    dest: v80
+    face: f44
+    nex: h315
+    orig: v37
+    pre: h344
+    rev: h204
+  h207:
+    attributes:
+      in_angle: 2.1783949675481624
+      length: 425.6818060476628
+    dest: v46
+    face: f165
+    nex: h56
+    orig: v37
+    pre: h204
+    rev: h220
+  h208:
+    attributes:
+      in_angle: 1.4427405507139097
+      length: 152.86779418831162
+    dest: v63
+    face: f69
+    nex: h215
+    orig: v99
+    pre: h342
+    rev: h214
+  h209:
+    attributes:
+      in_angle: 1.461609662337306
+      length: 132.63224532518478
+    dest: v73
+    face: f81
+    nex: h5
+    orig: v99
+    pre: h297
+    rev: h559
+  h21:
+    attributes:
+      in_angle: 1.0645594646368126
+      length: 131.70938125703535
+    dest: v40
+    face: f73
+    nex: h1
+    orig: v1
+    pre: h52
+    rev: h172
+  h210:
+    attributes:
+      in_angle: 0.7298473535172807
+      length: 194.95448186692195
+    dest: v45
+    face: f70
+    nex: h383
+    orig: v99
+    pre: h559
+    rev: h380
+  h211:
+    attributes:
+      in_angle: 1.0202262939802695
+      length: 205.2513702755721
+    dest: v34
+    face: f72
+    nex: h351
+    orig: v99
+    pre: h454
+    rev: h342
+  h212:
+    attributes:
+      in_angle: 1.3500820296733913
+      length: 217.97024516611842
+    dest: v62
+    face: f74
+    nex: h336
+    orig: v99
+    pre: h380
+    rev: h454
+  h213:
+    attributes:
+      in_angle: 1.1626842299230704
+      length: 150.39697470361563
+    dest: v95
+    face: f76
+    nex: h295
+    orig: v99
+    pre: h214
+    rev: h297
+  h214:
+    attributes:
+      in_angle: 0.8521228353817705
+      length: 152.86779418831162
+    dest: v99
+    face: f76
+    nex: h213
+    orig: v63
+    pre: h295
+    rev: h208
+  h215:
+    attributes:
+      in_angle: 0.8311174695493959
+      length: 157.87198136464875
+    dest: v34
+    face: f69
+    nex: h342
+    orig: v63
+    pre: h208
+    rev: h338
+  h216:
+    attributes:
+      in_angle: 2.362780989288867
+      length: 100.63703344196907
+    dest: v82
+    face: f52
+    nex: h553
+    orig: v63
+    pre: h160
+    rev: h573
+  h217:
+    attributes:
+      in_angle: 1.2012573487731288
+      length: 121.616199578839
+    dest: v66
+    face: f54
+    nex: h163
+    orig: v63
+    pre: h338
+    rev: h160
+  h218:
+    attributes:
+      in_angle: 1.2919068038045132
+      length: 97.52083110802532
+    dest: v75
+    face: f78
+    nex: h459
+    orig: v63
+    pre: h573
+    rev: h453
+  h219:
+    attributes:
+      in_angle: 0.8632911511705785
+      length: 125.35574378543649
+    dest: v95
+    face: f80
+    nex: h293
+    orig: v63
+    pre: h453
+    rev: h295
+  h22:
+    attributes:
+      in_angle: 0.961151458032641
+      length: 468.0343054853043
+    dest: v15
+    face: f113
+    nex: h431
+    orig: v44
+    pre: h447
+    rev: h434
+  h220:
+    attributes:
+      in_angle: 2.934899440115533
+      length: 425.6818060476628
+    dest: v37
+    face: f105
+    nex: h151
+    orig: v46
+    pre: h17
+    rev: h207
+  h221:
+    attributes:
+      length: 588.5543730191799
+    dest: v18
+    face: null
+    nex: h25
+    orig: v46
+    pre: h43
+    rev: h17
+  h222:
+    attributes:
+      in_angle: 0.7510864704674547
+      length: 826.0278445669976
+    dest: v86
+    face: f130
+    nex: h110
+    orig: v85
+    pre: h299
+    rev: h105
+  h223:
+    attributes:
+      in_angle: 0.4693391724459728
+      length: 580.0234909036012
+    dest: v44
+    face: f82
+    nex: h300
+    orig: v85
+    pre: h312
+    rev: h299
+  h224:
+    attributes:
+      in_angle: 0.6488600260465183
+      length: 297.6071235706565
+    dest: v97
+    face: f156
+    nex: h314
+    orig: v85
+    pre: h310
+    rev: h312
+  h225:
+    attributes:
+      in_angle: 1.3206462375716939
+      length: 50.44248650140513
+    dest: v49
+    face: f84
+    nex: h232
+    orig: v68
+    pre: h325
+    rev: h230
+  h226:
+    attributes:
+      in_angle: 0.5545345523348812
+      length: 89.67719888578144
+    dest: v4
+    face: f164
+    nex: h66
+    orig: v68
+    pre: h55
+    rev: h69
+  h227:
+    attributes:
+      in_angle: 2.799655106947581
+      length: 96.64884893261792
+    dest: v31
+    face: f103
+    nex: h329
+    orig: v68
+    pre: h69
+    rev: h325
+  h228:
+    attributes:
+      in_angle: 0.6716646566662019
+      length: 73.83258088405145
+    dest: v52
+    face: f86
+    nex: h392
+    orig: v68
+    pre: h230
+    rev: h387
+  h229:
+    attributes:
+      in_angle: 1.2532079012804842
+      length: 50.49202357248565
+    dest: v3
+    face: f167
+    nex: h58
+    orig: v68
+    pre: h387
+    rev: h55
+  h23:
+    attributes:
+      in_angle: 2.9409328964239316
+      length: 451.20200575795315
+    dest: v60
+    face: f115
+    nex: h303
+    orig: v18
+    pre: h364
+    rev: h272
+  h230:
+    attributes:
+      in_angle: 1.3246020435404855
+      length: 50.44248650140513
+    dest: v68
+    face: f86
+    nex: h228
+    orig: v49
+    pre: h392
+    rev: h225
+  h231:
+    attributes:
+      in_angle: 1.2846414555483596
+      length: 57.413219538515555
+    dest: v10
+    face: f162
+    nex: h50
+    orig: v49
+    pre: h367
+    rev: h37
+  h232:
+    attributes:
+      in_angle: 0.5301590519469821
+      length: 95.8685442560686
+    dest: v31
+    face: f84
+    nex: h325
+    orig: v49
+    pre: h225
+    rev: h322
+  h233:
+    attributes:
+      in_angle: 0.6235256667748961
+      length: 78.61527275988489
+    dest: v52
+    face: f142
+    nex: h395
+    orig: v49
+    pre: h37
+    rev: h392
+  h234:
+    attributes:
+      in_angle: 2.8318189276204992
+      length: 106.34587177904208
+    dest: v1
+    face: f128
+    nex: h29
+    orig: v49
+    pre: h322
+    rev: h367
+  h235:
+    attributes:
+      in_angle: 0.9056035985880884
+      length: 519.0936813331482
+    dest: v59
+    face: f88
+    nex: h571
+    orig: v42
+    pre: h529
+    rev: h569
+  h236:
+    attributes:
+      in_angle: 0.807893045900184
+      length: 409.40177393362626
+    dest: v55
+    face: f90
+    nex: h527
+    orig: v42
+    pre: h275
+    rev: h529
+  h237:
+    attributes:
+      in_angle: 0.968598269363558
+      length: 89.65942504834615
+    dest: v30
+    face: f92
+    nex: h376
+    orig: v43
+    pre: h267
+    rev: h369
+  h238:
+    attributes:
+      in_angle: 1.20725073209183
+      length: 93.48863567300573
+    dest: v9
+    face: f24
+    nex: h123
+    orig: v43
+    pre: h369
+    rev: h120
+  h239:
+    attributes:
+      in_angle: 1.077248337604258
+      length: 93.5591390511905
+    dest: v32
+    face: f94
+    nex: h268
+    orig: v43
+    pre: h449
+    rev: h267
+  h24:
+    attributes:
+      in_angle: 0.9206573159069567
+      length: 405.00342934076235
+    dest: v41
+    face: f119
+    nex: h450
+    orig: v44
+    pre: h503
+    rev: h447
+  h240:
+    attributes:
+      in_angle: 2.844671432627444
+      length: 130.20872666607258
+    dest: v61
+    face: f56
+    nex: h247
+    orig: v43
+    pre: h166
+    rev: h449
+  h241:
+    attributes:
+      in_angle: 2.6610288052519993
+      length: 117.09104363699215
+    dest: v11
+    face: f23
+    nex: h320
+    orig: v43
+    pre: h120
+    rev: h566
+  h242:
+    attributes:
+      in_angle: 0.794903286715497
+      length: 150.7647173578752
+    dest: v20
+    face: f49
+    nex: h155
+    orig: v43
+    pre: h566
+    rev: h166
+  h243:
+    attributes:
+      in_angle: 1.1988147276266792
+      length: 449.44598612563493
+    dest: v54
+    face: f144
+    nex: h511
+    orig: v97
+    pre: h398
+    rev: h505
+  h244:
+    attributes:
+      in_angle: 0.47738251844020274
+      length: 289.9137802864845
+    dest: v69
+    face: f96
+    nex: h366
+    orig: v90
+    pre: h488
+    rev: h363
+  h245:
+    attributes:
+      in_angle: 0.6422456523972686
+      length: 487.88728206420797
+    dest: v59
+    face: f98
+    nex: h574
+    orig: v90
+    pre: h363
+    rev: h575
+  h246:
+    attributes:
+      in_angle: 1.2623554642264474
+      length: 160.64527001370988
+    dest: v72
+    face: f63
+    nex: h565
+    orig: v61
+    pre: h182
+    rev: h568
+  h247:
+    attributes:
+      in_angle: 0.9743210220091111
+      length: 149.94362366495548
+    dest: v20
+    face: f56
+    nex: h166
+    orig: v61
+    pre: h240
+    rev: h158
+  h248:
+    attributes:
+      in_angle: 0.6730056590798927
+      length: 230.72951937520077
+    dest: v98
+    face: f51
+    nex: h273
+    orig: v61
+    pre: h158
+    rev: h274
+  h249:
+    attributes:
+      in_angle: 1.023800313755503
+      length: 254.49538851967
+    dest: v26
+    face: f62
+    nex: h179
+    orig: v61
+    pre: h274
+    rev: h182
+  h25:
+    attributes:
+      length: 578.3703398342623
+    dest: v48
+    face: null
+    nex: h358
+    orig: v18
+    pre: h221
+    rev: h364
+  h250:
+    attributes:
+      in_angle: 0.8476248055014248
+      length: 447.2563582555311
+    dest: v89
+    face: f185
+    nex: h83
+    orig: v87
+    pre: h146
+    rev: h86
+  h251:
+    attributes:
+      in_angle: 0.9836529619570296
+      length: 303.8269707004301
+    dest: v65
+    face: f65
+    nex: h188
+    orig: v87
+    pre: h187
+    rev: h192
+  h252:
+    attributes:
+      in_angle: 1.1013718648607227
+      length: 274.7205651000464
+    dest: v77
+    face: f64
+    nex: h186
+    orig: v87
+    pre: h393
+    rev: h187
+  h253:
+    attributes:
+      in_angle: 1.3539428957655846
+      length: 255.7909607961157
+    dest: v33
+    face: f0
+    nex: h384
+    orig: v87
+    pre: h86
+    rev: h393
+  h254:
+    attributes:
+      in_angle: 0.9136405127570069
+      length: 332.3431961090824
+    dest: v81
+    face: f43
+    nex: h149
+    orig: v87
+    pre: h265
+    rev: h146
+  h255:
+    attributes:
+      in_angle: 0.9105751433389528
+      length: 334.00802551901523
+    dest: v93
+    face: f67
+    nex: h263
+    orig: v87
+    pre: h192
+    rev: h265
+  h256:
+    attributes:
+      in_angle: 0.9305727342799965
+      length: 261.9927539551428
+    dest: v27
+    face: f163
+    nex: h54
+    orig: v76
+    pre: h175
+    rev: h44
+  h257:
+    attributes:
+      in_angle: 0.8113762851120087
+      length: 361.05167566430157
+    dest: v17
+    face: f152
+    nex: h65
+    orig: v76
+    pre: h44
+    rev: h60
+  h258:
+    attributes:
+      in_angle: 1.325789926725204
+      length: 87.5728268357257
+    dest: v91
+    face: f172
+    nex: h282
+    orig: v101
+    pre: h63
+    rev: h281
+  h259:
+    attributes:
+      in_angle: 1.2981583223472004
+      length: 96.2918018894189
+    dest: v3
+    face: f99
+    nex: h53
+    orig: v101
+    pre: h15
+    rev: h63
+  h26:
+    attributes:
+      in_angle: 1.1312996286197678
+      length: 180.8133869567677
+    dest: v27
+    face: f122
+    nex: h41
+    orig: v1
+    pre: h30
+    rev: h52
+  h260:
+    attributes:
+      in_angle: 0.8207604802954183
+      length: 479.57171286240134
+    dest: v25
+    face: f68
+    nex: h400
+    orig: v93
+    pre: h193
+    rev: h405
+  h261:
+    attributes:
+      in_angle: 0.9086260179307246
+      length: 398.7698096786053
+    dest: v71
+    face: f60
+    nex: h174
+    orig: v93
+    pre: h469
+    rev: h180
+  h262:
+    attributes:
+      in_angle: 2.3046161267964336
+      length: 455.60475682815735
+    dest: v2
+    face: f106
+    nex: h475
+    orig: v93
+    pre: h405
+    rev: h469
+  h263:
+    attributes:
+      in_angle: 1.0518012205458
+      length: 355.54486013644527
+    dest: v65
+    face: f67
+    nex: h192
+    orig: v93
+    pre: h255
+    rev: h193
+  h264:
+    attributes:
+      in_angle: 1.6129708829791016
+      length: 408.7493459050153
+    dest: v81
+    face: f39
+    nex: h141
+    orig: v93
+    pre: h180
+    rev: h149
+  h265:
+    attributes:
+      in_angle: 1.320745029138535
+      length: 334.00802551901523
+    dest: v87
+    face: f43
+    nex: h254
+    orig: v93
+    pre: h149
+    rev: h255
+  h266:
+    attributes:
+      in_angle: 0.9734067809377747
+      length: 63.42810891079758
+    dest: v75
+    face: f108
+    nex: h456
+    orig: v82
+    pre: h399
+    rev: h459
+  h267:
+    attributes:
+      in_angle: 1.3277443826989117
+      length: 93.5591390511905
+    dest: v43
+    face: f92
+    nex: h237
+    orig: v32
+    pre: h376
+    rev: h239
+  h268:
+    attributes:
+      in_angle: 0.6851389795804392
+      length: 145.14863072037573
+    dest: v61
+    face: f94
+    nex: h449
+    orig: v32
+    pre: h239
+    rev: h444
+  h269:
+    attributes:
+      in_angle: 1.2297387834371682
+      length: 94.6562861092701
+    dest: v73
+    face: f110
+    nex: h557
+    orig: v32
+    pre: h570
+    rev: h562
+  h27:
+    attributes:
+      in_angle: 1.4356245018239093
+      length: 416.00163594763796
+    dest: v86
+    face: f124
+    nex: h108
+    orig: v44
+    pre: h434
+    rev: h110
+  h270:
+    attributes:
+      in_angle: 0.9812411749766068
+      length: 168.79647508167935
+    dest: v72
+    face: f102
+    nex: h568
+    orig: v32
+    pre: h444
+    rev: h570
+  h271:
+    attributes:
+      in_angle: 0.8332261954261696
+      length: 472.1750205167571
+    dest: v37
+    face: f41
+    nex: h147
+    orig: v60
+    pre: h530
+    rev: h144
+  h272:
+    attributes:
+      in_angle: 1.199892827607952
+      length: 451.20200575795315
+    dest: v18
+    face: f111
+    nex: h20
+    orig: v60
+    pre: h144
+    rev: h23
+  h273:
+    attributes:
+      in_angle: 1.2840835107926525
+      length: 222.82350078032613
+    dest: v20
+    face: f51
+    nex: h158
+    orig: v98
+    pre: h248
+    rev: h161
+  h274:
+    attributes:
+      in_angle: 1.0140461746769442
+      length: 230.72951937520077
+    dest: v61
+    face: f62
+    nex: h249
+    orig: v98
+    pre: h179
+    rev: h248
+  h275:
+    attributes:
+      in_angle: 1.51588474177552
+      length: 301.9279830430501
+    dest: v42
+    face: f90
+    nex: h236
+    orig: v98
+    pre: h527
+    rev: h324
+  h276:
+    attributes:
+      in_angle: 0.9274846030268873
+      length: 340.4739343914597
+    dest: v55
+    face: f114
+    nex: h525
+    orig: v98
+    pre: h555
+    rev: h527
+  h277:
+    attributes:
+      in_angle: 1.164108662426352
+      length: 239.7750247627972
+    dest: v26
+    face: f61
+    nex: h176
+    orig: v98
+    pre: h324
+    rev: h179
+  h278:
+    attributes:
+      in_angle: 0.883909865471649
+      length: 293.9610825527006
+    dest: v76
+    face: f53
+    nex: h554
+    orig: v98
+    pre: h161
+    rev: h555
+  h279:
+    attributes:
+      in_angle: 0.7504224510212301
+      length: 96.80808620954954
+    dest: v52
+    face: f170
+    nex: h287
+    orig: v91
+    pre: h61
+    rev: h284
+  h28:
+    attributes:
+      in_angle: 2.924903088329468
+      length: 448.8866783498927
+    dest: v41
+    face: f126
+    nex: h441
+    orig: v28
+    pre: h439
+    rev: h35
+  h280:
+    attributes:
+      in_angle: 1.020421492548941
+      length: 101.74000087368681
+    dest: v22
+    face: f116
+    nex: h508
+    orig: v91
+    pre: h401
+    rev: h506
+  h281:
+    attributes:
+      in_angle: 2.728653416733552
+      length: 87.5728268357257
+    dest: v101
+    face: f104
+    nex: h483
+    orig: v91
+    pre: h506
+    rev: h258
+  h282:
+    attributes:
+      in_angle: 1.0807105211465038
+      length: 66.56659155395529
+    dest: v3
+    face: f172
+    nex: h63
+    orig: v91
+    pre: h258
+    rev: h61
+  h283:
+    attributes:
+      in_angle: 0.7870805015120994
+      length: 100.27023486558723
+    dest: v0
+    face: f118
+    nex: h404
+    orig: v91
+    pre: h284
+    rev: h401
+  h284:
+    attributes:
+      in_angle: 1.5308693823924782
+      length: 96.80808620954954
+    dest: v91
+    face: f118
+    nex: h283
+    orig: v52
+    pre: h404
+    rev: h279
+  h285:
+    attributes:
+      in_angle: 0.8083059405457282
+      length: 138.10996021689067
+    dest: v5
+    face: f11
+    nex: h98
+    orig: v52
+    pre: h415
+    rev: h104
+  h286:
+    attributes:
+      in_angle: 1.1164687265983435
+      length: 99.91002897051362
+    dest: v12
+    face: f159
+    nex: h418
+    orig: v52
+    pre: h47
+    rev: h415
+  h287:
+    attributes:
+      in_angle: 1.442331069240704
+      length: 79.33350840316832
+    dest: v3
+    face: f170
+    nex: h61
+    orig: v52
+    pre: h279
+    rev: h58
+  h288:
+    attributes:
+      in_angle: 1.0452988471469422
+      length: 136.56863557282202
+    dest: v0
+    face: f14
+    nex: h389
+    orig: v52
+    pre: h104
+    rev: h404
+  h289:
+    attributes:
+      in_angle: 1.3586192756899287
+      length: 239.18484251492373
+    dest: v39
+    face: f101
+    nex: h16
+    orig: v100
+    pre: h125
+    rev: h11
+  h29:
+    attributes:
+      in_angle: 1.3822158471465702
+      length: 96.05167156854222
+    dest: v31
+    face: f128
+    nex: h322
+    orig: v1
+    pre: h234
+    rev: h335
+  h290:
+    attributes:
+      in_angle: 1.2332588401891484
+      length: 211.10950291785127
+    dest: v74
+    face: f93
+    nex: h313
+    orig: v100
+    pre: h11
+    rev: h316
+  h291:
+    attributes:
+      in_angle: 1.4952640355837779
+      length: 315.60450813566575
+    dest: v23
+    face: f134
+    nex: h533
+    orig: v100
+    pre: h31
+    rev: h539
+  h292:
+    attributes:
+      in_angle: 1.0188357889117738
+      length: 295.0790295506536
+    dest: v35
+    face: f18
+    nex: h114
+    orig: v100
+    pre: h539
+    rev: h125
+  h293:
+    attributes:
+      in_angle: 1.3554613836065201
+      length: 102.31141187570427
+    dest: v75
+    face: f80
+    nex: h453
+    orig: v95
+    pre: h219
+    rev: h451
+  h294:
+    attributes:
+      in_angle: 1.6249825898093224
+      length: 57.7008569164176
+    dest: v29
+    face: f15
+    nex: h420
+    orig: v95
+    pre: h107
+    rev: h414
+  h295:
+    attributes:
+      in_angle: 1.126785588284952
+      length: 125.35574378543649
+    dest: v63
+    face: f76
+    nex: h214
+    orig: v95
+    pre: h213
+    rev: h219
+  h296:
+    attributes:
+      in_angle: 1.0539121793423851
+      length: 104.1846651117353
+    dest: v5
+    face: f9
+    nex: h96
+    orig: v95
+    pre: h451
+    rev: h107
+  h297:
+    attributes:
+      in_angle: 0.8882691223566008
+      length: 150.39697470361563
+    dest: v99
+    face: f81
+    nex: h209
+    orig: v95
+    pre: h5
+    rev: h213
+  h298:
+    attributes:
+      in_angle: 0.5535375037873003
+      length: 105.50118482747007
+    dest: v73
+    face: f75
+    nex: h2
+    orig: v95
+    pre: h414
+    rev: h5
+  h299:
+    attributes:
+      in_angle: 0.5053502051617322
+      length: 580.0234909036012
+    dest: v85
+    face: f130
+    nex: h222
+    orig: v44
+    pre: h110
+    rev: h223
+  h3:
+    attributes:
+      in_angle: 1.4981320054375464
+      length: 348.0311687829761
+    dest: v14
+    face: f77
+    nex: h455
+    orig: v70
+    pre: h10
+    rev: h458
+  h30:
+    attributes:
+      in_angle: 0.8935350880263324
+      length: 166.44026289065732
+    dest: v1
+    face: f122
+    nex: h26
+    orig: v96
+    pre: h41
+    rev: h18
+  h300:
+    attributes:
+      in_angle: 2.343121994960568
+      length: 324.4710225034656
+    dest: v97
+    face: f82
+    nex: h312
+    orig: v44
+    pre: h223
+    rev: h304
+  h301:
+    attributes:
+      length: 823.3135793851575
+    dest: v67
+    face: null
+    nex: h535
+    orig: v69
+    pre: h162
+    rev: h542
+  h302:
+    attributes:
+      in_angle: 3.085238828342149
+      length: 298.92850315752764
+    dest: v59
+    face: f46
+    nex: h153
+    orig: v69
+    pre: h542
+    rev: h574
+  h303:
+    attributes:
+      in_angle: 0.9157664842653872
+      length: 396.8342083148692
+    dest: v48
+    face: f115
+    nex: h364
+    orig: v60
+    pre: h23
+    rev: h356
+  h304:
+    attributes:
+      in_angle: 2.9662429734100364
+      length: 324.4710225034656
+    dest: v44
+    face: f109
+    nex: h19
+    orig: v97
+    pre: h505
+    rev: h300
+  h305:
+    attributes:
+      in_angle: 1.3230847036103985
+      length: 331.3589024339351
+    dest: v13
+    face: f186
+    nex: h85
+    orig: v60
+    pre: h102
+    rev: h78
+  h306:
+    attributes:
+      in_angle: 0.9660867631640269
+      length: 419.8380971014634
+    dest: v53
+    face: f120
+    nex: h402
+    orig: v97
+    pre: h534
+    rev: h398
+  h307:
+    attributes:
+      in_angle: 2.617433523148535
+      length: 489.70297119784766
+    dest: v97
+    face: f121
+    nex: h309
+    orig: v80
+    pre: h541
+    rev: h314
+  h308:
+    attributes:
+      in_angle: 1.0400373543247625
+      length: 355.4323267358903
+    dest: v6
+    face: f181
+    nex: h523
+    orig: v60
+    pre: h78
+    rev: h530
+  h309:
+    attributes:
+      in_angle: 3.0058794740663446
+      length: 447.48308472065304
+    dest: v23
+    face: f121
+    nex: h541
+    orig: v97
+    pre: h307
+    rev: h534
+  h31:
+    attributes:
+      in_angle: 3.025470394081069
+      length: 361.68525297863926
+    dest: v100
+    face: f134
+    nex: h291
+    orig: v53
+    pre: h533
+    rev: h106
+  h310:
+    attributes:
+      in_angle: 2.4611274700605805
+      length: 297.37896697648273
+    dest: v85
+    face: f156
+    nex: h224
+    orig: v80
+    pre: h314
+    rev: h48
+  h311:
+    attributes:
+      in_angle: 1.5806073901447588
+      length: 406.9399696378925
+    dest: v78
+    face: f7
+    nex: h156
+    orig: v60
+    pre: h356
+    rev: h102
+  h312:
+    attributes:
+      in_angle: 0.9746207221086108
+      length: 297.6071235706565
+    dest: v85
+    face: f82
+    nex: h223
+    orig: v97
+    pre: h300
+    rev: h224
+  h313:
+    attributes:
+      in_angle: 0.9841775753532909
+      length: 202.3123273005818
+    dest: v39
+    face: f93
+    nex: h11
+    orig: v74
+    pre: h290
+    rev: h14
+  h314:
+    attributes:
+      in_angle: 0.6514179728642226
+      length: 489.70297119784766
+    dest: v80
+    face: f156
+    nex: h310
+    orig: v97
+    pre: h224
+    rev: h307
+  h315:
+    attributes:
+      in_angle: 2.973563766590551
+      length: 518.6629445024968
+    dest: v19
+    face: f44
+    nex: h344
+    orig: v80
+    pre: h206
+    rev: h340
+  h316:
+    attributes:
+      in_angle: 1.4000293298623747
+      length: 211.10950291785127
+    dest: v100
+    face: f12
+    nex: h103
+    orig: v74
+    pre: h100
+    rev: h290
+  h317:
+    attributes:
+      in_angle: 0.9993107178909828
+      length: 338.47202873518387
+    dest: v65
+    face: f66
+    nex: h191
+    orig: v42
+    pre: h396
+    rev: h189
+  h318:
+    attributes:
+      in_angle: 1.4988638046119862
+      length: 347.9547384359063
+    dest: v23
+    face: f123
+    nex: h538
+    orig: v80
+    pre: h340
+    rev: h541
+  h319:
+    attributes:
+      in_angle: 1.5517318254810917
+      length: 348.612806547449
+    dest: v25
+    face: f48
+    nex: h357
+    orig: v42
+    pre: h569
+    rev: h396
+  h32:
+    attributes:
+      length: 575.0602142384744
+    dest: v15
+    face: null
+    nex: h436
+    orig: v28
+    pre: h515
+    rev: h439
+  h320:
+    attributes:
+      in_angle: 1.3164282682416306
+      length: 94.70282466748286
+    dest: v9
+    face: f23
+    nex: h120
+    orig: v11
+    pre: h241
+    rev: h118
+  h321:
+    attributes:
+      in_angle: 1.2522839651962208
+      length: 301.4015639935827
+    dest: v26
+    face: f57
+    nex: h167
+    orig: v42
+    pre: h189
+    rev: h176
+  h322:
+    attributes:
+      in_angle: 0.9131225301495112
+      length: 95.8685442560686
+    dest: v49
+    face: f128
+    nex: h234
+    orig: v31
+    pre: h29
+    rev: h232
+  h323:
+    attributes:
+      in_angle: 1.2708768828485926
+      length: 89.65001394311102
+    dest: v12
+    face: f21
+    nex: h409
+    orig: v11
+    pre: h118
+    rev: h421
+  h324:
+    attributes:
+      in_angle: 1.1600793679357273
+      length: 301.9279830430501
+    dest: v98
+    face: f61
+    nex: h277
+    orig: v42
+    pre: h176
+    rev: h275
+  h325:
+    attributes:
+      in_angle: 1.2907873640711174
+      length: 96.64884893261792
+    dest: v68
+    face: f84
+    nex: h225
+    orig: v31
+    pre: h232
+    rev: h227
+  h326:
+    attributes:
+      in_angle: 1.1881624180938513
+      length: 347.51719581754355
+    dest: v38
+    face: f125
+    nex: h432
+    orig: v47
+    pre: h497
+    rev: h429
+  h327:
+    attributes:
+      in_angle: 0.8477152386219752
+      length: 378.36069100793225
+    dest: v28
+    face: f32
+    nex: h133
+    orig: v47
+    pre: h513
+    rev: h130
+  h328:
+    attributes:
+      in_angle: 0.9722211153150844
+      length: 88.89600665946699
+    dest: v94
+    face: f34
+    nex: h547
+    orig: v66
+    pre: h135
+    rev: h545
+  h329:
+    attributes:
+      in_angle: 1.3467049165147127
+      length: 92.61884257536369
+    dest: v4
+    face: f103
+    nex: h69
+    orig: v31
+    pre: h227
+    rev: h7
+  h33:
+    attributes:
+      in_angle: 1.3560145197919984
+      length: 157.93293671682295
+    dest: v31
+    face: f107
+    nex: h335
+    orig: v96
+    pre: h18
+    rev: h332
+  h330:
+    attributes:
+      in_angle: 1.4232572840492534
+      length: 384.37459349572
+    dest: v84
+    face: f146
+    nex: h491
+    orig: v47
+    pre: h38
+    rev: h497
+  h331:
+    attributes:
+      in_angle: 1.2354719454798855
+      length: 91.92388155425118
+    dest: v82
+    face: f127
+    nex: h552
+    orig: v66
+    pre: h545
+    rev: h553
+  h332:
+    attributes:
+      in_angle: 2.803158480393735
+      length: 157.93293671682295
+    dest: v96
+    face: f138
+    nex: h200
+    orig: v31
+    pre: h199
+    rev: h33
+  h333:
+    attributes:
+      in_angle: 0.8507291470814737
+      length: 474.4863670328158
+    dest: v41
+    face: f132
+    nex: h35
+    orig: v47
+    pre: h130
+    rev: h38
+  h334:
+    attributes:
+      in_angle: 0.650537861553701
+      length: 149.10273304000836
+    dest: v58
+    face: f87
+    nex: h196
+    orig: v31
+    pre: h7
+    rev: h199
+  h335:
+    attributes:
+      in_angle: 1.1865573343183442
+      length: 96.05167156854222
+    dest: v1
+    face: f107
+    nex: h18
+    orig: v31
+    pre: h33
+    rev: h29
+  h336:
+    attributes:
+      in_angle: 1.107318108831691
+      length: 264.74159308864006
+    dest: v45
+    face: f74
+    nex: h380
+    orig: v62
+    pre: h212
+    rev: h343
+  h337:
+    attributes:
+      in_angle: 0.8103471362452161
+      length: 410.4478651424564
+    dest: v23
+    face: f20
+    nex: h536
+    orig: v19
+    pre: h117
+    rev: h538
+  h338:
+    attributes:
+      in_angle: 1.1389164720990352
+      length: 157.87198136464875
+    dest: v63
+    face: f54
+    nex: h217
+    orig: v34
+    pre: h163
+    rev: h215
+  h339:
+    attributes:
+      in_angle: 0.8193750318030446
+      length: 362.0647602639616
+    dest: v33
+    face: f129
+    nex: h386
+    orig: v62
+    pre: h343
+    rev: h390
+  h34:
+    attributes:
+      in_angle: 1.6041741389481254
+      length: 240.27786287731323
+    dest: v16
+    face: f136
+    nex: h88
+    orig: v53
+    pre: h106
+    rev: h90
+  h340:
+    attributes:
+      in_angle: 0.909686238197561
+      length: 518.6629445024968
+    dest: v80
+    face: f123
+    nex: h318
+    orig: v19
+    pre: h538
+    rev: h315
+  h341:
+    attributes:
+      in_angle: 1.0840794238724873
+      length: 153.7556909515872
+    dest: v66
+    face: f58
+    nex: h171
+    orig: v34
+    pre: h419
+    rev: h163
+  h342:
+    attributes:
+      in_angle: 0.8677346333264868
+      length: 205.2513702755721
+    dest: v99
+    face: f69
+    nex: h208
+    orig: v34
+    pre: h215
+    rev: h211
+  h343:
+    attributes:
+      in_angle: 0.7151761863757408
+      length: 264.74159308864006
+    dest: v62
+    face: f129
+    nex: h339
+    orig: v45
+    pre: h386
+    rev: h336
+  h344:
+    attributes:
+      in_angle: 1.5959525428560002
+      length: 347.3975068675329
+    dest: v37
+    face: f44
+    nex: h206
+    orig: v19
+    pre: h315
+    rev: h142
+  h345:
+    attributes:
+      in_angle: 1.1565372776503913
+      length: 151.49030497031816
+    dest: v56
+    face: f133
+    nex: h422
+    orig: v34
+    pre: h472
+    rev: h419
+  h346:
+    attributes:
+      in_angle: 1.238060061132471
+      length: 237.58016556405636
+    dest: v33
+    face: f4
+    nex: h388
+    orig: v45
+    pre: h92
+    rev: h386
+  h347:
+    attributes:
+      in_angle: 1.1515939302367635
+      length: 305.0845607960377
+    dest: v35
+    face: f17
+    nex: h111
+    orig: v19
+    pre: h139
+    rev: h117
+  h348:
+    attributes:
+      in_angle: 2.6576220628546587
+      length: 223.2568587972159
+    dest: v64
+    face: f135
+    nex: h440
+    orig: v34
+    pre: h462
+    rev: h472
+  h349:
+    attributes:
+      in_angle: 0.6446633955229313
+      length: 245.9385650478139
+    dest: v77
+    face: f1
+    nex: h87
+    orig: v45
+    pre: h572
+    rev: h92
+  h35:
+    attributes:
+      in_angle: 2.3169660847909173
+      length: 448.8866783498927
+    dest: v28
+    face: f132
+    nex: h130
+    orig: v41
+    pre: h333
+    rev: h28
+  h350:
+    attributes:
+      in_angle: 1.0037102395406077
+      length: 336.4997358427227
+    dest: v6
+    face: f40
+    nex: h524
+    orig: v19
+    pre: h142
+    rev: h528
+  h351:
+    attributes:
+      in_angle: 0.9314698584267616
+      length: 237.43504959836437
+    dest: v62
+    face: f72
+    nex: h454
+    orig: v34
+    pre: h211
+    rev: h462
+  h352:
+    attributes:
+      in_angle: 1.1710226391279397
+      length: 151.13813585958752
+    dest: v72
+    face: f137
+    nex: h563
+    orig: v45
+    pre: h561
+    rev: h572
+  h353:
+    attributes:
+      in_angle: 1.2437070628474487
+      length: 301.0880316083285
+    dest: v24
+    face: f36
+    nex: h136
+    orig: v19
+    pre: h528
+    rev: h139
+  h354:
+    attributes:
+      in_angle: 0.9692073356075943
+      length: 239.47298908227626
+    dest: v36
+    face: f171
+    nex: h368
+    orig: v88
+    pre: h72
+    rev: h362
+  h355:
+    attributes:
+      in_angle: 2.195306050365362
+      length: 424.4820373113567
+    dest: v67
+    face: f50
+    nex: h540
+    orig: v25
+    pre: h157
+    rev: h537
+  h356:
+    attributes:
+      in_angle: 1.251517043245719
+      length: 396.8342083148692
+    dest: v60
+    face: f7
+    nex: h311
+    orig: v48
+    pre: h156
+    rev: h303
+  h357:
+    attributes:
+      in_angle: 2.424986177432012
+      length: 657.70662152665
+    dest: v59
+    face: f48
+    nex: h569
+    orig: v25
+    pre: h319
+    rev: h157
+  h358:
+    attributes:
+      length: 279.3787751422788
+    dest: v21
+    face: null
+    nex: h162
+    orig: v48
+    pre: h25
+    rev: h165
+  h359:
+    attributes:
+      in_angle: 1.1782210976976255
+      length: 249.60381106866137
+    dest: v56
+    face: f141
+    nex: h428
+    orig: v88
+    pre: h362
+    rev: h413
+  h36:
+    attributes:
+      in_angle: 1.0920553754353879
+      length: 196.5692025442666
+    dest: v92
+    face: f140
+    nex: h79
+    orig: v53
+    pre: h90
+    rev: h74
+  h360:
+    attributes:
+      in_angle: 0.7488482405577981
+      length: 831.8755916601953
+    dest: v21
+    face: f10
+    nex: h159
+    orig: v69
+    pre: h489
+    rev: h162
+  h361:
+    attributes:
+      in_angle: 0.6378743364030237
+      length: 464.4615161668402
+    dest: v78
+    face: f45
+    nex: h152
+    orig: v48
+    pre: h165
+    rev: h156
+  h362:
+    attributes:
+      in_angle: 0.6654009885858008
+      length: 239.47298908227626
+    dest: v88
+    face: f141
+    nex: h359
+    orig: v36
+    pre: h428
+    rev: h354
+  h363:
+    attributes:
+      in_angle: 0.672930170096736
+      length: 289.9137802864845
+    dest: v90
+    face: f98
+    nex: h245
+    orig: v69
+    pre: h574
+    rev: h244
+  h364:
+    attributes:
+      in_angle: 0.7559925451331542
+      length: 578.3703398342623
+    dest: v18
+    face: f115
+    nex: h23
+    orig: v48
+    pre: h303
+    rev: h25
+  h365:
+    attributes:
+      in_angle: 1.1071615976975764
+      length: 152.72933575446467
+    dest: v16
+    face: f184
+    nex: h97
+    orig: v36
+    pre: h81
+    rev: h95
+  h366:
+    attributes:
+      in_angle: 0.46520338313064163
+      length: 583.1905777702517
+    dest: v78
+    face: f96
+    nex: h488
+    orig: v69
+    pre: h244
+    rev: h489
+  h367:
+    attributes:
+      in_angle: 1.3125343137814336
+      length: 106.34587177904208
+    dest: v49
+    face: f162
+    nex: h231
+    orig: v1
+    pre: h50
+    rev: h234
+  h368:
+    attributes:
+      in_angle: 1.15936191076622
+      length: 231.9528508124011
+    dest: v92
+    face: f171
+    nex: h72
+    orig: v36
+    pre: h354
+    rev: h81
+  h369:
+    attributes:
+      in_angle: 0.5895970433665019
+      length: 89.65942504834615
+    dest: v43
+    face: f24
+    nex: h238
+    orig: v30
+    pre: h123
+    rev: h237
+  h37:
+    attributes:
+      in_angle: 1.5915562722938421
+      length: 57.413219538515555
+    dest: v49
+    face: f142
+    nex: h233
+    orig: v10
+    pre: h395
+    rev: h231
+  h370:
+    attributes:
+      in_angle: 1.0210804126467288
+      length: 107.17716381974488
+    dest: v10
+    face: f117
+    nex: h42
+    orig: v1
+    pre: h172
+    rev: h50
+  h371:
+    attributes:
+      in_angle: 1.186577201842967
+      length: 160.01757715951084
+    dest: v56
+    face: f31
+    nex: h416
+    orig: v36
+    pre: h132
+    rev: h428
+  h372:
+    attributes:
+      in_angle: 1.2794900799040132
+      length: 48.884572094771165
+    dest: v29
+    face: f143
+    nex: h408
+    orig: v30
+    pre: h426
+    rev: h411
+  h373:
+    attributes:
+      in_angle: 0.8265962433615188
+      length: 248.65880866158753
+    dest: v27
+    face: f161
+    nex: h49
+    orig: v51
+    pre: h62
+    rev: h46
+  h374:
+    attributes:
+      in_angle: 0.6312663715067706
+      length: 529.0781044656828
+    dest: v33
+    face: f131
+    nex: h390
+    orig: v14
+    pre: h457
+    rev: h381
+  h375:
+    attributes:
+      in_angle: 0.6081596168189932
+      length: 78.86702063882237
+    dest: v5
+    face: f16
+    nex: h109
+    orig: v30
+    pre: h411
+    rev: h101
+  h376:
+    attributes:
+      in_angle: 2.8879905745046646
+      length: 93.28350604474512
+    dest: v32
+    face: f92
+    nex: h267
+    orig: v30
+    pre: h237
+    rev: h426
+  h377:
+    attributes:
+      in_angle: 1.3927335191703873
+      length: 225.15897161783272
+    dest: v96
+    face: f158
+    nex: h201
+    orig: v51
+    pre: h46
+    rev: h203
+  h378:
+    attributes:
+      in_angle: 2.3128711376864173
+      length: 443.11990476619303
+    dest: v89
+    face: f178
+    nex: h89
+    orig: v14
+    pre: h381
+    rev: h76
+  h379:
+    attributes:
+      in_angle: 1.1899461072884345
+      length: 53.3391272894486
+    dest: v9
+    face: f13
+    nex: h112
+    orig: v30
+    pre: h101
+    rev: h123
+  h38:
+    attributes:
+      in_angle: 0.8278397862031026
+      length: 474.4863670328158
+    dest: v47
+    face: f146
+    nex: h330
+    orig: v41
+    pre: h491
+    rev: h333
+  h380:
+    attributes:
+      in_angle: 1.4441607296521766
+      length: 194.95448186692195
+    dest: v99
+    face: f74
+    nex: h212
+    orig: v45
+    pre: h336
+    rev: h210
+  h381:
+    attributes:
+      in_angle: 0.9048003625791565
+      length: 529.0781044656828
+    dest: v14
+    face: f178
+    nex: h378
+    orig: v33
+    pre: h89
+    rev: h374
+  h382:
+    attributes:
+      in_angle: 1.302811032226284
+      length: 93.91618603840341
+    dest: v94
+    face: f145
+    nex: h548
+    orig: v7
+    pre: h496
+    rev: h547
+  h383:
+    attributes:
+      in_angle: 1.3707438147927233
+      length: 171.65171860485407
+    dest: v73
+    face: f70
+    nex: h559
+    orig: v45
+    pre: h210
+    rev: h561
+  h384:
+    attributes:
+      in_angle: 0.5925965481148476
+      length: 426.03156059733413
+    dest: v89
+    face: f0
+    nex: h86
+    orig: v33
+    pre: h253
+    rev: h89
+  h385:
+    attributes:
+      in_angle: 0.8749573541118929
+      length: 93.57186780461554
+    dest: v79
+    face: f29
+    nex: h494
+    orig: v7
+    pre: h137
+    rev: h496
+  h386:
+    attributes:
+      in_angle: 1.6070414354110083
+      length: 237.58016556405636
+    dest: v45
+    face: f129
+    nex: h343
+    orig: v33
+    pre: h339
+    rev: h346
+  h387:
+    attributes:
+      in_angle: 1.3377345126133449
+      length: 73.83258088405145
+    dest: v68
+    face: f167
+    nex: h229
+    orig: v52
+    pre: h58
+    rev: h228
+  h388:
+    attributes:
+      in_angle: 1.4550260970861706
+      length: 197.77583147060426
+    dest: v77
+    face: f4
+    nex: h92
+    orig: v33
+    pre: h346
+    rev: h186
+  h389:
+    attributes:
+      in_angle: 1.0263615004214373
+      length: 140.04070043304478
+    dest: v5
+    face: f14
+    nex: h104
+    orig: v0
+    pre: h288
+    rev: h94
+  h39:
+    attributes:
+      in_angle: 1.1391480023008675
+      length: 123.66228653518868
+    dest: v11
+    face: f148
+    nex: h560
+    orig: v10
+    pre: h178
+    rev: h558
+  h390:
+    attributes:
+      in_angle: 2.9860688257952583
+      length: 362.0647602639616
+    dest: v62
+    face: f131
+    nex: h457
+    orig: v33
+    pre: h374
+    rev: h339
+  h391:
+    attributes:
+      in_angle: 1.5753132523761317
+      length: 98.53499378393434
+    dest: v75
+    face: f6
+    nex: h448
+    orig: v0
+    pre: h94
+    rev: h456
+  h392:
+    attributes:
+      in_angle: 1.145325953383106
+      length: 78.61527275988489
+    dest: v49
+    face: f86
+    nex: h230
+    orig: v52
+    pre: h228
+    rev: h233
+  h393:
+    attributes:
+      in_angle: 0.7608757538961051
+      length: 255.7909607961157
+    dest: v87
+    face: f64
+    nex: h252
+    orig: v33
+    pre: h186
+    rev: h253
+  h394:
+    attributes:
+      in_angle: 0.9398684466653217
+      length: 103.5542423617262
+    dest: v22
+    face: f147
+    nex: h502
+    orig: v0
+    pre: h500
+    rev: h508
+  h395:
+    attributes:
+      in_angle: 0.9265107145210552
+      length: 98.30578710217314
+    dest: v10
+    face: f142
+    nex: h37
+    orig: v52
+    pre: h233
+    rev: h47
+  h396:
+    attributes:
+      in_angle: 1.18673124148838
+      length: 348.612806547449
+    dest: v42
+    face: f66
+    nex: h317
+    orig: v25
+    pre: h191
+    rev: h319
+  h397:
+    attributes:
+      in_angle: 1.166585282467563
+      length: 83.6425795340573
+    dest: v79
+    face: f149
+    nex: h498
+    orig: v0
+    pre: h550
+    rev: h500
+  h398:
+    attributes:
+      in_angle: 0.5919435715348711
+      length: 419.8380971014634
+    dest: v97
+    face: f144
+    nex: h243
+    orig: v53
+    pre: h511
+    rev: h306
+  h399:
+    attributes:
+      in_angle: 1.8120735329259912
+      length: 79.96980680231746
+    dest: v82
+    face: f108
+    nex: h266
+    orig: v0
+    pre: h456
+    rev: h556
+  h4:
+    attributes:
+      in_angle: 1.173797371955822
+      length: 150.35404975516224
+    dest: v58
+    face: f79
+    nex: h198
+    orig: v39
+    pre: h122
+    rev: h195
+  h40:
+    attributes:
+      in_angle: 0.7521646361111636
+      length: 255.22022081157886
+    dest: v54
+    face: f150
+    nex: h509
+    orig: v53
+    pre: h74
+    rev: h511
+  h400:
+    attributes:
+      in_angle: 1.4087260841471219
+      length: 384.27855610293363
+    dest: v65
+    face: f68
+    nex: h193
+    orig: v25
+    pre: h260
+    rev: h191
+  h401:
+    attributes:
+      in_angle: 1.076375394887605
+      length: 100.27023486558723
+    dest: v91
+    face: f116
+    nex: h280
+    orig: v0
+    pre: h508
+    rev: h283
+  h402:
+    attributes:
+      in_angle: 0.8817360142705105
+      length: 523.2028765211445
+    dest: v23
+    face: f120
+    nex: h534
+    orig: v53
+    pre: h306
+    rev: h533
+  h403:
+    attributes:
+      in_angle: 0.8438539058175909
+      length: 377.7762418269428
+    dest: v2
+    face: f139
+    nex: h473
+    orig: v25
+    pre: h537
+    rev: h475
+  h404:
+    attributes:
+      in_angle: 0.8236427696852153
+      length: 136.56863557282202
+    dest: v52
+    face: f118
+    nex: h284
+    orig: v0
+    pre: h283
+    rev: h288
+  h405:
+    attributes:
+      in_angle: 0.8378835343735482
+      length: 479.57171286240134
+    dest: v93
+    face: f106
+    nex: h262
+    orig: v25
+    pre: h475
+    rev: h260
+  h406:
+    attributes:
+      in_angle: 1.2829007065986748
+      length: 78.4497928614218
+    dest: v94
+    face: f151
+    nex: h543
+    orig: v0
+    pre: h556
+    rev: h550
+  h407:
+    attributes:
+      in_angle: 1.3010355584642532
+      length: 447.1411658774242
+    dest: v90
+    face: f177
+    nex: h486
+    orig: v55
+    pre: h71
+    rev: h487
+  h408:
+    attributes:
+      in_angle: 0.5258690932889012
+      length: 94.71961547406937
+    dest: v32
+    face: f143
+    nex: h426
+    orig: v29
+    pre: h372
+    rev: h423
+  h409:
+    attributes:
+      in_angle: 1.129942449961646
+      length: 66.89730936293327
+    dest: v9
+    face: f21
+    nex: h118
+    orig: v12
+    pre: h323
+    rev: h115
+  h41:
+    attributes:
+      in_angle: 1.3773445632270849
+      length: 152.68661737362578
+    dest: v96
+    face: f122
+    nex: h30
+    orig: v27
+    pre: h26
+    rev: h201
+  h410:
+    attributes:
+      in_angle: 0.6333420956946973
+      length: 530.0323692945555
+    dest: v17
+    face: f169
+    nex: h60
+    orig: v55
+    pre: h551
+    rev: h71
+  h411:
+    attributes:
+      in_angle: 1.3607607510605513
+      length: 48.884572094771165
+    dest: v30
+    face: f16
+    nex: h375
+    orig: v29
+    pre: h109
+    rev: h372
+  h412:
+    attributes:
+      in_angle: 0.7411986142522249
+      length: 98.23052535292233
+    dest: v5
+    face: f3
+    nex: h91
+    orig: v12
+    pre: h115
+    rev: h98
+  h413:
+    attributes:
+      in_angle: 2.8068558162729786
+      length: 249.60381106866137
+    dest: v88
+    face: f174
+    nex: h67
+    orig: v56
+    pre: h474
+    rev: h359
+  h414:
+    attributes:
+      in_angle: 1.2967425355303361
+      length: 57.7008569164176
+    dest: v95
+    face: f75
+    nex: h298
+    orig: v29
+    pre: h2
+    rev: h294
+  h415:
+    attributes:
+      in_angle: 0.7908657401380693
+      length: 99.91002897051362
+    dest: v52
+    face: f11
+    nex: h285
+    orig: v12
+    pre: h98
+    rev: h286
+  h416:
+    attributes:
+      in_angle: 1.0599472321815797
+      length: 150.1869668113715
+    dest: v7
+    face: f31
+    nex: h132
+    orig: v56
+    pre: h371
+    rev: h128
+  h417:
+    attributes:
+      in_angle: 2.8255994308547683
+      length: 105.66403782218863
+    dest: v73
+    face: f112
+    nex: h562
+    orig: v29
+    pre: h423
+    rev: h2
+  h418:
+    attributes:
+      in_angle: 1.0226424498148534
+      length: 102.35999924015462
+    dest: v10
+    face: f159
+    nex: h47
+    orig: v12
+    pre: h286
+    rev: h45
+  h419:
+    attributes:
+      in_angle: 0.9443728994265967
+      length: 151.49030497031816
+    dest: v34
+    face: f58
+    nex: h341
+    orig: v56
+    pre: h171
+    rev: h345
+  h42:
+    attributes:
+      in_angle: 0.8826613310530815
+      length: 149.97046005426816
+    dest: v40
+    face: f117
+    nex: h172
+    orig: v10
+    pre: h370
+    rev: h178
+  h420:
+    attributes:
+      in_angle: 0.5859842109657929
+      length: 83.67828604575698
+    dest: v5
+    face: f15
+    nex: h107
+    orig: v29
+    pre: h294
+    rev: h109
+  h421:
+    attributes:
+      in_angle: 2.4986492692227857
+      length: 89.65001394311102
+    dest: v11
+    face: f154
+    nex: h558
+    orig: v12
+    pre: h45
+    rev: h323
+  h422:
+    attributes:
+      in_angle: 0.670211959315977
+      length: 235.94080295701292
+    dest: v64
+    face: f133
+    nex: h472
+    orig: v56
+    pre: h345
+    rev: h474
+  h423:
+    attributes:
+      in_angle: 0.9147277374838453
+      length: 94.71961547406937
+    dest: v29
+    face: f112
+    nex: h417
+    orig: v32
+    pre: h562
+    rev: h408
+  h424:
+    attributes:
+      in_angle: 1.157098196963588
+      length: 301.69318483813623
+    dest: v64
+    face: f173
+    nex: h442
+    orig: v38
+    pre: h64
+    rev: h437
+  h425:
+    attributes:
+      in_angle: 1.3714373755125313
+      length: 138.85108930073253
+    dest: v66
+    face: f27
+    nex: h168
+    orig: v56
+    pre: h128
+    rev: h171
+  h426:
+    attributes:
+      in_angle: 1.3362334803968783
+      length: 93.28350604474512
+    dest: v30
+    face: f143
+    nex: h372
+    orig: v32
+    pre: h408
+    rev: h376
+  h427:
+    attributes:
+      in_angle: 1.2591381250619702
+      length: 300.97268240748286
+    dest: v88
+    face: f176
+    nex: h70
+    orig: v38
+    pre: h493
+    rev: h64
+  h428:
+    attributes:
+      in_angle: 1.297970567306367
+      length: 160.01757715951084
+    dest: v36
+    face: f141
+    nex: h362
+    orig: v56
+    pre: h359
+    rev: h371
+  h429:
+    attributes:
+      in_angle: 1.6515421363798735
+      length: 347.51719581754355
+    dest: v47
+    face: f71
+    nex: h519
+    orig: v38
+    pre: h0
+    rev: h326
+  h43:
+    attributes:
+      length: 823.0050121354061
+    dest: v46
+    face: null
+    nex: h221
+    orig: v85
+    pre: h105
+    rev: h51
+  h430:
+    attributes:
+      in_angle: 1.0665207642895709
+      length: 279.0286723618202
+    dest: v71
+    face: f37
+    nex: h183
+    orig: v57
+    pre: h138
+    rev: h177
+  h431:
+    attributes:
+      in_angle: 1.2451535102331572
+      length: 397.5532109737709
+    dest: v41
+    face: f113
+    nex: h447
+    orig: v15
+    pre: h22
+    rev: h441
+  h432:
+    attributes:
+      in_angle: 0.9949458207509606
+      length: 339.06137032581915
+    dest: v84
+    face: f125
+    nex: h497
+    orig: v38
+    pre: h326
+    rev: h493
+  h433:
+    attributes:
+      in_angle: 3.196448404800991
+      length: 409.93901985539264
+    dest: v81
+    face: f35
+    nex: h544
+    orig: v57
+    pre: h467
+    rev: h138
+  h434:
+    attributes:
+      in_angle: 0.6285889585368376
+      length: 468.0343054853043
+    dest: v44
+    face: f124
+    nex: h27
+    orig: v15
+    pre: h108
+    rev: h22
+  h435:
+    attributes:
+      length: 831.3904392642485
+    dest: v83
+    face: null
+    nex: h121
+    orig: v57
+    pre: h177
+    rev: h467
+  h436:
+    attributes:
+      length: 277.7395362565438
+    dest: v86
+    face: null
+    nex: h105
+    orig: v15
+    pre: h32
+    rev: h108
+  h437:
+    attributes:
+      in_angle: 1.5380550921412819
+      length: 301.69318483813623
+    dest: v38
+    face: f95
+    nex: h13
+    orig: v64
+    pre: h463
+    rev: h424
+  h438:
+    attributes:
+      in_angle: 0.23886711560259544
+      length: 521.0335881687475
+    dest: v50
+    face: f83
+    nex: h113
+    orig: v70
+    pre: h124
+    rev: h116
+  h439:
+    attributes:
+      in_angle: 0.7632034542730834
+      length: 575.0602142384744
+    dest: v28
+    face: f126
+    nex: h28
+    orig: v15
+    pre: h441
+    rev: h32
+  h44:
+    attributes:
+      in_angle: 0.7261156954735952
+      length: 261.9927539551428
+    dest: v76
+    face: f152
+    nex: h257
+    orig: v27
+    pre: h65
+    rev: h256
+  h440:
+    attributes:
+      in_angle: 0.8831485545206448
+      length: 293.8036003107442
+    dest: v62
+    face: f135
+    nex: h462
+    orig: v64
+    pre: h348
+    rev: h452
+  h441:
+    attributes:
+      in_angle: 0.9195627046058954
+      length: 397.5532109737709
+    dest: v15
+    face: f126
+    nex: h439
+    orig: v41
+    pre: h28
+    rev: h431
+  h442:
+    attributes:
+      in_angle: 1.1625851819598674
+      length: 240.75667753517823
+    dest: v88
+    face: f173
+    nex: h64
+    orig: v64
+    pre: h424
+    rev: h67
+  h443:
+    attributes:
+      in_angle: 0.9303410668543408
+      length: 660.6670871172561
+    dest: v47
+    face: f19
+    nex: h517
+    orig: v70
+    pre: h116
+    rev: h519
+  h444:
+    attributes:
+      in_angle: 1.0607027600444088
+      length: 145.14863072037573
+    dest: v32
+    face: f102
+    nex: h270
+    orig: v61
+    pre: h568
+    rev: h268
+  h445:
+    attributes:
+      in_angle: 1.0379759852694121
+      length: 355.4944155874869
+    dest: v84
+    face: f153
+    nex: h490
+    orig: v41
+    pre: h507
+    rev: h491
+  h446:
+    attributes:
+      in_angle: 0.9245579278492759
+      length: 342.07292919623006
+    dest: v14
+    face: f155
+    nex: h460
+    orig: v64
+    pre: h452
+    rev: h463
+  h447:
+    attributes:
+      in_angle: 0.9352876853239948
+      length: 405.00342934076235
+    dest: v44
+    face: f113
+    nex: h22
+    orig: v41
+    pre: h431
+    rev: h24
+  h448:
+    attributes:
+      in_angle: 0.7804646267588033
+      length: 99.06598530496959
+    dest: v5
+    face: f6
+    nex: h94
+    orig: v75
+    pre: h391
+    rev: h96
+  h449:
+    attributes:
+      in_angle: 1.3792053364050956
+      length: 130.20872666607258
+    dest: v43
+    face: f94
+    nex: h239
+    orig: v61
+    pre: h268
+    rev: h240
+  h45:
+    attributes:
+      in_angle: 1.3926424350851314
+      length: 102.35999924015462
+    dest: v12
+    face: f154
+    nex: h421
+    orig: v10
+    pre: h558
+    rev: h418
+  h450:
+    attributes:
+      in_angle: 1.3124590597467107
+      length: 330.33438445846895
+    dest: v54
+    face: f119
+    nex: h503
+    orig: v41
+    pre: h24
+    rev: h507
+  h451:
+    attributes:
+      in_angle: 1.0005833877927612
+      length: 102.31141187570427
+    dest: v95
+    face: f9
+    nex: h296
+    orig: v75
+    pre: h96
+    rev: h293
+  h452:
+    attributes:
+      in_angle: 1.0239331683798452
+      length: 293.8036003107442
+    dest: v64
+    face: f155
+    nex: h446
+    orig: v62
+    pre: h460
+    rev: h440
+  h453:
+    attributes:
+      in_angle: 0.9228401188126947
+      length: 97.52083110802532
+    dest: v63
+    face: f80
+    nex: h219
+    orig: v75
+    pre: h293
+    rev: h218
+  h454:
+    attributes:
+      in_angle: 1.1898965011827622
+      length: 217.97024516611842
+    dest: v99
+    face: f72
+    nex: h211
+    orig: v62
+    pre: h351
+    rev: h212
+  h455:
+    attributes:
+      in_angle: 0.7335076040668185
+      length: 410.4113113017775
+    dest: v38
+    face: f77
+    nex: h10
+    orig: v14
+    pre: h3
+    rev: h13
+  h456:
+    attributes:
+      in_angle: 0.7760726254277039
+      length: 98.53499378393434
+    dest: v0
+    face: f108
+    nex: h399
+    orig: v75
+    pre: h266
+    rev: h391
+  h457:
+    attributes:
+      in_angle: 1.4945809012914015
+      length: 314.340579626621
+    dest: v14
+    face: f131
+    nex: h374
+    orig: v62
+    pre: h390
+    rev: h460
+  h458:
+    attributes:
+      in_angle: 1.6746777672390236
+      length: 348.0311687829761
+    dest: v70
+    face: f89
+    nex: h531
+    orig: v14
+    pre: h76
+    rev: h3
+  h459:
+    attributes:
+      in_angle: 1.198771950002603
+      length: 63.42810891079758
+    dest: v82
+    face: f78
+    nex: h573
+    orig: v75
+    pre: h218
+    rev: h266
+  h46:
+    attributes:
+      in_angle: 0.6489269863718276
+      length: 248.65880866158753
+    dest: v51
+    face: f158
+    nex: h377
+    orig: v27
+    pre: h201
+    rev: h373
+  h460:
+    attributes:
+      in_angle: 1.1931015573606725
+      length: 314.340579626621
+    dest: v62
+    face: f155
+    nex: h452
+    orig: v14
+    pre: h446
+    rev: h457
+  h461:
+    attributes:
+      in_angle: 0.6723850723479381
+      length: 291.4971054744798
+    dest: v89
+    face: f26
+    nex: h471
+    orig: v83
+    pre: h532
+    rev: h470
+  h462:
+    attributes:
+      in_angle: 1.37120639488227
+      length: 237.43504959836437
+    dest: v34
+    face: f135
+    nex: h348
+    orig: v62
+    pre: h440
+    rev: h351
+  h463:
+    attributes:
+      in_angle: 1.432839032168673
+      length: 342.07292919623006
+    dest: v64
+    face: f95
+    nex: h437
+    orig: v14
+    pre: h13
+    rev: h446
+  h464:
+    attributes:
+      in_angle: 0.4698597618084013
+      length: 584.9564620550832
+    dest: v81
+    face: f182
+    nex: h546
+    orig: v83
+    pre: h470
+    rev: h544
+  h465:
+    attributes:
+      in_angle: 0.8721482688324871
+      length: 168.5817679940509
+    dest: v8
+    face: f8
+    nex: h143
+    orig: v36
+    pre: h95
+    rev: h145
+  h466:
+    attributes:
+      length: 574.8260606479146
+    dest: v71
+    face: null
+    nex: h177
+    orig: v2
+    pre: h535
+    rev: h174
+  h467:
+    attributes:
+      in_angle: 0.7534544013673692
+      length: 831.3904392642485
+    dest: v57
+    face: f35
+    nex: h433
+    orig: v83
+    pre: h544
+    rev: h435
+  h468:
+    attributes:
+      in_angle: 1.3626159790797665
+      length: 160.1025062264798
+    dest: v7
+    face: f25
+    nex: h126
+    orig: v36
+    pre: h145
+    rev: h132
+  h469:
+    attributes:
+      in_angle: 1.4710942048231592
+      length: 455.60475682815735
+    dest: v93
+    face: f60
+    nex: h261
+    orig: v2
+    pre: h174
+    rev: h262
+  h47:
+    attributes:
+      in_angle: 2.797341789707765
+      length: 98.30578710217314
+    dest: v52
+    face: f159
+    nex: h286
+    orig: v10
+    pre: h418
+    rev: h395
+  h470:
+    attributes:
+      in_angle: 0.47710846995400624
+      length: 291.4971054744798
+    dest: v83
+    face: f182
+    nex: h464
+    orig: v89
+    pre: h546
+    rev: h461
+  h471:
+    attributes:
+      in_angle: 0.6442879834492417
+      length: 488.0368838520302
+    dest: v70
+    face: f26
+    nex: h532
+    orig: v89
+    pre: h461
+    rev: h531
+  h472:
+    attributes:
+      in_angle: 1.3148434166234246
+      length: 223.2568587972159
+    dest: v34
+    face: f133
+    nex: h345
+    orig: v64
+    pre: h422
+    rev: h348
+  h473:
+    attributes:
+      in_angle: 0.7077405999081925
+      length: 586.5372963418439
+    dest: v67
+    face: f139
+    nex: h537
+    orig: v2
+    pre: h403
+    rev: h535
+  h474:
+    attributes:
+      in_angle: 1.0127873818863593
+      length: 235.94080295701292
+    dest: v56
+    face: f174
+    nex: h413
+    orig: v64
+    pre: h67
+    rev: h422
+  h475:
+    attributes:
+      in_angle: 1.1114993993135003
+      length: 377.7762418269428
+    dest: v25
+    face: f106
+    nex: h405
+    orig: v2
+    pre: h262
+    rev: h403
+  h476:
+    attributes:
+      in_angle: 1.4787402485443693
+      length: 152.08156518505393
+    dest: v101
+    face: f97
+    nex: h481
+    orig: v74
+    pre: h14
+    rev: h480
+  h477:
+    attributes:
+      in_angle: 1.1627318978629546
+      length: 149.38810379530082
+    dest: v22
+    face: f157
+    nex: h512
+    orig: v74
+    pre: h480
+    rev: h504
+  h478:
+    attributes:
+      in_angle: 0.6827877887600903
+      length: 201.54681355842763
+    dest: v16
+    face: f5
+    nex: h93
+    orig: v74
+    pre: h150
+    rev: h100
+  h479:
+    attributes:
+      in_angle: 1.286227821444063
+      length: 130.00013354694008
+    dest: v8
+    face: f42
+    nex: h148
+    orig: v74
+    pre: h504
+    rev: h150
+  h48:
+    attributes:
+      in_angle: 3.1322015254782105
+      length: 297.37896697648273
+    dest: v80
+    face: f160
+    nex: h205
+    orig: v85
+    pre: h51
+    rev: h310
+  h480:
+    attributes:
+      in_angle: 0.8553274652297357
+      length: 152.08156518505393
+    dest: v74
+    face: f157
+    nex: h477
+    orig: v101
+    pre: h512
+    rev: h476
+  h481:
+    attributes:
+      in_angle: 0.8472974075560795
+      length: 155.96630294496623
+    dest: v39
+    face: f97
+    nex: h14
+    orig: v101
+    pre: h476
+    rev: h8
+  h482:
+    attributes:
+      in_angle: 1.1946958930024796
+      length: 121.87176079899275
+    dest: v4
+    face: f91
+    nex: h9
+    orig: v101
+    pre: h8
+    rev: h15
+  h483:
+    attributes:
+      in_angle: 0.8646583028891086
+      length: 125.0573818910028
+    dest: v22
+    face: f104
+    nex: h506
+    orig: v101
+    pre: h281
+    rev: h512
+  h484:
+    attributes:
+      in_angle: 2.7630904730686057
+      length: 324.28661020084616
+    dest: v78
+    face: f183
+    nex: h99
+    orig: v90
+    pre: h80
+    rev: h488
+  h485:
+    attributes:
+      in_angle: 1.1917265734556595
+      length: 450.2762732170351
+    dest: v13
+    face: f175
+    nex: h73
+    orig: v90
+    pre: h68
+    rev: h80
+  h486:
+    attributes:
+      in_angle: 0.9494605372069932
+      length: 427.70691061624046
+    dest: v17
+    face: f177
+    nex: h71
+    orig: v90
+    pre: h407
+    rev: h68
+  h487:
+    attributes:
+      in_angle: 3.0762774818149157
+      length: 447.1411658774242
+    dest: v55
+    face: f100
+    nex: h522
+    orig: v90
+    pre: h575
+    rev: h407
+  h488:
+    attributes:
+      in_angle: 2.3466518558770115
+      length: 324.28661020084616
+    dest: v90
+    face: f96
+    nex: h244
+    orig: v78
+    pre: h366
+    rev: h484
+  h489:
+    attributes:
+      in_angle: 0.5024844287743768
+      length: 583.1905777702517
+    dest: v69
+    face: f10
+    nex: h360
+    orig: v78
+    pre: h159
+    rev: h366
+  h49:
+    attributes:
+      in_angle: 1.2547523657284572
+      length: 239.86053890750767
+    dest: v17
+    face: f161
+    nex: h62
+    orig: v27
+    pre: h373
+    rev: h65
+  h490:
+    attributes:
+      in_angle: 1.1862934124106346
+      length: 304.4865241727092
+    dest: v54
+    face: f153
+    nex: h507
+    orig: v84
+    pre: h445
+    rev: h501
+  h491:
+    attributes:
+      in_angle: 1.5245351651585866
+      length: 355.4944155874869
+    dest: v41
+    face: f146
+    nex: h38
+    orig: v84
+    pre: h330
+    rev: h445
+  h492:
+    attributes:
+      in_angle: 1.3069727991002356
+      length: 59.05976257618682
+    dest: v22
+    face: f38
+    nex: h510
+    orig: v79
+    pre: h140
+    rev: h502
+  h493:
+    attributes:
+      in_angle: 0.8760719391037095
+      length: 339.06137032581915
+    dest: v38
+    face: f176
+    nex: h427
+    orig: v84
+    pre: h70
+    rev: h432
+  h494:
+    attributes:
+      in_angle: 1.0663527384900133
+      length: 117.94351873295592
+    dest: v8
+    face: f29
+    nex: h137
+    orig: v79
+    pre: h385
+    rev: h140
+  h495:
+    attributes:
+      in_angle: 1.1660975788171601
+      length: 273.66037662787625
+    dest: v88
+    face: f168
+    nex: h59
+    orig: v84
+    pre: h84
+    rev: h70
+  h496:
+    attributes:
+      in_angle: 0.5222253763568889
+      length: 93.57186780461554
+    dest: v7
+    face: f145
+    nex: h382
+    orig: v79
+    pre: h548
+    rev: h385
+  h497:
+    attributes:
+      in_angle: 0.9584844147449807
+      length: 384.37459349572
+    dest: v47
+    face: f125
+    nex: h326
+    orig: v84
+    pre: h432
+    rev: h330
+  h498:
+    attributes:
+      in_angle: 1.371828936564939
+      length: 48.40224971814606
+    dest: v94
+    face: f149
+    nex: h550
+    orig: v79
+    pre: h397
+    rev: h548
+  h499:
+    attributes:
+      in_angle: 1.1655573437901912
+      length: 276.15612092618915
+    dest: v92
+    face: f180
+    nex: h77
+    orig: v84
+    pre: h501
+    rev: h84
+  h5:
+    attributes:
+      in_angle: 1.0292581499481623
+      length: 105.50118482747007
+    dest: v95
+    face: f81
+    nex: h297
+    orig: v73
+    pre: h209
+    rev: h298
+  h50:
+    attributes:
+      in_angle: 0.5444168842599996
+      length: 107.17716381974488
+    dest: v1
+    face: f162
+    nex: h367
+    orig: v10
+    pre: h231
+    rev: h370
+  h500:
+    attributes:
+      in_angle: 0.6066999267247954
+      length: 83.6425795340573
+    dest: v0
+    face: f147
+    nex: h394
+    orig: v79
+    pre: h502
+    rev: h397
+  h501:
+    attributes:
+      in_angle: 0.990621616964622
+      length: 304.4865241727092
+    dest: v84
+    face: f180
+    nex: h499
+    orig: v54
+    pre: h77
+    rev: h490
+  h502:
+    attributes:
+      in_angle: 1.5950242801996761
+      length: 59.05976257618682
+    dest: v79
+    face: f147
+    nex: h500
+    orig: v22
+    pre: h394
+    rev: h492
+  h503:
+    attributes:
+      in_angle: 0.9084762779361261
+      length: 333.44768871760243
+    dest: v44
+    face: f119
+    nex: h24
+    orig: v54
+    pre: h450
+    rev: h19
+  h504:
+    attributes:
+      in_angle: 0.866832464032706
+      length: 149.38810379530082
+    dest: v74
+    face: f42
+    nex: h479
+    orig: v22
+    pre: h148
+    rev: h477
+  h505:
+    attributes:
+      in_angle: 0.8372156401643255
+      length: 449.44598612563493
+    dest: v97
+    face: f109
+    nex: h304
+    orig: v54
+    pre: h19
+    rev: h243
+  h506:
+    attributes:
+      in_angle: 1.4013114698464397
+      length: 101.74000087368681
+    dest: v91
+    face: f104
+    nex: h281
+    orig: v22
+    pre: h483
+    rev: h280
+  h507:
+    attributes:
+      in_angle: 0.9173232559097468
+      length: 330.33438445846895
+    dest: v41
+    face: f153
+    nex: h445
+    orig: v54
+    pre: h490
+    rev: h450
+  h508:
+    attributes:
+      in_angle: 1.0447957661532472
+      length: 103.5542423617262
+    dest: v0
+    face: f116
+    nex: h401
+    orig: v22
+    pre: h280
+    rev: h394
+  h509:
+    attributes:
+      in_angle: 1.090971855791551
+      length: 277.10573844252633
+    dest: v92
+    face: f150
+    nex: h74
+    orig: v54
+    pre: h40
+    rev: h77
+  h51:
+    attributes:
+      in_angle: 0.4251224664151798
+      length: 823.0050121354061
+    dest: v85
+    face: f160
+    nex: h48
+    orig: v46
+    pre: h205
+    rev: h43
+  h510:
+    attributes:
+      in_angle: 0.5045577090957232
+      length: 118.64761668252939
+    dest: v8
+    face: f38
+    nex: h140
+    orig: v22
+    pre: h492
+    rev: h148
+  h511:
+    attributes:
+      in_angle: 1.542085015216652
+      length: 255.22022081157886
+    dest: v53
+    face: f144
+    nex: h398
+    orig: v54
+    pre: h243
+    rev: h40
+  h512:
+    attributes:
+      in_angle: 1.1235332904971023
+      length: 125.0573818910028
+    dest: v101
+    face: f157
+    nex: h480
+    orig: v22
+    pre: h477
+    rev: h483
+  h513:
+    attributes:
+      in_angle: 2.9866366398864135
+      length: 426.38011210655685
+    dest: v47
+    face: f32
+    nex: h327
+    orig: v50
+    pre: h133
+    rev: h517
+  h514:
+    attributes:
+      in_angle: 0.8339515138617528
+      length: 274.8648657876166
+    dest: v6
+    face: f33
+    nex: h526
+    orig: v51
+    pre: h134
+    rev: h521
+  h515:
+    attributes:
+      length: 586.1228540161184
+    dest: v28
+    face: null
+    nex: h32
+    orig: v50
+    pre: h121
+    rev: h133
+  h516:
+    attributes:
+      in_angle: 1.0438204390741583
+      length: 222.87343817611912
+    dest: v24
+    face: f30
+    nex: h131
+    orig: v51
+    pre: h203
+    rev: h134
+  h517:
+    attributes:
+      in_angle: 2.1070921390996
+      length: 426.38011210655685
+    dest: v50
+    face: f19
+    nex: h116
+    orig: v47
+    pre: h443
+    rev: h513
+  h518:
+    attributes:
+      in_angle: 1.2734548262997656
+      length: 197.60927005358616
+    dest: v17
+    face: f166
+    nex: h57
+    orig: v51
+    pre: h82
+    rev: h62
+  h519:
+    attributes:
+      in_angle: 2.4131662743360334
+      length: 660.6670871172561
+    dest: v70
+    face: f71
+    nex: h0
+    orig: v47
+    pre: h429
+    rev: h443
+  h52:
+    attributes:
+      in_angle: 1.3863493090864454
+      length: 180.8133869567677
+    dest: v1
+    face: f73
+    nex: h21
+    orig: v27
+    pre: h1
+    rev: h26
+  h520:
+    attributes:
+      in_angle: 0.9828851720306446
+      length: 273.6024082090248
+    dest: v13
+    face: f179
+    nex: h75
+    orig: v51
+    pre: h521
+    rev: h82
+  h521:
+    attributes:
+      in_angle: 1.1826779891329409
+      length: 274.8648657876166
+    dest: v51
+    face: f179
+    nex: h520
+    orig: v6
+    pre: h75
+    rev: h514
+  h522:
+    attributes:
+      in_angle: 1.6210297664023248
+      length: 348.7001756523791
+    dest: v59
+    face: f100
+    nex: h575
+    orig: v55
+    pre: h487
+    rev: h571
+  h523:
+    attributes:
+      in_angle: 1.1812427632256552
+      length: 305.75757463134806
+    dest: v13
+    face: f181
+    nex: h78
+    orig: v6
+    pre: h308
+    rev: h75
+  h524:
+    attributes:
+      in_angle: 0.9562071502452745
+      length: 381.0771283845014
+    dest: v37
+    face: f40
+    nex: h142
+    orig: v6
+    pre: h350
+    rev: h147
+  h525:
+    attributes:
+      in_angle: 1.1855713928330998
+      length: 314.693821656684
+    dest: v76
+    face: f114
+    nex: h555
+    orig: v55
+    pre: h276
+    rev: h551
+  h526:
+    attributes:
+      in_angle: 1.1514521273360856
+      length: 275.4421949843158
+    dest: v24
+    face: f33
+    nex: h134
+    orig: v6
+    pre: h514
+    rev: h136
+  h527:
+    attributes:
+      in_angle: 1.4287064431189005
+      length: 340.4739343914597
+    dest: v98
+    face: f90
+    nex: h275
+    orig: v55
+    pre: h236
+    rev: h276
+  h528:
+    attributes:
+      in_angle: 0.8869567347838423
+      length: 336.4997358427227
+    dest: v19
+    face: f36
+    nex: h353
+    orig: v6
+    pre: h136
+    rev: h350
+  h529:
+    attributes:
+      in_angle: 0.734397530028202
+      length: 409.40177393362626
+    dest: v42
+    face: f88
+    nex: h235
+    orig: v55
+    pre: h571
+    rev: h236
+  h53:
+    attributes:
+      in_angle: 2.735033082029035
+      length: 94.12108041123288
+    dest: v4
+    face: f99
+    nex: h15
+    orig: v3
+    pre: h259
+    rev: h66
+  h530:
+    attributes:
+      in_angle: 1.532209821658916
+      length: 355.4323267358903
+    dest: v60
+    face: f41
+    nex: h271
+    orig: v6
+    pre: h147
+    rev: h308
+  h531:
+    attributes:
+      in_angle: 2.542632889709915
+      length: 488.0368838520302
+    dest: v89
+    face: f89
+    nex: h76
+    orig: v70
+    pre: h458
+    rev: h471
+  h532:
+    attributes:
+      in_angle: 2.592740364507145
+      length: 298.93979326948096
+    dest: v83
+    face: f26
+    nex: h461
+    orig: v70
+    pre: h471
+    rev: h124
+  h533:
+    attributes:
+      in_angle: 2.366756551214175
+      length: 523.2028765211445
+    dest: v53
+    face: f134
+    nex: h31
+    orig: v23
+    pre: h291
+    rev: h402
+  h534:
+    attributes:
+      in_angle: 1.2937698761552554
+      length: 447.48308472065304
+    dest: v97
+    face: f120
+    nex: h306
+    orig: v23
+    pre: h402
+    rev: h309
+  h535:
+    attributes:
+      length: 586.5372963418439
+    dest: v2
+    face: null
+    nex: h466
+    orig: v67
+    pre: h301
+    rev: h473
+  h536:
+    attributes:
+      in_angle: 1.4196858241758719
+      length: 345.71122794176074
+    dest: v35
+    face: f20
+    nex: h117
+    orig: v23
+    pre: h337
+    rev: h114
+  h537:
+    attributes:
+      in_angle: 2.8879478935746574
+      length: 424.4820373113567
+    dest: v25
+    face: f139
+    nex: h403
+    orig: v67
+    pre: h473
+    rev: h355
+  h538:
+    attributes:
+      in_angle: 0.7330426107802459
+      length: 410.4478651424564
+    dest: v19
+    face: f123
+    nex: h340
+    orig: v23
+    pre: h318
+    rev: h337
+  h539:
+    attributes:
+      in_angle: 1.2018997603866428
+      length: 315.60450813566575
+    dest: v100
+    face: f18
+    nex: h292
+    orig: v23
+    pre: h114
+    rev: h291
+  h54:
+    attributes:
+      in_angle: 1.4321321459987593
+      length: 203.23736208488393
+    dest: v40
+    face: f163
+    nex: h175
+    orig: v27
+    pre: h256
+    rev: h1
+  h540:
+    attributes:
+      in_angle: 0.7138595940011456
+      length: 519.042387479096
+    dest: v59
+    face: f50
+    nex: h157
+    orig: v67
+    pre: h355
+    rev: h153
+  h541:
+    attributes:
+      in_angle: 1.668504357495344
+      length: 347.9547384359063
+    dest: v80
+    face: f121
+    nex: h307
+    orig: v23
+    pre: h309
+    rev: h318
+  h542:
+    attributes:
+      in_angle: 0.42338809328383376
+      length: 823.3135793851575
+    dest: v69
+    face: f46
+    nex: h302
+    orig: v67
+    pre: h153
+    rev: h301
+  h543:
+    attributes:
+      in_angle: 1.2244475157884693
+      length: 49.42165517260627
+    dest: v82
+    face: f151
+    nex: h556
+    orig: v94
+    pre: h406
+    rev: h552
+  h544:
+    attributes:
+      in_angle: 0.5012283293033677
+      length: 584.9564620550832
+    dest: v83
+    face: f35
+    nex: h467
+    orig: v81
+    pre: h433
+    rev: h464
+  h545:
+    attributes:
+      in_angle: 0.5526971916353038
+      length: 88.89600665946699
+    dest: v66
+    face: f127
+    nex: h331
+    orig: v94
+    pre: h552
+    rev: h328
+  h546:
+    attributes:
+      in_angle: 2.7386460587880523
+      length: 320.8741965319119
+    dest: v89
+    face: f182
+    nex: h470
+    orig: v81
+    pre: h464
+    rev: h83
+  h547:
+    attributes:
+      in_angle: 2.7156993892913497
+      length: 93.91618603840341
+    dest: v7
+    face: f34
+    nex: h135
+    orig: v94
+    pre: h328
+    rev: h382
+  h548:
+    attributes:
+      in_angle: 1.31655624500662
+      length: 48.40224971814606
+    dest: v79
+    face: f145
+    nex: h496
+    orig: v94
+    pre: h382
+    rev: h498
+  h549:
+    attributes:
+      in_angle: 1.1931975327644415
+      length: 218.2939531915625
+    dest: v40
+    face: f55
+    nex: h169
+    orig: v76
+    pre: h164
+    rev: h175
+  h55:
+    attributes:
+      in_angle: 1.3782806080902175
+      length: 50.49202357248565
+    dest: v68
+    face: f164
+    nex: h226
+    orig: v3
+    pre: h66
+    rev: h229
+  h550:
+    attributes:
+      in_angle: 0.6031784345572913
+      length: 78.4497928614218
+    dest: v0
+    face: f149
+    nex: h397
+    orig: v94
+    pre: h498
+    rev: h406
+  h551:
+    attributes:
+      in_angle: 1.558905018655489
+      length: 314.693821656684
+    dest: v55
+    face: f169
+    nex: h410
+    orig: v76
+    pre: h60
+    rev: h525
+  h552:
+    attributes:
+      in_angle: 1.3534235164746042
+      length: 49.42165517260627
+    dest: v94
+    face: f127
+    nex: h545
+    orig: v82
+    pre: h331
+    rev: h543
+  h553:
+    attributes:
+      in_angle: 2.7715929707056866
+      length: 91.92388155425118
+    dest: v66
+    face: f52
+    nex: h160
+    orig: v82
+    pre: h216
+    rev: h331
+  h554:
+    attributes:
+      in_angle: 1.3685717739602306
+      length: 238.8968425678518
+    dest: v20
+    face: f53
+    nex: h161
+    orig: v76
+    pre: h278
+    rev: h164
+  h555:
+    attributes:
+      in_angle: 1.0285366577298058
+      length: 293.9610825527006
+    dest: v98
+    face: f114
+    nex: h276
+    orig: v76
+    pre: h525
+    rev: h278
+  h556:
+    attributes:
+      in_angle: 0.6342444312026483
+      length: 79.96980680231746
+    dest: v0
+    face: f151
+    nex: h406
+    orig: v82
+    pre: h543
+    rev: h399
+  h557:
+    attributes:
+      in_angle: 0.5567997668372247
+      length: 174.96088848654148
+    dest: v72
+    face: f110
+    nex: h570
+    orig: v73
+    pre: h269
+    rev: h563
+  h558:
+    attributes:
+      in_angle: 0.872334443480191
+      length: 123.66228653518868
+    dest: v10
+    face: f154
+    nex: h45
+    orig: v11
+    pre: h421
+    rev: h39
+  h559:
+    attributes:
+      in_angle: 1.0410014852797889
+      length: 132.63224532518478
+    dest: v99
+    face: f70
+    nex: h210
+    orig: v73
+    pre: h383
+    rev: h209
+  h56:
+    attributes:
+      in_angle: 0.7150671199890255
+      length: 519.8470929032883
+    dest: v80
+    face: f165
+    nex: h204
+    orig: v46
+    pre: h207
+    rev: h205
+  h560:
+    attributes:
+      in_angle: 0.8464688201205266
+      length: 151.11162173116338
+    dest: v40
+    face: f148
+    nex: h178
+    orig: v11
+    pre: h39
+    rev: h181
+  h561:
+    attributes:
+      in_angle: 2.612061156058772
+      length: 171.65171860485407
+    dest: v45
+    face: f137
+    nex: h352
+    orig: v73
+    pre: h563
+    rev: h383
+  h562:
+    attributes:
+      in_angle: 1.5004620496686918
+      length: 94.6562861092701
+    dest: v32
+    face: f112
+    nex: h423
+    orig: v73
+    pre: h417
+    rev: h269
+  h563:
+    attributes:
+      in_angle: 0.906429943236335
+      length: 174.96088848654148
+    dest: v73
+    face: f137
+    nex: h561
+    orig: v72
+    pre: h352
+    rev: h557
+  h564:
+    attributes:
+      in_angle: 0.846484247583672
+      length: 151.7327008261568
+    dest: v20
+    face: f47
+    nex: h154
+    orig: v11
+    pre: h181
+    rev: h155
+  h565:
+    attributes:
+      in_angle: 0.6453042862123217
+      length: 252.0882781884156
+    dest: v26
+    face: f63
+    nex: h182
+    orig: v72
+    pre: h246
+    rev: h170
+  h566:
+    attributes:
+      in_angle: 1.1809672832483582
+      length: 117.09104363699215
+    dest: v43
+    face: f49
+    nex: h242
+    orig: v11
+    pre: h155
+    rev: h241
+  h567:
+    attributes:
+      in_angle: 2.886618832569548
+      length: 228.20741661918
+    dest: v77
+    face: f2
+    nex: h185
+    orig: v72
+    pre: h170
+    rev: h87
+  h568:
+    attributes:
+      in_angle: 1.487866477186868
+      length: 160.64527001370988
+    dest: v61
+    face: f102
+    nex: h444
+    orig: v72
+    pre: h270
+    rev: h246
+  h569:
+    attributes:
+      in_angle: 3.018086700766402
+      length: 519.0936813331482
+    dest: v42
+    face: f48
+    nex: h319
+    orig: v59
+    pre: h357
+    rev: h235
+  h57:
+    attributes:
+      in_angle: 0.7622582208876136
+      length: 255.78616557585752
+    dest: v13
+    face: f166
+    nex: h82
+    orig: v17
+    pre: h518
+    rev: h73
+  h570:
+    attributes:
+      in_angle: 1.3550541033154007
+      length: 168.79647508167935
+    dest: v32
+    face: f110
+    nex: h269
+    orig: v72
+    pre: h557
+    rev: h270
+  h571:
+    attributes:
+      in_angle: 1.5015915249735032
+      length: 348.7001756523791
+    dest: v55
+    face: f88
+    nex: h529
+    orig: v59
+    pre: h235
+    rev: h522
+  h572:
+    attributes:
+      in_angle: 1.1369581243065094
+      length: 151.13813585958752
+    dest: v45
+    face: f1
+    nex: h349
+    orig: v72
+    pre: h87
+    rev: h352
+  h573:
+    attributes:
+      in_angle: 0.6509138997826773
+      length: 100.63703344196907
+    dest: v63
+    face: f78
+    nex: h218
+    orig: v82
+    pre: h459
+    rev: h216
+  h574:
+    attributes:
+      in_angle: 2.5744440086826206
+      length: 298.92850315752764
+    dest: v69
+    face: f98
+    nex: h363
+    orig: v59
+    pre: h245
+    rev: h302
+  h575:
+    attributes:
+      in_angle: 2.6163075873511197
+      length: 487.88728206420797
+    dest: v90
+    face: f100
+    nex: h487
+    orig: v59
+    pre: h522
+    rev: h245
+  h58:
+    attributes:
+      in_angle: 1.5015896992550335
+      length: 79.33350840316832
+    dest: v52
+    face: f167
+    nex: h387
+    orig: v3
+    pre: h229
+    rev: h287
+  h59:
+    attributes:
+      in_angle: 1.1454930640514083
+      length: 221.6927459596076
+    dest: v92
+    face: f168
+    nex: h84
+    orig: v88
+    pre: h495
+    rev: h72
+  h6:
+    attributes:
+      in_angle: 1.0822169948878368
+      length: 151.891431438526
+    dest: v4
+    face: f85
+    nex: h12
+    orig: v39
+    pre: h195
+    rev: h9
+  h60:
+    attributes:
+      in_angle: 2.9935657010583894
+      length: 361.05167566430157
+    dest: v76
+    face: f169
+    nex: h551
+    orig: v17
+    pre: h410
+    rev: h257
+  h61:
+    attributes:
+      in_angle: 0.9488391333278593
+      length: 66.56659155395529
+    dest: v91
+    face: f170
+    nex: h279
+    orig: v3
+    pre: h287
+    rev: h282
+  h62:
+    attributes:
+      in_angle: 1.4312957658246903
+      length: 197.60927005358616
+    dest: v51
+    face: f161
+    nex: h373
+    orig: v17
+    pre: h49
+    rev: h518
+  h63:
+    attributes:
+      in_angle: 0.7350922057180849
+      length: 96.2918018894189
+    dest: v101
+    face: f172
+    nex: h258
+    orig: v3
+    pre: h282
+    rev: h259
+  h64:
+    attributes:
+      in_angle: 0.8219092746663383
+      length: 300.97268240748286
+    dest: v38
+    face: f173
+    nex: h424
+    orig: v88
+    pre: h442
+    rev: h427
+  h65:
+    attributes:
+      in_angle: 1.6041006730041891
+      length: 239.86053890750767
+    dest: v27
+    face: f152
+    nex: h44
+    orig: v17
+    pre: h257
+    rev: h49
+  h66:
+    attributes:
+      in_angle: 1.2087774931646942
+      length: 94.12108041123288
+    dest: v3
+    face: f164
+    nex: h55
+    orig: v4
+    pre: h226
+    rev: h53
+  h67:
+    attributes:
+      in_angle: 1.2981066147454676
+      length: 240.75667753517823
+    dest: v64
+    face: f174
+    nex: h474
+    orig: v88
+    pre: h413
+    rev: h442
+  h68:
+    attributes:
+      in_angle: 0.58906688299647
+      length: 427.70691061624046
+    dest: v90
+    face: f175
+    nex: h485
+    orig: v17
+    pre: h73
+    rev: h486
+  h69:
+    attributes:
+      in_angle: 0.9517807788644213
+      length: 89.67719888578144
+    dest: v68
+    face: f103
+    nex: h227
+    orig: v4
+    pre: h329
+    rev: h226
+  h7:
+    attributes:
+      in_angle: 1.1445568753712685
+      length: 92.61884257536369
+    dest: v31
+    face: f87
+    nex: h334
+    orig: v4
+    pre: h196
+    rev: h329
+  h70:
+    attributes:
+      in_angle: 1.0063825894241132
+      length: 273.66037662787625
+    dest: v84
+    face: f176
+    nex: h493
+    orig: v88
+    pre: h427
+    rev: h495
+  h71:
+    attributes:
+      in_angle: 0.891096557918547
+      length: 530.0323692945555
+    dest: v55
+    face: f177
+    nex: h407
+    orig: v17
+    pre: h486
+    rev: h410
+  h72:
+    attributes:
+      in_angle: 1.343687558484965
+      length: 221.6927459596076
+    dest: v88
+    face: f171
+    nex: h354
+    orig: v92
+    pre: h368
+    rev: h59
+  h73:
+    attributes:
+      in_angle: 1.3607991971376638
+      length: 255.78616557585752
+    dest: v17
+    face: f175
+    nex: h68
+    orig: v13
+    pre: h485
+    rev: h57
+  h74:
+    attributes:
+      in_angle: 1.298456161687079
+      length: 196.5692025442666
+    dest: v53
+    face: f150
+    nex: h40
+    orig: v92
+    pre: h509
+    rev: h36
+  h75:
+    attributes:
+      in_angle: 0.9760294924262078
+      length: 305.75757463134806
+    dest: v6
+    face: f179
+    nex: h521
+    orig: v13
+    pre: h520
+    rev: h523
+  h76:
+    attributes:
+      in_angle: 2.9909063896225976
+      length: 443.11990476619303
+    dest: v14
+    face: f89
+    nex: h458
+    orig: v89
+    pre: h531
+    rev: h378
+  h77:
+    attributes:
+      in_angle: 0.9854136928349799
+      length: 277.10573844252633
+    dest: v54
+    face: f180
+    nex: h501
+    orig: v92
+    pre: h499
+    rev: h509
+  h78:
+    attributes:
+      in_angle: 0.9203125360393749
+      length: 331.3589024339351
+    dest: v60
+    face: f181
+    nex: h308
+    orig: v13
+    pre: h523
+    rev: h305
+  h79:
+    attributes:
+      in_angle: 0.8126587206353297
+      length: 255.75989716920049
+    dest: v16
+    face: f140
+    nex: h90
+    orig: v92
+    pre: h36
+    rev: h97
+  h8:
+    attributes:
+      in_angle: 1.1332723648721685
+      length: 155.96630294496623
+    dest: v101
+    face: f91
+    nex: h482
+    orig: v39
+    pre: h9
+    rev: h481
+  h80:
+    attributes:
+      in_angle: 0.8366871721147309
+      length: 450.2762732170351
+    dest: v90
+    face: f183
+    nex: h484
+    orig: v13
+    pre: h99
+    rev: h485
+  h81:
+    attributes:
+      in_angle: 1.4046852985473883
+      length: 231.9528508124011
+    dest: v36
+    face: f184
+    nex: h365
+    orig: v92
+    pre: h97
+    rev: h368
+  h82:
+    attributes:
+      in_angle: 1.1058796064024135
+      length: 273.6024082090248
+    dest: v51
+    face: f166
+    nex: h518
+    orig: v13
+    pre: h57
+    rev: h520
+  h83:
+    attributes:
+      in_angle: 2.7762223481307755
+      length: 320.8741965319119
+    dest: v81
+    face: f185
+    nex: h146
+    orig: v89
+    pre: h250
+    rev: h546
+  h84:
+    attributes:
+      in_angle: 0.8300020107212251
+      length: 276.15612092618915
+    dest: v84
+    face: f168
+    nex: h495
+    orig: v92
+    pre: h59
+    rev: h499
+  h85:
+    attributes:
+      in_angle: 0.9098554251009316
+      length: 331.0487124276426
+    dest: v78
+    face: f186
+    nex: h102
+    orig: v13
+    pre: h305
+    rev: h99
+  h86:
+    attributes:
+      in_angle: 1.1950532097093611
+      length: 447.2563582555311
+    dest: v87
+    face: f0
+    nex: h253
+    orig: v89
+    pre: h384
+    rev: h250
+  h87:
+    attributes:
+      in_angle: 1.3599711337603524
+      length: 228.20741661918
+    dest: v72
+    face: f1
+    nex: h572
+    orig: v77
+    pre: h349
+    rev: h567
+  h88:
+    attributes:
+      in_angle: 0.7261002685316779
+      length: 262.4386833147888
+    dest: v100
+    face: f136
+    nex: h106
+    orig: v16
+    pre: h34
+    rev: h103
+  h89:
+    attributes:
+      in_angle: 0.9611959121387506
+      length: 426.03156059733413
+    dest: v33
+    face: f178
+    nex: h381
+    orig: v89
+    pre: h378
+    rev: h384
+  h9:
+    attributes:
+      in_angle: 0.8136243957151449
+      length: 151.891431438526
+    dest: v39
+    face: f91
+    nex: h8
+    orig: v4
+    pre: h482
+    rev: h6
+  h90:
+    attributes:
+      in_angle: 1.2368785575190757
+      length: 240.27786287731323
+    dest: v53
+    face: f140
+    nex: h36
+    orig: v16
+    pre: h79
+    rev: h34
+  h91:
+    attributes:
+      in_angle: 1.4396177495960458
+      length: 81.2110590443882
+    dest: v9
+    face: f3
+    nex: h115
+    orig: v5
+    pre: h412
+    rev: h112
+  h92:
+    attributes:
+      in_angle: 0.838196069873838
+      length: 245.9385650478139
+    dest: v45
+    face: f4
+    nex: h346
+    orig: v77
+    pre: h388
+    rev: h349
+  h93:
+    attributes:
+      in_angle: 1.3616646165961885
+      length: 183.352801996588
+    dest: v8
+    face: f5
+    nex: h150
+    orig: v16
+    pre: h478
+    rev: h143
+  h94:
+    attributes:
+      in_angle: 0.7858147744548585
+      length: 140.04070043304478
+    dest: v0
+    face: f6
+    nex: h391
+    orig: v5
+    pre: h448
+    rev: h389
+  h95:
+    attributes:
+      in_angle: 1.28579328314747
+      length: 152.72933575446467
+    dest: v36
+    face: f8
+    nex: h465
+    orig: v16
+    pre: h143
+    rev: h365
+  h96:
+    attributes:
+      in_angle: 1.0870970864546465
+      length: 99.06598530496959
+    dest: v75
+    face: f9
+    nex: h451
+    orig: v5
+    pre: h296
+    rev: h448
+  h97:
+    attributes:
+      in_angle: 0.6297457573448282
+      length: 255.75989716920049
+    dest: v92
+    face: f184
+    nex: h81
+    orig: v16
+    pre: h365
+    rev: h79
+  h98:
+    attributes:
+      in_angle: 1.5424209729059954
+      length: 98.23052535292233
+    dest: v12
+    face: f11
+    nex: h415
+    orig: v5
+    pre: h285
+    rev: h412
+  h99:
+    attributes:
+      in_angle: 0.8419878739696147
+      length: 331.0487124276426
+    dest: v13
+    face: f183
+    nex: h80
+    orig: v78
+    pre: h484
+    rev: h85
+vertices:
+  v0:
+    any_outgoing: h406
+    attributes:
+      pos:
+      - 1648.4
+      - 1615.6
+  v1:
+    any_outgoing: h29
+    attributes:
+      pos:
+      - 1605.0
+      - 1947.6666666666665
+  v10:
+    any_outgoing: h50
+    attributes:
+      pos:
+      - 1673.5
+      - 1856.1666666666667
+  v100:
+    any_outgoing: h291
+    attributes:
+      pos:
+      - 1184.1666666666665
+      - 1571.8333333333335
+  v101:
+    any_outgoing: h483
+    attributes:
+      pos:
+      - 1484.9444444444443
+      - 1694.4444444444443
+  v11:
+    any_outgoing: h558
+    attributes:
+      pos:
+      - 1799.0
+      - 1857.625
+  v12:
+    any_outgoing: h421
+    attributes:
+      pos:
+      - 1743.25
+      - 1781.25
+  v13:
+    any_outgoing: h85
+    attributes:
+      pos:
+      - 1333.5
+      - 2538.5
+  v14:
+    any_outgoing: h374
+    attributes:
+      pos:
+      - 2135.416666666667
+      - 1003.5
+  v15:
+    any_outgoing: h439
+    attributes:
+      pos:
+      - 799.0
+      - 399.0
+  v16:
+    any_outgoing: h100
+    attributes:
+      pos:
+      - 1357.25
+      - 1366.0
+  v17:
+    any_outgoing: h71
+    attributes:
+      pos:
+      - 1523.5
+      - 2367.25
+  v18:
+    any_outgoing: h25
+    attributes:
+      pos:
+      - 585.0
+      - 2714.5
+  v19:
+    any_outgoing: h344
+    attributes:
+      pos:
+      - 901.0333333333333
+      - 2063.1000000000004
+  v2:
+    any_outgoing: h466
+    attributes:
+      pos:
+      - 3132.0
+      - 2126.5
+  v20:
+    any_outgoing: h166
+    attributes:
+      pos:
+      - 1928.25
+      - 1950.5
+  v21:
+    any_outgoing: h165
+    attributes:
+      pos:
+      - 1256.0
+      - 3244.0
+  v22:
+    any_outgoing: h512
+    attributes:
+      pos:
+      - 1548.5
+      - 1588.3333333333333
+  v23:
+    any_outgoing: h533
+    attributes:
+      pos:
+      - 873.9
+      - 1639.55
+  v24:
+    any_outgoing: h139
+    attributes:
+      pos:
+      - 1205.75
+      - 2099.25
+  v25:
+    any_outgoing: h403
+    attributes:
+      pos:
+      - 2758.666666666667
+      - 2204.833333333333
+  v26:
+    any_outgoing: h182
+    attributes:
+      pos:
+      - 2287.75
+      - 1897.25
+  v27:
+    any_outgoing: h54
+    attributes:
+      pos:
+      - 1576.75
+      - 2133.375
+  v28:
+    any_outgoing: h32
+    attributes:
+      pos:
+      - 1348.25
+      - 216.0
+  v29:
+    any_outgoing: h420
+    attributes:
+      pos:
+      - 1851.3333333333333
+      - 1670.6666666666667
+  v3:
+    any_outgoing: h63
+    attributes:
+      pos:
+      - 1568.3333333333333
+      - 1752.0
+  v30:
+    any_outgoing: h379
+    attributes:
+      pos:
+      - 1841.25
+      - 1718.5
+  v31:
+    any_outgoing: h322
+    attributes:
+      pos:
+      - 1531.75
+      - 1890.625
+  v32:
+    any_outgoing: h423
+    attributes:
+      pos:
+      - 1942.625
+      - 1717.875
+  v33:
+    any_outgoing: h393
+    attributes:
+      pos:
+      - 2360.5
+      - 1487.625
+  v34:
+    any_outgoing: h351
+    attributes:
+      pos:
+      - 1799.25
+      - 1345.25
+  v35:
+    any_outgoing: h125
+    attributes:
+      pos:
+      - 1137.25
+      - 1871.125
+  v36:
+    any_outgoing: h371
+    attributes:
+      pos:
+      - 1494.625
+      - 1303.75
+  v37:
+    any_outgoing: h151
+    attributes:
+      pos:
+      - 705.25
+      - 2354.0
+  v38:
+    any_outgoing: h13
+    attributes:
+      pos:
+      - 1755.8333333333335
+      - 815.3333333333333
+  v39:
+    any_outgoing: h16
+    attributes:
+      pos:
+      - 1339.5
+      - 1760.8333333333333
+  v4:
+    any_outgoing: h69
+    attributes:
+      pos:
+      - 1488.25
+      - 1812.875
+  v40:
+    any_outgoing: h1
+    attributes:
+      pos:
+      - 1726.8333333333333
+      - 1996.3333333333333
+  v41:
+    any_outgoing: h38
+    attributes:
+      pos:
+      - 1131.3333333333335
+      - 618.3333333333333
+  v42:
+    any_outgoing: h236
+    attributes:
+      pos:
+      - 2408.833333333333
+      - 2179.0
+  v43:
+    any_outgoing: h237
+    attributes:
+      pos:
+      - 1899.625
+      - 1796.25
+  v44:
+    any_outgoing: h299
+    attributes:
+      pos:
+      - 802.3333333333333
+      - 874.0
+  v45:
+    any_outgoing: h352
+    attributes:
+      pos:
+      - 2128.5
+      - 1558.6666666666665
+  v46:
+    any_outgoing: h221
+    attributes:
+      pos:
+      - 299.5
+      - 2193.0
+  v47:
+    any_outgoing: h519
+    attributes:
+      pos:
+      - 1602.25
+      - 500.375
+  v48:
+    any_outgoing: h364
+    attributes:
+      pos:
+      - 1017.5
+      - 3098.5
+  v49:
+    any_outgoing: h234
+    attributes:
+      pos:
+      - 1620.0
+      - 1835.3333333333333
+  v5:
+    any_outgoing: h109
+    attributes:
+      pos:
+      - 1769.1666666666667
+      - 1686.5
+  v50:
+    any_outgoing: h515
+    attributes:
+      pos:
+      - 1943.5
+      - 229.0
+  v51:
+    any_outgoing: h373
+    attributes:
+      pos:
+      - 1357.5
+      - 2261.333333333333
+  v52:
+    any_outgoing: h387
+    attributes:
+      pos:
+      - 1647.3333333333335
+      - 1756.8333333333335
+  v53:
+    any_outgoing: h398
+    attributes:
+      pos:
+      - 1176.9166666666665
+      - 1203.1666666666665
+  v54:
+    any_outgoing: h511
+    attributes:
+      pos:
+      - 1126.8333333333333
+      - 953.0
+  v55:
+    any_outgoing: h410
+    attributes:
+      pos:
+      - 2056.75
+      - 2413.875
+  v56:
+    any_outgoing: h428
+    attributes:
+      pos:
+      - 1653.0
+      - 1305.75
+  v57:
+    any_outgoing: h435
+    attributes:
+      pos:
+      - 3253.0
+      - 1281.0
+  v58:
+    any_outgoing: h199
+    attributes:
+      pos:
+      - 1376.75
+      - 1906.5
+  v59:
+    any_outgoing: h569
+    attributes:
+      pos:
+      - 2282.75
+      - 2689.375
+  v6:
+    any_outgoing: h530
+    attributes:
+      pos:
+      - 1092.5
+      - 2350.3333333333335
+  v60:
+    any_outgoing: h303
+    attributes:
+      pos:
+      - 1040.8333333333335
+      - 2701.833333333333
+  v61:
+    any_outgoing: h444
+    attributes:
+      pos:
+      - 2033.5
+      - 1845.1666666666665
+  v62:
+    any_outgoing: h457
+    attributes:
+      pos:
+      - 2038.6666666666665
+      - 1305.0
+  v63:
+    any_outgoing: h219
+    attributes:
+      pos:
+      - 1785.25
+      - 1502.5
+  v64:
+    any_outgoing: h474
+    attributes:
+      pos:
+      - 1803.5
+      - 1117.3333333333335
+  v65:
+    any_outgoing: h193
+    attributes:
+      pos:
+      - 2561.25
+      - 1868.375
+  v66:
+    any_outgoing: h160
+    attributes:
+      pos:
+      - 1678.125
+      - 1449.0
+  v67:
+    any_outgoing: h535
+    attributes:
+      pos:
+      - 2822.0
+      - 2635.0
+  v68:
+    any_outgoing: h229
+    attributes:
+      pos:
+      - 1584.0
+      - 1800.0
+  v69:
+    any_outgoing: h301
+    attributes:
+      pos:
+      - 2027.75
+      - 2906.0
+  v7:
+    any_outgoing: h135
+    attributes:
+      pos:
+      - 1589.875
+      - 1449.75
+  v70:
+    any_outgoing: h531
+    attributes:
+      pos:
+      - 2270.0
+      - 677.375
+  v71:
+    any_outgoing: h183
+    attributes:
+      pos:
+      - 3249.0
+      - 1560.0
+  v72:
+    any_outgoing: h572
+    attributes:
+      pos:
+      - 2119.25
+      - 1709.75
+  v73:
+    any_outgoing: h562
+    attributes:
+      pos:
+      - 1956.75
+      - 1627.125
+  v74:
+    any_outgoing: h476
+    attributes:
+      pos:
+      - 1397.6666666666665
+      - 1564.3333333333335
+  v75:
+    any_outgoing: h459
+    attributes:
+      pos:
+      - 1743.75
+      - 1590.75
+  v76:
+    any_outgoing: h551
+    attributes:
+      pos:
+      - 1842.1666666666665
+      - 2179.666666666667
+  v77:
+    any_outgoing: h92
+    attributes:
+      pos:
+      - 2350.666666666667
+      - 1684.6666666666665
+  v78:
+    any_outgoing: h99
+    attributes:
+      pos:
+      - 1428.25
+      - 2859.375
+  v79:
+    any_outgoing: h500
+    attributes:
+      pos:
+      - 1594.6666666666667
+      - 1551.5
+  v8:
+    any_outgoing: h150
+    attributes:
+      pos:
+      - 1501.25
+      - 1479.5
+  v80:
+    any_outgoing: h205
+    attributes:
+      pos:
+      - 524.375
+      - 1685.75
+  v81:
+    any_outgoing: h146
+    attributes:
+      pos:
+      - 2835.875
+      - 1324.875
+  v82:
+    any_outgoing: h266
+    attributes:
+      pos:
+      - 1692.75
+      - 1548.0
+  v83:
+    any_outgoing: h121
+    attributes:
+      pos:
+      - 2576.0
+      - 780.875
+  v84:
+    any_outgoing: h499
+    attributes:
+      pos:
+      - 1409.375
+      - 839.5
+  v85:
+    any_outgoing: h43
+    attributes:
+      pos:
+      - 460.75
+      - 1369.625
+  v86:
+    any_outgoing: h110
+    attributes:
+      pos:
+      - 556.0
+      - 533.5
+  v87:
+    any_outgoing: h255
+    attributes:
+      pos:
+      - 2603.5
+      - 1567.5
+  v88:
+    any_outgoing: h67
+    attributes:
+      pos:
+      - 1571.0
+      - 1065.1666666666665
+  v89:
+    any_outgoing: h470
+    attributes:
+      pos:
+      - 2574.5
+      - 1108.25
+  v9:
+    any_outgoing: h123
+    attributes:
+      pos:
+      - 1806.25
+      - 1758.75
+  v90:
+    any_outgoing: h487
+    attributes:
+      pos:
+      - 1754.6666666666665
+      - 2745.333333333333
+  v91:
+    any_outgoing: h283
+    attributes:
+      pos:
+      - 1577.0
+      - 1686.0
+  v92:
+    any_outgoing: h84
+    attributes:
+      pos:
+      - 1355.0
+      - 1110.25
+  v93:
+    any_outgoing: h265
+    attributes:
+      pos:
+      - 2891.5
+      - 1736.6666666666667
+  v94:
+    any_outgoing: h550
+    attributes:
+      pos:
+      - 1641.0
+      - 1537.5
+  v95:
+    any_outgoing: h298
+    attributes:
+      pos:
+      - 1843.5
+      - 1613.5
+  v96:
+    any_outgoing: h200
+    attributes:
+      pos:
+      - 1454.0
+      - 2044.625
+  v97:
+    any_outgoing: h309
+    attributes:
+      pos:
+      - 738.8333333333333
+      - 1212.0
+  v98:
+    any_outgoing: h274
+    attributes:
+      pos:
+      - 2123.0
+      - 2069.125
+  v99:
+    any_outgoing: h213
+    attributes:
+      pos:
+      - 1938.0
+      - 1496.5
