@@ -10,20 +10,9 @@ logger = logging.getLogger(__name__)
 from .conway import dual_graph, twist_rotate_graph
 from .half import HalfEdgeGraph
 from .base import rotation_matrix
-from .utils import invert_mapping
+from .utils import invert_mapping, random_directed_set
 from .overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
 from .layout import optimize_rotation
-
-
-def random_directed_set(edges):
-    """Return a set containing exactly one halfedge from each edge pair."""
-    if isinstance(edges, HalfEdgeGraph):
-        edges = edges.halfedges
-    directed_edges = set()
-    for e in edges:
-        if e.rev not in directed_edges:
-            directed_edges.add(e)
-    return directed_edges
 
 
 def reciprocal_figure(G, reciprocal_pos_key='reciprocal_pos', rcond=1e-7):

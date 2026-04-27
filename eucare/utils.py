@@ -8,10 +8,21 @@ logger = logging.getLogger(__name__)
 
 
 def invert_mapping(mapping):
+    """Return ``{value: key for key, value in mapping.items()}``."""
     return {value: key for key, value in mapping.items()}
 
 
 def random_directed_set(edges):
+    """Pick exactly one half-edge from each undirected pair.
+
+    Args:
+        edges: An iterable of :class:`HalfEdge` objects, or a
+            :class:`HalfEdgeGraph` (in which case all its half-edges are used).
+
+    Returns:
+        A set containing one half-edge per ``(h, h.rev)`` pair. Iteration
+        order of the input determines which side of each pair is kept.
+    """
     if isinstance(edges, HalfEdgeGraph):
         edges = edges.halfedges
     directed_edges = set()
