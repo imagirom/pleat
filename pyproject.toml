@@ -1,0 +1,42 @@
+[project]
+name = "eucare"
+version = "0.1.0"
+description = "Geometric tilings, Conway operators, and origami crease patterns"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "networkx",
+    "numba",
+    "tqdm",
+    "pycairo",
+    "svgwrite",
+    "svgpathtools",
+    "fastcluster",
+    "scikit-learn",
+    "sympy",
+    "pyyaml",
+    "pulp",
+]
+
+[project.optional-dependencies]
+ilp = ["pulp"]
+rendering = ["pycairo", "svgwrite"]
+notebook = ["jupyter", "ipywidgets", "ipympl", "widgetsnbextension"]
+threed = ["meshio"]
+torch = ["torch", "einops"]
+dev = ["pytest", "ruff"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+
+[tool.ruff]
+line-length = 120
