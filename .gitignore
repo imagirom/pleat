@@ -2,3 +2,24 @@
 .ipynb_checkpoints
 .idea
 __pycache__
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+.eggs/
+.venv/
+.env
+.DS_Store
+*.swp
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+
+# Pytest
+.pytest_cache/
+
+# Docs
+site/

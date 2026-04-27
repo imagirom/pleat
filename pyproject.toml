@@ -26,7 +26,8 @@ rendering = ["pycairo", "svgwrite"]
 notebook = ["jupyter", "ipywidgets", "ipympl", "widgetsnbextension"]
 threed = ["meshio"]
 torch = ["torch", "einops"]
-dev = ["pytest", "ruff"]
+dev = ["pytest", "pytest-cov", "ruff"]
+docs = ["mkdocs-material", "mkdocstrings[python]", "mkdocs-gen-files", "mkdocs-literate-nav"]
 
 [build-system]
 requires = ["hatchling"]
@@ -36,6 +37,19 @@ build-backend = "hatchling.build"
 testpaths = ["tests"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+
+[tool.coverage.run]
+source = ["eucare"]
+omit = ["eucare/image_to_graph.py", "eucare/marching_cubes.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.",
+    "raise NotImplementedError",
 ]
 
 [tool.ruff]
