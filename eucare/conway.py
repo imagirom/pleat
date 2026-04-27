@@ -8,7 +8,7 @@ import numpy as np
 
 from .base import euclidean_to_barycentric_map
 from .conversions import EHEG_from_nx
-from .half import Face, GeometricHEG, HalfEdge, HalfEdgeGraph
+from .half import Face, GeometricHEG, HalfEdge, HalfEdgeGraph, Vertex
 from .utils import invert_mapping
 
 
@@ -19,14 +19,14 @@ class TopologicalConwayOperator:
     corresponding to a vertex, face center, and adjacent vertex of each triangle.
     """
 
-    def __init__(self, graph, v1, vf, v2):
+    def __init__(self, graph: HalfEdgeGraph, v1: Vertex, vf: Vertex, v2: Vertex) -> None:
         self.graph = graph
         self.v1 = v1
         self.vf = vf
         self.v2 = v2
         assert all(v in graph.vertices for v in (v1, vf, v2))
 
-    def show(self):
+    def show(self) -> None:
         """Render the fundamental domain graph for visualization."""
         self.graph.show(scale=300, line_width=0.03, render_faces=False)
 

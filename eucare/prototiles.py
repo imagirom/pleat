@@ -11,7 +11,7 @@ from .instructions import attatch_tile_instruction
 
 class ProtoTile:
     """Abstract base class for tile prototypes that can produce half-edge graphs."""
-    def make_graph(self):
+    def make_graph(self) -> tuple[InAngleHEG, dict]:
         # return a HEG and a list of edges
         raise NotImplementedError
 
@@ -19,9 +19,15 @@ class ProtoTile:
 class PolygonalProtoTile(ProtoTile):
     """A tile defined by interior angles, edge lengths, and optional labels."""
 
-    def __init__(self, in_angles, edge_lengths,
-                 edge_labels=None, vertex_labels=None, face_label=None,
-                 edge_instructions=None):
+    def __init__(
+        self,
+        in_angles: list[float],
+        edge_lengths: list[float],
+        edge_labels: list | None = None,
+        vertex_labels: list | None = None,
+        face_label: object = None,
+        edge_instructions: dict | None = None,
+    ) -> None:
         assert len(in_angles) == len(edge_lengths)
         self.order = len(in_angles)
         self.in_angles = in_angles
@@ -33,7 +39,7 @@ class PolygonalProtoTile(ProtoTile):
         # edge_instructions can either be a list for all edges, or a dict, mapping a label to an instruction
         self.edge_instructions = edge_instructions if edge_instructions is not None else dict()
 
-    def make_graph(self, add_positions=False):
+    def make_graph(self, add_positions: bool = False) -> tuple[CyclicHalfedgeGraph, dict]:
         """Build a half-edge graph for this tile and return it with an edge label dict."""
         outer_edge_dict = dict()
 
@@ -87,7 +93,7 @@ class PolygonalProtoTile(ProtoTile):
 class RegularProtoTile(PolygonalProtoTile):
     """A regular polygon tile with uniform angles and edge lengths, supporting any geometry."""
 
-    def __init__(self, n, in_angle, edge_length, **super_kwargs):
+    def __init__(self, n: int, in_angle: float, edge_length: float, **super_kwargs) -> None:
         super().__init__([in_angle]*n, [edge_length]*n, **super_kwargs)
         euclidean_angle_deficit = np.pi * (n - 2) - in_angle * n
         eps = 1e-6

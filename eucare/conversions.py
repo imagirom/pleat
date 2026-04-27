@@ -47,7 +47,7 @@ def EHEG_from_nx(
     nxg: nx.Graph,
     positions: dict | None = None,
     return_v_lookup: bool = False,
-):
+) -> "EuclideanPositionHEG | tuple[EuclideanPositionHEG, dict]":
     """Convert a planar undirected :class:`networkx.Graph` to an :class:`EuclideanPositionHEG`.
 
     Args:

@@ -8,6 +8,7 @@ import tempfile
 from collections import defaultdict
 from copy import copy
 from functools import cmp_to_key
+from typing import TYPE_CHECKING
 
 import networkx as nx
 import numpy as np
@@ -21,6 +22,9 @@ from .base import orientation
 from .conversions import EHEG_from_nx
 from .layout import angle_to_height, min_edge_length, optimize_rotation, rotate_graph
 from .rendering import CairoRenderer, SvgwriteRenderer
+
+if TYPE_CHECKING:
+    from .half import EuclideanPositionHEG, Face
 
 logger = logging.getLogger(__name__)
 
@@ -189,7 +193,7 @@ Join all straight degree 2 vertices that
 """
 
 
-def overlap_graph(G, eps=1e-10):
+def overlap_graph(G: "EuclideanPositionHEG", eps: float = 1e-10) -> "EuclideanPositionHEG":
     """Build the overlap graph of a folded crease pattern by intersecting all edges.
 
     Return an EuclideanPositionHEG whose faces carry 'original_faces' attributes
@@ -692,7 +696,7 @@ def color_creases(G, colors=None, color_border=False):
             e['color_key'] = colors[e.attributes.get(CREASE_ASSIGNMENT, 0)]
 
 
-def fold_complete(G, initial_face=None, overlap_eps=1e-6, area_eps=0):
+def fold_complete(G: "EuclideanPositionHEG", initial_face: "Face | None" = None, overlap_eps: float = 1e-6, area_eps: float = 0) -> dict:
     """Fold a crease pattern and compute the full folded state, including overlap and stacking order.
 
     Return a dict with keys 'CP', 'folded_state', 'folded_view_top', and 'folded_view_bottom'.

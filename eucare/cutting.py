@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 import numba
 import numpy as np
 from numba import jit, njit
 
 from eucare.half import rotate_by
+
+if TYPE_CHECKING:
+    from eucare.half import EuclideanPositionHEG, HalfEdgeGraph
 from eucare.overlap import group_closeby, intervals_overlapping, line_segment_intersections
 from eucare.rendering import inset_poly
 
@@ -160,7 +164,7 @@ def get_ordered_crossings(segments1, segments2, eps=1e-10):
            filtered_crossings_to_segments1, filtered_crossings_to_segments2
 
 
-def delete_new_outside(G, border_key='new_border'):
+def delete_new_outside(G: "HalfEdgeGraph", border_key: str = 'new_border') -> None:
     # floodfill the outside region and delete it
     hs = [h for h in G.halfedges if border_key in h.attributes]
     to_delete = {h.face for h in hs if h.face}
@@ -180,7 +184,7 @@ def delete_new_outside(G, border_key='new_border'):
         del h[border_key]
 
 
-def cut_out_poly(G, poly, delete_outside=True, eps=1e-10):
+def cut_out_poly(G: "EuclideanPositionHEG", poly, delete_outside: bool = True, eps: float = 1e-10):
     poly_segments = np.stack(list(rotate_by(poly, (0, 1))))
     es = list(G.halfedges_representing_edges())
     edge_segments = np.array([[e.orig['pos'], e.dest['pos']] for e in es])

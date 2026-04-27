@@ -22,7 +22,7 @@ except ImportError:
     svgwrite = None
 
 
-def inset_corner(a, b, c, dist, eps=1e-10):
+def inset_corner(a: np.ndarray, b: np.ndarray, c: np.ndarray, dist: float, eps: float = 1e-10) -> np.ndarray:
     # insets angle abc
     w = b - a
     v = b - c
@@ -33,20 +33,20 @@ def inset_corner(a, b, c, dist, eps=1e-10):
     return b + diag_dist * unit_vector(angle_to_axis(v) - alpha)
 
 
-def inset_poly(pts, dist):
+def inset_poly(pts: list, dist: float) -> list:
     return [inset_corner(a, b, c, dist) for a, b, c in rotate_by(pts, (0, 1, 2))]
 
 
 _seed_offset = np.random.randint(2**16)
 
 
-def random_color(seed=None):
+def random_color(seed: object = None) -> np.ndarray:
     if seed is not None:
         np.random.seed((hash(seed) + _seed_offset) % 2**32)
     return np.random.uniform(0, 1, 3)
 
 
-def is_color(obj):
+def is_color(obj: object) -> bool:
     return isinstance(obj, Iterable) and len(obj) in (3, 4) and all([isinstance(c, (int, float)) for c in obj])
 
 

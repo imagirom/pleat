@@ -98,7 +98,7 @@ Key modules:
 ## Testing
 
 ```bash
-uv run pytest                     # all 143 tests
+uv run pytest                     # all tests
 uv run pytest -m "not slow"      # skip integration tests (~7s)
 uv run pytest --cov=eucare       # with coverage report
 ```
@@ -110,6 +110,15 @@ uv pip install -e ".[docs]"
 mkdocs serve                      # local dev server at http://127.0.0.1:8000
 mkdocs build                      # build static site to site/
 ```
+
+## Development
+
+```bash
+uv run ruff check eucare tests    # lint
+pre-commit install                 # install git hooks
+```
+
+GitHub Actions CI runs tests, lint, and `mkdocs build --strict` on every push and pull request (`.github/workflows/ci.yml`). Contributor guidance and architecture notes for AI coding agents live in [AGENTS.md](AGENTS.md).
 
 ## License
 

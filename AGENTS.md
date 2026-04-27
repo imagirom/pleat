@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding agents (Claude Code, GitHub Copilot, and similar) when working in this repository.
 
 ## Project Overview
 
@@ -22,7 +22,7 @@ Additional optional requirements (not on PyPI):
 ## Running Tests
 
 ```bash
-uv run pytest                        # all 143 tests (~11s)
+uv run pytest                        # all tests
 uv run pytest -m "not slow"         # skip slow integration tests (~7s)
 uv run pytest tests/test_base.py    # single test file
 uv run pytest -k "test_dual"        # run tests matching pattern
@@ -36,6 +36,22 @@ Tests are organized in `tests/`:
 - `test_conway.py` — Conway operators (dual, kis, ambo, truncate, join, gyro, starify)
 - `test_shrink_rotate.py` — shrink-rotate origami pipeline (reciprocal figures, crease assignment, folding, overlap)
 - `test_alternating_flagstones.py` — alternating flagstone and related Conway operators
+- `test_geometries.py` — cross-backend invariants for the three geometry backends
+- `test_classifiers.py` — equivalence classifiers used by colorization
+- `test_utils.py`, `test_io.py`, `test_example_graphs.py`, `test_plotting.py` — small helpers
+
+## Linting and CI
+
+```bash
+uv run ruff check eucare tests       # lint
+uv run ruff format eucare tests      # auto-format
+pre-commit install                    # enable pre-commit hooks (ruff + standard hygiene)
+```
+
+GitHub Actions CI runs on every push/PR (see `.github/workflows/ci.yml`):
+- `test` job on Python 3.10/3.11/3.12 with coverage upload
+- `lint` job (`ruff check`)
+- `docs` job (`mkdocs build --strict`)
 
 ## Documentation
 

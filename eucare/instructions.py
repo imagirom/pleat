@@ -10,12 +10,12 @@ from .half import HalfEdge, HalfEdgeGraph
 
 class HalfEdgeInstruction:
     """Abstract base for instructions that modify a graph at a given half-edge."""
-    def __call__(self, graph, h):
+    def __call__(self, graph: HalfEdgeGraph, h: HalfEdge) -> None:
         assert isinstance(graph, HalfEdgeGraph), f'{type(graph)}'
         assert isinstance(h, HalfEdge), f'{type(h)}'
         self.execute(graph, h)
 
-    def execute(self, graph, h):
+    def execute(self, graph: HalfEdgeGraph, h: HalfEdge) -> None:
         raise NotImplementedError
 
 
@@ -38,11 +38,11 @@ def special_copy_graph(graph):
 class GlueTileInstruction(HalfEdgeInstruction):
     """Glue a copy of a tile graph onto a border edge."""
 
-    def __init__(self, tile, edge):
+    def __init__(self, tile: HalfEdgeGraph, edge: HalfEdge) -> None:
         self.tile = tile
         self.edge = edge
 
-    def execute(self, graph, h):
+    def execute(self, graph: HalfEdgeGraph, h: HalfEdge) -> None:
         # TODO: this deepcopy solution is bad.. it leads to self.tile being stored many times.. still O(1) though..
         # Solution: only make copies of edges, vertices, faces, not their attributes
         tile, h2 = deepcopy((self.tile, self.edge))

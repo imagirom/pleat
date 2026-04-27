@@ -9,14 +9,14 @@ import scipy as sc
 
 from .base import rotation_matrix
 from .conway import dual_graph, twist_rotate_graph
-from .half import HalfEdgeGraph
+from .half import EuclideanPositionHEG, GeometricHEG, HalfEdgeGraph, Vertex
 from .overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
 from .utils import invert_mapping, random_directed_set
 
 logger = logging.getLogger(__name__)
 
 
-def reciprocal_figure(G, reciprocal_pos_key='reciprocal_pos', rcond=1e-7):
+def reciprocal_figure(G: GeometricHEG, reciprocal_pos_key: str = 'reciprocal_pos', rcond: float = 1e-7) -> None:
     """Compute the reciprocal figure of G by solving for dual vertex positions.
 
     Build a dual graph whose edges are perpendicular to those of G, with
@@ -138,7 +138,7 @@ def reciprocal_figure(G, reciprocal_pos_key='reciprocal_pos', rcond=1e-7):
     return D
 
 
-def shrink_rotate_graph(G, alpha=np.pi/5, factor=0.5, **reciprocal_figure_kwargs):
+def shrink_rotate_graph(G: GeometricHEG, alpha: float = np.pi/5, factor: float = 0.5, **reciprocal_figure_kwargs) -> EuclideanPositionHEG:
     """Build a shrink-rotate tessellation from G using its reciprocal figure.
 
     Each face is rotated by *alpha* and scaled by *factor* around its
@@ -184,14 +184,14 @@ def shrink_rotate_graph(G, alpha=np.pi/5, factor=0.5, **reciprocal_figure_kwargs
     return SRG
 
 
-def kawasaki_sum(v):
+def kawasaki_sum(v: Vertex) -> float:
     """Compute the Kawasaki alternating angle sum at vertex *v*."""
     angles = np.abs(np.array([e['in_angle'] for e in v.incoming_iter()]))
     assert len(angles) % 2 == 0
     return np.sum(((angles + 2*np.pi) % (2*np.pi)) * (-1) ** np.arange(len(angles)))
 
 
-def max_kawasaki_sum(vertices):
+def max_kawasaki_sum(vertices) -> float:
     """Return the maximum Kawasaki sum over all interior vertices."""
     if isinstance(vertices, HalfEdgeGraph):
         vertices = [v for v in vertices.vertices if not v.on_border()]
@@ -201,7 +201,7 @@ def max_kawasaki_sum(vertices):
 THIS_WAY = 'this_way'
 
 
-def assign_shrink_rotate_creases(SRG):
+def assign_shrink_rotate_creases(SRG: HalfEdgeGraph) -> None:
     """Assign mountain/valley crease orientations to a shrink-rotate crease pattern."""
     twistfaces = [f for f in SRG.faces if 'twistrotate' in f.attributes]
     for f in twistfaces:
@@ -241,7 +241,7 @@ def assign_shrink_rotate_creases(SRG):
                 e.rev[CREASE_ASSIGNMENT] = e[CREASE_ASSIGNMENT]
 
 
-def assign_this_way_by_face_z_order(G, key='z_order'):
+def assign_this_way_by_face_z_order(G: HalfEdgeGraph, key: str = 'z_order') -> None:
     """Assign edge directions based on the z-order of adjacent faces."""
     for e in G.halfedges:
         if e.on_border() or e.rev.on_border():
@@ -259,7 +259,7 @@ def assign_this_way_by_face_z_order(G, key='z_order'):
                 e[THIS_WAY] = True
 
 
-def assign_this_way_by_vertex_z_order(G, key='z_order'):
+def assign_this_way_by_vertex_z_order(G: HalfEdgeGraph, key: str = 'z_order') -> None:
     """Assign edge directions based on the z-order of endpoint vertices."""
     for e in G.halfedges:
         if e.on_border() or e.rev.on_border():
@@ -277,7 +277,7 @@ def assign_this_way_by_vertex_z_order(G, key='z_order'):
                 e[THIS_WAY] = True
 
 
-def make_SRG(G, simplify_boundary=True, **srg_kwargs):
+def make_SRG(G: GeometricHEG, simplify_boundary: bool = True, **srg_kwargs) -> EuclideanPositionHEG:
     """Build a complete shrink-rotate graph with crease assignments and color keys."""
     SRG = shrink_rotate_graph(G, **srg_kwargs)
     SRG.recompute_lengths_and_angles()
