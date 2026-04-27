@@ -29,3 +29,35 @@ def test_glue_tile_instruction_glues_via_template():
     inst(G, border_edge)
     G.check_consistency()
     assert len(G.faces) == initial_faces + 1
+
+
+def test_halfedge_instruction_abstract_raises():
+    from eucare.instructions import HalfEdgeInstruction
+    from eucare.half import RegularNGon
+    G = RegularNGon(3)
+    h = next(iter(G.halfedges))
+    inst = HalfEdgeInstruction()
+    import pytest
+    with pytest.raises(NotImplementedError):
+        inst(G, h)
+
+
+def test_special_copy_with_excluded_attributes():
+    from eucare.instructions import special_copy
+    from eucare.half import RegularNGon
+    G = RegularNGon(3)
+    h = next(iter(G.halfedges))
+    h['instruction'] = 'sentinel'
+    h['other'] = 42
+    cp = special_copy(h, exclude_attributes=['instruction', 'other'])
+    # excluded values are preserved on the copy.
+    assert cp['instruction'] == 'sentinel'
+    assert cp['other'] == 42
+
+
+def test_special_copy_graph_stub_runs():
+    from eucare.instructions import special_copy_graph
+    from eucare.half import RegularNGon
+    G = RegularNGon(3)
+    # stub returns None; just ensure it runs.
+    assert special_copy_graph(G) is None

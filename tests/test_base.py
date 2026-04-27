@@ -5,16 +5,22 @@ import pytest
 from eucare.base import (
     angle,
     angle_to_axis,
+    apply_affine,
+    barycentric_to_euclidean_map,
     edge_lengths,
+    euclidean_to_barycentric_map,
     find_affine,
     in_angles,
     line_intersection,
+    nearest_neighbor,
     orientation,
     project_to_line,
     regular_poly_points,
     rotation_matrix,
     signed_area,
+    tri_grid_point,
     unit_vector,
+    unit_vector_to_vector,
 )
 
 
@@ -119,3 +125,66 @@ class TestFindAffine:
         line1 = np.array([[0, 0], [1, 0]], dtype=float)
         M = find_affine(line0, line1)
         assert M.shape == (3, 2)
+
+
+class TestProjectToLine:
+    def test_project_origin_on_x_axis(self):
+        line = np.array([[0.0, 0.0], [1.0, 0.0]])
+        pts = np.array([[0.5, 1.0]])
+        result = project_to_line(line, pts)
+        np.testing.assert_allclose(result, [[0.5, 0.0]], atol=1e-12)
+
+
+class TestAngle:
+    def test_right_angle(self):
+        a = np.array([1.0, 0.0])
+        b = np.array([0.0, 0.0])
+        c = np.array([0.0, 1.0])
+        # Angle at b from a to c, CCW from b->a to b->c.
+        np.testing.assert_allclose(angle(a, b, c), np.pi / 2 * 3, atol=1e-12)
+
+
+class TestUnitVectorToVector:
+    def test_zero_alpha_returns_unit_vector(self):
+        seg = np.array([[0.0, 0.0], [2.0, 0.0]])
+        out = unit_vector_to_vector(0.0, seg)
+        # Length 1, starts at seg[0], same direction.
+        np.testing.assert_allclose(out[0], [0.0, 0.0])
+        np.testing.assert_allclose(out[1], [1.0, 0.0], atol=1e-12)
+
+
+class TestTriGridPoint:
+    def test_origin(self):
+        np.testing.assert_allclose(tri_grid_point(0, 0), [0.0, 0.0])
+
+    def test_basis(self):
+        np.testing.assert_allclose(tri_grid_point(1, 0), [1.0, 0.0])
+
+
+class TestApplyAffine:
+    def test_translation(self):
+        # 2x2 identity + translation by (1, 2)
+        M = np.array([[1.0, 0.0], [0.0, 1.0], [1.0, 2.0]])
+        pts = np.array([[0.0, 0.0], [1.0, 0.0]])
+        out = apply_affine(pts, M)
+        np.testing.assert_allclose(out, [[1.0, 2.0], [2.0, 2.0]], atol=1e-12)
+
+
+class TestNearestNeighbor:
+    def test_returns_index(self):
+        data = np.array([[0.0, 0.0], [1.0, 0.0], [2.0, 0.0]])
+        query = np.array([0.9, 0.0])
+        pt, idx = nearest_neighbor(data, query, return_index=True)
+        assert idx == 1
+        np.testing.assert_allclose(pt, [1.0, 0.0])
+
+
+class TestBarycentric:
+    def test_roundtrip_centroid(self):
+        tri = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]], dtype=np.float32)
+        to_bary = euclidean_to_barycentric_map(tri)
+        from_bary = barycentric_to_euclidean_map(tri)
+        centroid = np.mean(tri, axis=0)
+        bary = to_bary(centroid)
+        np.testing.assert_allclose(bary, [1 / 3, 1 / 3, 1 / 3], atol=1e-5)
+        np.testing.assert_allclose(from_bary(bary), centroid, atol=1e-5)

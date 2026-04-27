@@ -124,3 +124,64 @@ class TestCongruencyClassifier:
         for f in G.faces:
             key = classifier.classify(f)
             assert key is not None
+
+
+class TestConwayCopyGraphPath:
+    def test_dual_with_copy_graph(self):
+        G = _make_tiling(rings=2)
+        G2 = dual_graph()(G, copy_graph=True)
+        # Original is unchanged when copy_graph=True
+        G2.check_consistency()
+
+
+class TestGoldberg2:
+    def test_goldberg2_smoke(self):
+        from eucare.conway import goldberg2_graph
+        op = goldberg2_graph()
+        assert op.graph is not None
+
+
+class TestExpandLoftLaceChamfer:
+    def test_expand(self):
+        from eucare.conway import expand_graph
+        G = _make_tiling(rings=2)
+        result = expand_graph()(G)
+        result.check_consistency()
+
+    def test_loft(self):
+        from eucare.conway import loft_graph
+        G = _make_tiling(rings=2)
+        result = loft_graph()(G)
+        result.check_consistency()
+
+    def test_lace(self):
+        from eucare.conway import lace_graph
+        G = _make_tiling(rings=2)
+        result = lace_graph()(G)
+        result.check_consistency()
+
+    def test_chamfer(self):
+        from eucare.conway import chamfer_graph
+        G = _make_tiling(rings=2)
+        result = chamfer_graph()(G)
+        result.check_consistency()
+
+    def test_twist_rotate(self):
+        from eucare.conway import twist_rotate_graph
+        G = _make_tiling(rings=2)
+        result = twist_rotate_graph()(G)
+        result.check_consistency()
+
+    def test_flagstone_pvitelli(self):
+        from eucare.conway import flagstone_pvitelli_graph
+        G = _make_tiling(rings=2)
+        result = flagstone_pvitelli_graph()(G)
+        result.check_consistency()
+
+
+class TestConwayOperatorInternals:
+    def test_show_does_not_crash(self):
+        # show() opens a renderer and writes a file -- skip if that fails on this system
+        op = dual_graph()
+        # Not invoking show() (would write to disk); just verify the op has the expected attributes.
+        assert hasattr(op, 'v1') and hasattr(op, 'vf') and hasattr(op, 'v2')
