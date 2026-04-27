@@ -95,7 +95,6 @@ Pluggable geometry implementations: `EuclideanGeometry`, `PoincareDiskModel` (hy
 
 - `conversions.py`: Convert between NetworkX graphs and `EuclideanPositionHEG`.
 - `classifiers.py`: Classify faces by congruence (edge lengths + angles) for coloring.
-- `graph.py`: Alternative NEF graph representation (NetworkX-based). Less used.
 - `io.py`: File I/O for `.heg` graph format (YAML-based).
 - `search_trees.py`: BFS tree generators for faces and vertices.
 
