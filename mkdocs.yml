@@ -27,8 +27,9 @@ plugins:
   - search
   - mkdocs-jupyter:
       include: ["*.ipynb"]
-      ignore_h1: false
+      ignore_h1: true
       execute: false
+      include_requirejs: true
   - gen-files:
       scripts:
         - docs/gen_ref_pages.py
@@ -69,4 +70,6 @@ nav:
       - GomJau-Hogg Notation: notebooks/GomJau-Hogg Notation.ipynb
       - Hyperbolic and Other Rings: notebooks/Hyperbolic and other Rings.ipynb
       - Origami Crease Patterns: notebooks/Better reciprocal Figures.ipynb
+  - Contributing:
+      - Docs Pipeline: contributing/docs-pipeline.md
   - API Reference: reference/
