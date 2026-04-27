@@ -41,11 +41,11 @@ Tests are organized in `tests/`:
 
 ```bash
 uv pip install -e ".[docs]"
-mkdocs serve    # dev server at http://127.0.0.1:8000
-mkdocs build    # static site to site/
+DISABLE_MKDOCS_2_WARNING=true mkdocs serve    # dev server at http://127.0.0.1:8000
+DISABLE_MKDOCS_2_WARNING=true mkdocs build    # static site to site/
 ```
 
-API docs are auto-generated from docstrings via mkdocstrings.
+API docs are auto-generated from docstrings via mkdocstrings. Notebooks in `docs/notebooks/` are rendered via mkdocs-jupyter (execute: false — outputs must be pre-saved in the notebook). The `DISABLE_MKDOCS_2_WARNING=true` flag suppresses a spurious deprecation warning injected by the `properdocs` transitive dependency.
 
 ## Architecture
 

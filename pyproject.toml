@@ -27,7 +27,7 @@ notebook = ["jupyter", "ipywidgets", "ipympl", "widgetsnbextension"]
 threed = ["meshio"]
 torch = ["torch", "einops"]
 dev = ["pytest", "pytest-cov", "ruff"]
-docs = ["mkdocs-material", "mkdocstrings[python]", "mkdocs-gen-files", "mkdocs-literate-nav"]
+docs = ["mkdocs-material", "mkdocstrings[python]", "mkdocs-gen-files", "mkdocs-literate-nav", "mkdocs-jupyter"]
 
 [build-system]
 requires = ["hatchling"]

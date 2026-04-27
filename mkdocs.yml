@@ -25,6 +25,10 @@ theme:
 
 plugins:
   - search
+  - mkdocs-jupyter:
+      include: ["*.ipynb"]
+      ignore_h1: false
+      execute: false
   - gen-files:
       scripts:
         - docs/gen_ref_pages.py
@@ -60,4 +64,9 @@ nav:
       - Quick Start: getting-started/quickstart.md
   - Concepts:
       - Architecture: concepts/architecture.md
-  - API Reference: reference/index.md
+  - Notebooks:
+      - Tiling Demo: notebooks/Tiling Demo.ipynb
+      - GomJau-Hogg Notation: notebooks/GomJau-Hogg Notation.ipynb
+      - Hyperbolic and Other Rings: notebooks/Hyperbolic and other Rings.ipynb
+      - Origami Crease Patterns: notebooks/Better reciprocal Figures.ipynb
+  - API Reference: reference/
