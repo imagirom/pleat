@@ -1,10 +1,11 @@
 """Define tile prototypes with angles, edge lengths, and vertex positions."""
 
-from .half import HalfEdge, CyclicHalfedgeGraph, Vertex, Face, InAngleHEG
-from .base import angle_to_axis, unit_vector, unit_vector_to_vector
-from .instructions import attatch_tile_instruction
-from .geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
 import numpy as np
+
+from .base import angle_to_axis, unit_vector
+from .geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
+from .half import CyclicHalfedgeGraph, Face, HalfEdge, InAngleHEG, Vertex
+from .instructions import attatch_tile_instruction
 
 
 class ProtoTile:

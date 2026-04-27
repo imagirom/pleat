@@ -1,20 +1,17 @@
-import numpy as np
-import networkx as nx
-from matplotlib import pyplot as plt
-from skimage import io, color
-from skimage.feature import canny
-from skimage.transform import downscale_local_mean
-from scipy import ndimage as ndi
-from fancy.plotting import plot_image
-from fancy.colors import colorize_segmentation
-from skimage.morphology import skeletonize
+
 import mahotas as mh
-from mahotas import polygon
-import os
+import networkx as nx
+import numpy as np
+from fancy.colors import colorize_segmentation
+from fancy.plotting import plot_image
+from matplotlib import pyplot as plt
+from scipy import ndimage as ndi
+from skimage import color, io
+from skimage.transform import downscale_local_mean
+
 import eucare as ec
+
 from .overlap import group_closeby
-
-
 
 # partially adapted from
 # https://gist.githubusercontent.com/jeanpat/5712699/raw/9b6139432a1715c31b36bd740841bbb8599b18d8/SkeletonToGraph.ipynb
@@ -107,7 +104,7 @@ def image_to_graph(image, threshold=None, closing_iterations=3, edge_length_cuto
     else:
         assert isinstance(image, np.ndarray)
         assert image.shape[-1] == 3
-        rbg = image
+        rgb = image
 
     # downsample the image until one of the sides is smaller than 1000px
     while min(rgb.shape[:2]) >= max_size:
@@ -120,7 +117,7 @@ def image_to_graph(image, threshold=None, closing_iterations=3, edge_length_cuto
 
     plot_image(grayscale, cmap='gray', figheight=5, colorbar=True, title='grayscale')
     plt.show()
-    plt.hist(grayscale.flatten(), bins=100);
+    plt.hist(grayscale.flatten(), bins=100)
     plt.title('grayscale histogram. use this to select cutoff')
     plt.show()
     if threshold is None:

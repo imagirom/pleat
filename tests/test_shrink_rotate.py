@@ -5,23 +5,35 @@ This tests the full workflow:
 """
 import numpy as np
 import pytest
-from eucare.half import IdObject, EuclideanPositionHEG
-from eucare.example_tilesets import platonic, t_4_6_12
+
 from eucare.example_graphs import from_tiles
+from eucare.example_tilesets import platonic, t_4_6_12
+from eucare.half import EuclideanPositionHEG, IdObject
+from eucare.overlap import (
+    CREASE_ASSIGNMENT,
+    MOUNTAIN,
+    VALLEY,
+    color_creases,
+    fold_complete,
+    fold_wireframe,
+    overlap_graph,
+)
 from eucare.reciprocal_figures import (
-    reciprocal_figure, shrink_rotate_graph, kawasaki_sum, max_kawasaki_sum,
-    make_SRG, assign_shrink_rotate_creases, assign_this_way_by_face_z_order,
+    assign_shrink_rotate_creases,
+    assign_this_way_by_face_z_order,
+    kawasaki_sum,
+    make_SRG,
+    max_kawasaki_sum,
+    reciprocal_figure,
+    shrink_rotate_graph,
 )
 from eucare.search_trees import face_bfs_tree
-from eucare.overlap import (
-    fold_wireframe, fold_complete, overlap_graph,
-    CREASE_ASSIGNMENT, MOUNTAIN, VALLEY, color_creases,
-)
 
 
 def _make_graph(tileset_fn=None, rings=3):
     if tileset_fn is None:
-        tileset_fn = lambda: platonic(4)
+        def tileset_fn():
+            return platonic(4)
     tiles = tileset_fn()
     return from_tiles(tiles, rings=rings)
 

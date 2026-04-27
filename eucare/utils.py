@@ -1,8 +1,9 @@
 """Miscellaneous utility functions and timing helpers."""
 import logging
-from .half import HalfEdgeGraph, IdObject, AttributeObject
-from time import time
 from collections import defaultdict
+from time import time
+
+from .half import AttributeObject, HalfEdgeGraph, IdObject
 
 logger = logging.getLogger(__name__)
 

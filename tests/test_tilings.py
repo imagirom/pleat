@@ -1,15 +1,21 @@
 """Tests for tiling construction in all geometries."""
 import numpy as np
 import pytest
-from eucare.half import IdObject, EuclideanPositionHEG, GeometricHEG
-from eucare.example_tilesets import (
-    platonic, t_4_6_12, t_3_3_3_3_6, t_3_3_4_3_4,
-    t_3_12_12,
-    curved_platonic, curved_snub, curved_expand,
-)
+
 from eucare.example_graphs import from_tiles
-from eucare.prototiles import RegularEuclideanTile
+from eucare.example_tilesets import (
+    curved_expand,
+    curved_platonic,
+    curved_snub,
+    platonic,
+    t_3_3_3_3_6,
+    t_3_3_4_3_4,
+    t_3_12_12,
+    t_4_6_12,
+)
 from eucare.geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
+from eucare.half import EuclideanPositionHEG, GeometricHEG, IdObject
+from eucare.prototiles import RegularEuclideanTile
 
 
 class TestEuclideanTilings:

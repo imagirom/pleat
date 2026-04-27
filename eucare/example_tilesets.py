@@ -1,8 +1,9 @@
 """Predefined tile sets for Archimedean, Platonic, and curved tilings."""
 
 import numpy as np
-from .prototiles import RegularEuclideanTile, RegularProtoTile
+
 from .geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
+from .prototiles import RegularEuclideanTile, RegularProtoTile
 
 
 class TileSet:

@@ -1,30 +1,27 @@
 """Compute folded states of crease patterns: overlap graphs, stacking order, and crease assignments."""
 
-import logging
-import numpy as np
-import networkx as nx
-import os
-from sklearn.cluster import AgglomerativeClustering
-from tqdm.auto import tqdm
-from fastcluster import linkage_vector, linkage
-from scipy.cluster.hierarchy import fcluster
-import pulp
-import tempfile
-import os
 import itertools
+import logging
+import os
+import tempfile
 from collections import defaultdict
-from functools import cmp_to_key
 from copy import copy
+from functools import cmp_to_key
+
+import networkx as nx
+import numpy as np
+import pulp
+from fastcluster import linkage_vector
 from numba import jit
+from scipy.cluster.hierarchy import fcluster
+from tqdm.auto import tqdm
 
-logger = logging.getLogger(__name__)
-
-from .utils import random_directed_set
-from .half import rotate_by
 from .base import orientation
 from .conversions import EHEG_from_nx
-from .rendering import SvgwriteRenderer, CairoRenderer
 from .layout import angle_to_height, min_edge_length, optimize_rotation, rotate_graph
+from .rendering import CairoRenderer, SvgwriteRenderer
+
+logger = logging.getLogger(__name__)
 
 
 def intervals_overlapping(interval1, interval2):
@@ -485,7 +482,7 @@ def find_folded_face_order(G, over_under_pairs=(), solver=None, double_fold_weig
                 len(triplet_overlap_areas), len(fold_over_facet_lengths), len(coincident_fold_lengths))
 
     n_over_under_before = len(over_under_pairs)
-    over_under_pairs = infer_additional_over_under_pairs(over_under_pairs, set(triplet_overlap_areas.keys()));
+    over_under_pairs = infer_additional_over_under_pairs(over_under_pairs, set(triplet_overlap_areas.keys()))
 
     logger.info('Preprocessing increased number of known over-under relations from %d to %d..',
                 n_over_under_before, len(over_under_pairs))

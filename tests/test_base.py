@@ -1,10 +1,20 @@
 """Tests for eucare.base geometry utilities."""
 import numpy as np
 import pytest
+
 from eucare.base import (
-    unit_vector, angle_to_axis, angle, in_angles, edge_lengths,
-    regular_poly_points, rotation_matrix, signed_area, orientation,
-    line_intersection, project_to_line, find_affine,
+    angle,
+    angle_to_axis,
+    edge_lengths,
+    find_affine,
+    in_angles,
+    line_intersection,
+    orientation,
+    project_to_line,
+    regular_poly_points,
+    rotation_matrix,
+    signed_area,
+    unit_vector,
 )
 
 

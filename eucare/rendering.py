@@ -6,11 +6,13 @@ helpers (:func:`inset_corner`, :func:`inset_poly`) and color utilities.
 """
 
 import logging
+from typing import Iterable
+
 import cairo
+import numpy as np
+
 from .base import angle_to_axis, unit_vector
 from .half import rotate_by
-import numpy as np
-from typing import Iterable
 
 logger = logging.getLogger(__name__)
 try:
@@ -264,7 +266,7 @@ class CairoRenderer:
 class SvgwriteRenderer:
     """This is to be used with a cutting plotter"""
     def __init__(self, position_key='pos', curve_position_key='curve_pos'):
-        assert svgwrite is not None, f'SvgwriteRenderer requires the svgwrite package. You can install it via pip.'
+        assert svgwrite is not None, 'SvgwriteRenderer requires the svgwrite package. You can install it via pip.'
         self.position_key = position_key
         self.curve_position_key = curve_position_key
 

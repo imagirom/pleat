@@ -1,6 +1,7 @@
 """Euclidean plane geometry backend."""
 
 import numpy as np
+
 from .base import Geometry
 
 

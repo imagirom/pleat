@@ -1,6 +1,7 @@
 """Spherical geometry backend using 3D unit-sphere coordinates."""
 
 import numpy as np
+
 from .base import Geometry
 
 

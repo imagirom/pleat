@@ -1,14 +1,13 @@
 """Cut half-edge graphs along halfplane boundaries or polygon regions."""
 from collections import defaultdict
-import numpy as np
+
 import numba
+import numpy as np
 from numba import jit, njit
 
-import eucare as ec
-from eucare.overlap import line_segment_intersections, intervals_overlapping, group_closeby
 from eucare.half import rotate_by
+from eucare.overlap import group_closeby, intervals_overlapping, line_segment_intersections
 from eucare.rendering import inset_poly
-
 
 """Methods to check if point lies in polygon from https://stackoverflow.com/a/48760556"""
 
@@ -217,7 +216,6 @@ def cut_out_poly(G, poly, delete_outside=True, eps=1e-10):
         for poly_side, crossing_ind_along_side in v['poly_side'].items():
             corners = []
             start = (poly_side, crossing_ind_along_side)
-            no_connection = True
             # print(start)
             # try to connect via positive area face:
             while True:
@@ -266,7 +264,6 @@ def cut_out_poly(G, poly, delete_outside=True, eps=1e-10):
                             new_edge = new_edge.nex
                         new_edge['new_border'] = True
 
-                    no_connection = False
                     break
                 except StopIteration as e:
                     continue
@@ -274,9 +271,7 @@ def cut_out_poly(G, poly, delete_outside=True, eps=1e-10):
         for poly_side, crossing_ind_along_side in v['poly_side'].items():
             corners = []
             start = (poly_side, crossing_ind_along_side)
-            no_connection = True
             # try to connect via negative area face:
-            no_connection = True
             while True:
                 crossing_ind_along_side -= 1
                 if crossing_ind_along_side < 0:
@@ -323,9 +318,8 @@ def cut_out_poly(G, poly, delete_outside=True, eps=1e-10):
                             new_edge = new_edge.nex
                         new_edge['new_border'] = True
 
-                    no_connection = False
                     break
-                except StopIteration as e:
+                except StopIteration:
                     continue
 
 

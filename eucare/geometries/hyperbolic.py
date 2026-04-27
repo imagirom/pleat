@@ -1,6 +1,7 @@
 """Hyperbolic geometry via the Poincare disk model."""
 
 import numpy as np
+
 from .base import Geometry
 
 

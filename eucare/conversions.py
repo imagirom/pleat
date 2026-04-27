@@ -1,10 +1,12 @@
 """Convert between NetworkX graphs and half-edge graph representations."""
 
 import logging
-from .half import EuclideanPositionHEG, Vertex, HalfEdge, Face, rotate_by
-from .base import angle_to_axis, signed_area
-import numpy as np
 from copy import copy
+
+import numpy as np
+
+from .base import angle_to_axis
+from .half import EuclideanPositionHEG, Face, HalfEdge, Vertex, rotate_by
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +101,7 @@ def EHEG_from_nx(nxg, positions=None, return_v_lookup=False):
         if area < current_min_area:
             current_min_area = area
             outside_face = f
-    assert outside_face is not None, f'Could not find an outside face to delete. Are all areas 0?'
+    assert outside_face is not None, 'Could not find an outside face to delete. Are all areas 0?'
     result.delete_face(outside_face)
 
     if not return_v_lookup:

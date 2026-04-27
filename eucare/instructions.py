@@ -1,9 +1,8 @@
 """Edge instructions that describe how to attach tiles to border edges during tiling growth."""
 
-from .half import HalfEdgeGraph, HalfEdge
 from copy import deepcopy
-import numpy as np
-from .base import angle_to_axis, unit_vector
+
+from .half import HalfEdge, HalfEdgeGraph
 
 # An edge instruction is a function with signature (HalfEdgeGraph, HalfEdge) ->
 
@@ -28,8 +27,9 @@ def special_copy(e, exclude_attributes='instruction'):
 
 
 def special_copy_graph(graph):
-    vertices = deepcopy(graph.vertices)
-    faces = deepcopy(graph.faces)
+    # NOTE: stub kept for API compatibility; not implemented.
+    deepcopy(graph.vertices)
+    deepcopy(graph.faces)
 
 # the INSTRUCTION needs to stay constant, while the TILE changes
 

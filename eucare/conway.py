@@ -1,12 +1,13 @@
 """Conway topological operators for transforming tilings."""
 
-from copy import copy, deepcopy
-import numpy as np
-import networkx as nx
+from copy import copy
 
-from .half import HalfEdge, HalfEdgeGraph, Face, GeometricHEG
+import networkx as nx
+import numpy as np
+
+from .base import euclidean_to_barycentric_map
 from .conversions import EHEG_from_nx
-from .base import barycentric_to_euclidean_map, euclidean_to_barycentric_map
+from .half import Face, GeometricHEG, HalfEdge, HalfEdgeGraph
 from .utils import invert_mapping
 
 
@@ -65,7 +66,7 @@ class TopologicalConwayOperator:
         halfedges = [h for f in faces for h in f.halfedge_iter()]
         assert all(isinstance(h, HalfEdge) for h in halfedges)
         affected_faces = {h.face for h in halfedges}
-        assert None not in affected_faces, f'Cannot apply Conway operator to boundary edge'  # Or can we?
+        assert None not in affected_faces, 'Cannot apply Conway operator to boundary edge'  # Or can we?
         old_halfedges = frozenset(graph.halfedges)
         v1_out_lookup = dict()
         v2_out_lookup = dict()

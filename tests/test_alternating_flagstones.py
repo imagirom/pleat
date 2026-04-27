@@ -1,21 +1,28 @@
 """Tests for alternating flagstone and related Conway operators."""
 import numpy as np
 import pytest
-from eucare.half import IdObject, EuclideanPositionHEG
-from eucare.example_tilesets import platonic, t_4_6_12
-from eucare.example_graphs import from_tiles
-from eucare.conway import (
-    alternating_flagstone_graph, flagstone_pvitelli_graph,
-    twist_rotate_graph, loft_graph, lace_graph, expand_graph,
-    chamfer_graph, dual_graph,
-)
+
 from eucare.classifiers import congruency_classifier
+from eucare.conway import (
+    alternating_flagstone_graph,
+    chamfer_graph,
+    dual_graph,
+    expand_graph,
+    flagstone_pvitelli_graph,
+    lace_graph,
+    loft_graph,
+    twist_rotate_graph,
+)
+from eucare.example_graphs import from_tiles
+from eucare.example_tilesets import platonic, t_4_6_12
+from eucare.half import EuclideanPositionHEG, IdObject
 from eucare.overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
 
 
 def _make_tiling(tileset_fn=None, rings=3):
     if tileset_fn is None:
-        tileset_fn = lambda: platonic(4)
+        def tileset_fn():
+            return platonic(4)
     tiles = tileset_fn()
     return from_tiles(tiles, rings=rings)
 

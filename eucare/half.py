@@ -12,16 +12,17 @@ Class hierarchy::
     HalfEdgeGraph → CyclicHalfedgeGraph
     HalfEdgeGraph → InAngleHEG → GeometricHEG → EuclideanPositionHEG
 """
+import heapq
 import logging
+from copy import copy, deepcopy
 from itertools import chain
+from math import pi
+
 import matplotlib.pyplot as plt
 import networkx as nx
-from copy import copy, deepcopy
-from math import pi
 import numpy as np
-import heapq
-from collections import deque
-from .base import unit_vector, angle_to_axis, edge_lengths_and_in_angles, signed_area
+
+from .base import edge_lengths_and_in_angles, signed_area
 from .geometries import EuclideanGeometry
 
 logger = logging.getLogger(__name__)
@@ -740,10 +741,10 @@ class HalfEdgeGraph:
     def glue_v2v(self, v1=None, v2=None, v1_out=None, v2_out=None):
         # check if both vertices are suited for gluing
         if v1 is None:
-            assert v1_out is not None, f'v1 or v1_out must be specified.'
+            assert v1_out is not None, 'v1 or v1_out must be specified.'
             v1 = v1_out.orig
         if v2 is None:
-            assert v2_out is not None, f'v2 or v2_out must be specified.'
+            assert v2_out is not None, 'v2 or v2_out must be specified.'
             v2 = v2_out.orig
 
         # search for border edges if not specified
@@ -834,7 +835,7 @@ class HalfEdgeGraph:
             key = 'instruction' if key is None else key
             instruction = h[key]
         else:
-            assert key is None, f'Please specify not more than one of [key, instruction].'
+            assert key is None, 'Please specify not more than one of [key, instruction].'
         instruction(self, h)
 
     def execute_all_edge_instructions(self, instruction=None, key=None):
@@ -847,7 +848,8 @@ class HalfEdgeGraph:
         G.add_edges_from([(h.orig, h.dest) for h in self.halfedges])
 
         if emph_func is None:
-            emph_func = lambda h: h.attributes.get('delete', False)
+            def emph_func(h):
+                return h.attributes.get('delete', False)
         G.add_edges_from([(h.orig, h.dest) for h in self.halfedges if emph_func(h)],
                               color='r')
 
@@ -1175,8 +1177,9 @@ class GeometricHEG(InAngleHEG):
     def show(self, render_faces=True, render_edges=True, render_vertices=True, block=True,
              figsize=None, for_cutting=False, filename='output', **kwargs):
         figsize = (5, 5) if figsize is None else figsize
-        from .rendering import CairoRenderer
         import matplotlib.image as mpimg
+
+        from .rendering import CairoRenderer
         render_position_key = 'euclidean_pos'
         for v in self.vertices:
             v[render_position_key] = self.geometry.to_euclidean(v['pos'])
@@ -1186,7 +1189,7 @@ class GeometricHEG(InAngleHEG):
         filename = filename + '.png'
         surface.write_to_png(filename)
 
-        from IPython.display import display, Image
+        from IPython.display import Image, display
         display(Image(filename))
         return
 

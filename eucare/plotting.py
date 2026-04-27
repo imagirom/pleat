@@ -1,7 +1,7 @@
 """Matplotlib helpers for quick visualization of half-edge graphs."""
-import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.collections as mc
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def plot_lines(lines, ax=None, **kwargs):

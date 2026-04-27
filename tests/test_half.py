@@ -1,9 +1,16 @@
 """Tests for the core half-edge data structure."""
 import numpy as np
 import pytest
+
 from eucare.half import (
-    HalfEdge, Vertex, Face, HalfEdgeGraph, CyclicHalfedgeGraph,
-    InAngleHEG, EuclideanPositionHEG, RegularNGon,
+    CyclicHalfedgeGraph,
+    EuclideanPositionHEG,
+    Face,
+    HalfEdge,
+    HalfEdgeGraph,
+    InAngleHEG,
+    RegularNGon,
+    Vertex,
 )
 
 

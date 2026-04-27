@@ -1,6 +1,7 @@
 """Vertex position optimization for half-edge graphs."""
-import numpy as np
 from copy import copy
+
+import numpy as np
 
 
 def angle_to_height(G, angle):

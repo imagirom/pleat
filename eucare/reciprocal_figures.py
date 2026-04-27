@@ -1,18 +1,18 @@
 """Compute reciprocal figures and shrink-rotate crease patterns from tilings."""
 
 import logging
-import numpy as np
-import scipy as sc
 from copy import copy
 
-logger = logging.getLogger(__name__)
+import numpy as np
+import scipy as sc
 
+from .base import rotation_matrix
 from .conway import dual_graph, twist_rotate_graph
 from .half import HalfEdgeGraph
-from .base import rotation_matrix
-from .utils import invert_mapping, random_directed_set
 from .overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
-from .layout import optimize_rotation
+from .utils import invert_mapping, random_directed_set
+
+logger = logging.getLogger(__name__)
 
 
 def reciprocal_figure(G, reciprocal_pos_key='reciprocal_pos', rcond=1e-7):
@@ -54,7 +54,7 @@ def reciprocal_figure(G, reciprocal_pos_key='reciprocal_pos', rcond=1e-7):
     B = np.stack(rows)
     A = (B[:, None, :] * dual_directions.T[: None]).reshape(-1, n_edges)
     U = sc.linalg.null_space(A, rcond=rcond)
-    assert U.shape[1] > 0, f'G does not have a reciprocal figure!'
+    assert U.shape[1] > 0, 'G does not have a reciprocal figure!'
     # Step 4: Formulate and solve least squares problem to make reciprocal graph as
     # similar as possible to result of conway.dual_graph()(G)
 

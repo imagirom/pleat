@@ -1,4 +1,5 @@
 import pytest
+
 from eucare.half import IdObject
 
 

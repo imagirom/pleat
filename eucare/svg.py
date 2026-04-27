@@ -1,14 +1,15 @@
 """Module for loading SVG files of crease patterns as half-edge graphs."""
 import logging
-import matplotlib.pyplot as plt
-import numpy as np
-import svgpathtools as spt
-import eucare as ec
-import networkx as nx
-from eucare.overlap import MOUNTAIN, VALLEY, CREASE_ASSIGNMENT
+import operator
 import re
 from collections import defaultdict
-import operator
+
+import networkx as nx
+import numpy as np
+import svgpathtools as spt
+
+import eucare as ec
+from eucare.overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
 
 logger = logging.getLogger(__name__)
 
@@ -76,9 +77,6 @@ def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
     clustering = ec.overlap.group_closeby(points, 1e-5)
     first_occurences = np.argmax(clustering[None] == np.arange(np.max(clustering) + 1)[:, None], axis=1)
     merged_points = points[first_occurences]
-
-    line_segments = np.array([[merged_points[clustering[i]], merged_points[clustering[j]]]
-                              for i, j, attrs in edges])
 
     G = nx.Graph()
     G.add_edges_from([(tuple(merged_points[clustering[i]]), tuple(merged_points[clustering[j]]), attrs)

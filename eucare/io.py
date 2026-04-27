@@ -1,10 +1,12 @@
 """File I/O for the `.heg` half-edge graph format (YAML-based)."""
 import os
-import yaml
+
 import numpy as np
+import yaml
 
 import eucare as ec
-from .half import Face, Vertex, HalfEdge
+
+from .half import Face, HalfEdge, Vertex
 
 
 def graph_to_dict(G, attributes_to_save=('pos', 'length', 'in_angle', 'color_key')):

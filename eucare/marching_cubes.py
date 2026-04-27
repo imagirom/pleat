@@ -6,7 +6,6 @@ import sdf
 
 logger = logging.getLogger(__name__)
 
-from skimage.measure import marching_cubes
 
 """
 

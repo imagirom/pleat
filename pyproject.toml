@@ -26,7 +26,7 @@ rendering = ["pycairo", "svgwrite"]
 notebook = ["jupyter", "ipywidgets", "ipympl", "widgetsnbextension"]
 threed = ["meshio"]
 torch = ["torch", "einops"]
-dev = ["pytest", "pytest-cov", "ruff"]
+dev = ["pytest", "pytest-cov", "ruff", "mypy", "pre-commit"]
 docs = ["mkdocs-material", "mkdocstrings[python]", "mkdocs-gen-files", "mkdocs-literate-nav", "mkdocs-jupyter"]
 
 [build-system]
@@ -60,3 +60,44 @@ exclude_lines = [
 
 [tool.ruff]
 line-length = 120
+target-version = "py310"
+extend-exclude = [
+    "notebooks",
+    "site",
+    "htmlcov",
+    "docs/notebooks",
+]
+
+[tool.ruff.lint]
+# Conservative rule set: pyflakes (F) catches real bugs (undefined names,
+# unused imports), pycodestyle errors (E) only — not style (W). isort (I)
+# keeps imports tidy.  Avoid stylistic rules until docstrings/typing pass.
+select = ["F", "E", "I"]
+ignore = [
+    "E501",  # line-too-long; we set line-length above but math expressions get long
+    "E741",  # ambiguous variable names (l, I, O); used in math contexts
+    "F403",  # star imports — already removed where reasonable
+    "F405",  # may be undefined from star imports — see F403
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["F401", "F811"]  # fixtures/imports may look unused
+"eucare/__init__.py" = ["F401"]  # re-exports
+
+[tool.ruff.lint.isort]
+known-first-party = ["eucare"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_ignores = true
+warn_redundant_casts = true
+# Start permissive; tighten per module via overrides as typing lands.
+ignore_missing_imports = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+# Modules that have been fully annotated — promote to strict here.
+module = []
+disallow_untyped_defs = true

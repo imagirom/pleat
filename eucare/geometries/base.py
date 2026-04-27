@@ -1,9 +1,9 @@
 """Abstract base class and shared utilities for 2D geometry backends."""
 
-import numpy as np
 from collections import Counter
+
+import numpy as np
 from scipy.optimize import root_scalar
-from functools import partial
 
 
 def root_return(func):
@@ -13,7 +13,7 @@ def root_return(func):
         if result.converged:
             return result.root
         else:
-            raise ValueError(f'No root was found')
+            raise ValueError('No root was found')
     return inner
 
 
