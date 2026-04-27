@@ -70,6 +70,89 @@ def is_color(obj: object) -> bool:
     return isinstance(obj, Iterable) and len(obj) in (3, 4) and all([isinstance(c, (int, float)) for c in obj])
 
 
+def multi_show(
+    graphs: Iterable,
+    titles: list[str] | None = None,
+    ncols: int | None = None,
+    figsize: tuple[float, float] | None = None,
+    suptitle: str | None = None,
+    cell_size: float = 4.0,
+    **show_kwargs: object,
+) -> None:
+    """Render multiple half-edge graphs side-by-side in a matplotlib grid.
+
+    Each graph is rendered to a temporary PNG via ``G.show(...)`` and then
+    displayed as an image in a matplotlib subplot. This is a thin convenience
+    helper for tutorials and notebook galleries — it does not return the
+    renderer or its surfaces.
+
+    Args:
+        graphs: Iterable of half-edge graphs.
+        titles: Optional list of titles, one per graph.
+        ncols: Number of columns (defaults to ``len(graphs)`` for a single row).
+        figsize: Matplotlib figure size; defaults to ``(cell_size*ncols, cell_size*nrows)``.
+        suptitle: Optional figure-level title.
+        cell_size: Per-cell size in matplotlib inches.
+        **show_kwargs: Forwarded verbatim to each ``G.show(...)`` call
+            (e.g. ``face_inset=0.05``, ``render_faces=True``).
+    """
+    import os
+    import tempfile
+
+    import matplotlib.image as mpimg
+    import matplotlib.pyplot as plt
+
+    graphs = list(graphs)
+    n = len(graphs)
+    if titles is None:
+        titles = [None] * n
+    if ncols is None:
+        ncols = n
+    nrows = (n + ncols - 1) // ncols
+    if figsize is None:
+        figsize = (cell_size * ncols, cell_size * nrows)
+
+    # Default to 512px PNGs unless the caller overrode it.
+    show_kwargs.setdefault('height', 512)
+
+    fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
+    if nrows == 1 and ncols == 1:
+        axes = np.array([[axes]])
+    elif nrows == 1:
+        axes = np.array([axes])
+    elif ncols == 1:
+        axes = np.array([[a] for a in axes])
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for i, (G, title) in enumerate(zip(graphs, titles)):
+            r, c = divmod(i, ncols)
+            ax = axes[r][c]
+            base = os.path.join(tmpdir, f'multi_show_{i}')
+            # Suppress the inline IPython display from G.show(); we want a
+            # single combined figure, not n+1 outputs.
+            from IPython import display as _ipy_display
+            real_display = _ipy_display.display
+            _ipy_display.display = lambda *a, **kw: None
+            try:
+                G.show(filename=base, **show_kwargs)
+            finally:
+                _ipy_display.display = real_display
+            img = mpimg.imread(base + '.png')
+            ax.imshow(img)
+            ax.set_axis_off()
+            if title is not None:
+                ax.set_title(title)
+        # hide any leftover axes
+        for j in range(n, nrows * ncols):
+            r, c = divmod(j, ncols)
+            axes[r][c].set_axis_off()
+
+    if suptitle is not None:
+        fig.suptitle(suptitle)
+    fig.tight_layout()
+    plt.show()
+
+
 class CairoRenderer:
     def __init__(self, width=None, height=None, line_width='auto', vertex_radius=None,
                  scale='auto', face_inset=None, path='output.svg',

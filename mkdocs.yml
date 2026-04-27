@@ -73,6 +73,8 @@ nav:
           - 04 Folding and Overlap: notebooks/04_Folding_and_Overlap.ipynb
           - 05 Conway + SRG: notebooks/05_Conway_Plus_SRG.ipynb
           - 06 Export and 3D: notebooks/06_Export_and_3D.ipynb
+          - 07 Styling: notebooks/07_Styling.ipynb
+          - 08 Modifications: notebooks/08_Modifications.ipynb
       - Reference:
           - Tiling Demo: notebooks/Tiling Demo.ipynb
           - GomJau-Hogg Notation: notebooks/GomJau-Hogg Notation.ipynb

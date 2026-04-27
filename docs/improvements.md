@@ -153,3 +153,30 @@ The following were applied in the same commit as this file:
   (P1.1, P2.4).
 - `eucare.reciprocal_figures.kawasaki_sum` helper (P2.1, partial — only the
   sum, not the full `is_flat_foldable` API).
+- `eucare.rendering.multi_show(graphs, titles=...)` — render multiple graphs
+  side-by-side with titles, used throughout the curated notebook series.
+
+---
+
+## Surfaced while writing the styling / modifications notebooks
+
+### P2.6 — `overlap.fold_complete(progress=False)` flag · *trivial*
+
+`fold_complete` (and the helpers it calls) prints a tqdm progress bar
+unconditionally. The notebook series silences it via the
+`TQDM_DISABLE=1` environment variable, but a proper `progress: bool = True`
+parameter (forwarded into the relevant `tqdm` calls) would be cleaner.
+
+**Acceptance:** `overlap.fold_complete(SRG, progress=False)` is silent
+without env-var hacks.
+
+### P2.7 — `LenClassifier` / `congruency_classifier` accept faces directly · *low effort*
+
+In notebook 07 we currently wrap `LenClassifier()` in
+`PreMapClassifier(..., lambda f: list(f.halfedge_iter()))` because `Face`
+doesn't implement `__len__`. Either teach `LenClassifier` to fall back to
+`f.order()` when given a `Face`, or add a top-level
+`face_corner_count_classifier()` helper.
+
+**Acceptance:** `colorize(G, face_corner_count_classifier())` works directly
+on a graph.
