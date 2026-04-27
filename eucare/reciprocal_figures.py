@@ -16,6 +16,17 @@ from .utils import invert_mapping, random_directed_set
 logger = logging.getLogger(__name__)
 
 
+def kawasaki_sum(v: Vertex, in_angle_key: str = 'in_angle') -> float:
+    """Alternating sum of in-angles around an interior vertex.
+
+    A flat-foldable interior vertex satisfies Kawasaki's theorem: the
+    alternating sum of consecutive sector angles equals zero (i.e. the
+    even-indexed angles sum to the same value as the odd-indexed angles).
+    Border vertices simply sum to the boundary angle and are not constrained.
+    """
+    return sum(((-1) ** i) * h[in_angle_key] for i, h in enumerate(v.outgoing_iter()))
+
+
 def reciprocal_figure(G: GeometricHEG, reciprocal_pos_key: str = 'reciprocal_pos', rcond: float = 1e-7) -> None:
     """Compute the reciprocal figure of G by solving for dual vertex positions.
 

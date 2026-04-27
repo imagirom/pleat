@@ -65,10 +65,19 @@ nav:
   - Concepts:
       - Architecture: concepts/architecture.md
   - Notebooks:
-      - Tiling Demo: notebooks/Tiling Demo.ipynb
-      - GomJau-Hogg Notation: notebooks/GomJau-Hogg Notation.ipynb
-      - Hyperbolic and Other Rings: notebooks/Hyperbolic and other Rings.ipynb
-      - Origami Crease Patterns: notebooks/Better reciprocal Figures.ipynb
+      - Tutorials:
+          - 00 Overview: notebooks/00_Overview.ipynb
+          - 01 Euclidean Tilings: notebooks/01_Tilings_Euclidean.ipynb
+          - 02 Curved Geometries: notebooks/02_Curved_Geometries.ipynb
+          - 03 Crease Patterns (SRG): notebooks/03_Crease_Patterns_SRG.ipynb
+          - 04 Folding and Overlap: notebooks/04_Folding_and_Overlap.ipynb
+          - 05 Conway + SRG: notebooks/05_Conway_Plus_SRG.ipynb
+          - 06 Export and 3D: notebooks/06_Export_and_3D.ipynb
+      - Reference:
+          - Tiling Demo: notebooks/Tiling Demo.ipynb
+          - GomJau-Hogg Notation: notebooks/GomJau-Hogg Notation.ipynb
+          - Hyperbolic and Other Rings: notebooks/Hyperbolic and other Rings.ipynb
+          - Origami Crease Patterns: notebooks/Better reciprocal Figures.ipynb
   - Contributing:
       - Docs Pipeline: contributing/docs-pipeline.md
   - API Reference: reference/

@@ -22,6 +22,26 @@ except ImportError:
     svgwrite = None
 
 
+# ----- Standard render presets and color constants -------------------------
+#
+# Reused across the docs notebooks so crease patterns look consistent.
+
+#: Default render kwargs for crease-pattern visualizations: no face fill,
+#: no vertex markers, no edge inset.
+CREASE_PATTERN_PRESET: dict = dict(
+    face_inset=0,
+    render_vertices=False,
+    render_faces=False,
+)
+
+#: Standard mountain-fold color (red).
+MOUNTAIN_COLOR: str = '#cc2222'
+#: Standard valley-fold color (blue).
+VALLEY_COLOR: str = '#2266cc'
+#: Standard non-creased / flat edge color (gray).
+FLAT_COLOR: str = '#888888'
+
+
 def inset_corner(a: np.ndarray, b: np.ndarray, c: np.ndarray, dist: float, eps: float = 1e-10) -> np.ndarray:
     # insets angle abc
     w = b - a
