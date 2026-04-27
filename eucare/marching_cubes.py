@@ -1,3 +1,9 @@
+"""Marching-cubes mesh generation from signed-distance fields.
+
+Thin wrapper around :mod:`sdf` for converting SDFs into triangle meshes that
+can be exported to STL via :mod:`meshio`.  Used to produce 3D-printable
+thickened versions of crease patterns.  Optional dependency: ``threed``.
+"""
 import logging
 from numbers import Number
 
@@ -7,20 +13,17 @@ import sdf
 logger = logging.getLogger(__name__)
 
 
-"""
-
-This is for generating STLs for 3D printing, not Origami.
-
-Inputs: 
-- callable sdf which maps array of positions, shape (n, 3) to array of signed distances of shape (n).
-- bounds (could be automatically estimated using ``sdf.mesh._estimate_bounds``) of shape ((x0, y0, z0), (x1, y1, z1))
-- target resolution as (dx, dy, dz)
-
-Algorithm:
-1. Compute the final grid size nx, ny, nz.
-2. Construct series of abstract grid objects that compose the oct-tree
-
-"""
+# Notes on the marching-cubes pipeline:
+#
+# Inputs:
+#   - callable sdf mapping positions of shape (n, 3) to signed distances of shape (n,)
+#   - bounds ((x0, y0, z0), (x1, y1, z1)); can be auto-estimated via
+#     sdf.mesh._estimate_bounds
+#   - target resolution (dx, dy, dz)
+#
+# Algorithm:
+#   1. Compute the final grid size nx, ny, nz.
+#   2. Construct a series of abstract grid objects that compose the oct-tree.
 
 
 class CartesianGrid:

@@ -1,4 +1,9 @@
+"""Extract a half-edge graph from a raster image of a line drawing.
 
+Thresholds an input image, skeletonises the foreground, and reconstructs a
+planar graph from the skeleton via :mod:`mahotas` and :mod:`networkx`.
+Intended for digitising hand-drawn or scanned crease patterns.
+"""
 import mahotas as mh
 import networkx as nx
 import numpy as np
