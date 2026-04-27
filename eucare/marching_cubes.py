@@ -4,6 +4,8 @@ Thin wrapper around :mod:`sdf` for converting SDFs into triangle meshes that
 can be exported to STL via :mod:`meshio`.  Used to produce 3D-printable
 thickened versions of crease patterns.  Optional dependency: ``threed``.
 """
+from __future__ import annotations
+
 import logging
 from numbers import Number
 

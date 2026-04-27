@@ -1,4 +1,5 @@
 """Compute reciprocal figures and shrink-rotate crease patterns from tilings."""
+from __future__ import annotations
 
 import logging
 from copy import copy

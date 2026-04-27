@@ -4,6 +4,7 @@ Provides :class:`CairoRenderer` (raster/vector output via pycairo) and
 :class:`SvgwriteRenderer` (vector output via svgwrite), plus small polygon
 helpers (:func:`inset_corner`, :func:`inset_poly`) and color utilities.
 """
+from __future__ import annotations
 
 import logging
 from typing import Iterable

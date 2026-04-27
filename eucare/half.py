@@ -12,6 +12,8 @@ Class hierarchy::
     HalfEdgeGraph → CyclicHalfedgeGraph
     HalfEdgeGraph → InAngleHEG → GeometricHEG → EuclideanPositionHEG
 """
+from __future__ import annotations
+
 import heapq
 import logging
 from copy import copy, deepcopy
@@ -31,11 +33,11 @@ logger = logging.getLogger(__name__)
 class AttributeObject:
     """Mixin providing dict-like attribute storage via ``obj['key']``."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super(AttributeObject, self).__init__()
-        self.attributes = dict()
+        self.attributes: dict = dict()
 
-    def has_attributes(self):
+    def has_attributes(self) -> bool:
         return bool(self.attributes)
 
     def __getitem__(self, attr):
@@ -72,16 +74,16 @@ class IdObject(AttributeObject):
     Call ``IdObject.reset_ids()`` to reset all counters (useful between
     independent test runs).
     """
-    current_ids = dict()
+    current_ids: dict = dict()
 
-    def __init__(self):
+    def __init__(self) -> None:
         super(IdObject, self).__init__()
         cls = type(self)
         IdObject.current_ids[cls] = IdObject.current_ids.get(cls, 0) + 1
         self['id'] = IdObject.current_ids[cls]
 
     @classmethod
-    def reset_ids(cls):
+    def reset_ids(cls) -> None:
         if cls is IdObject:
             #print('resetting all ids')
             IdObject.current_ids = dict()
@@ -113,7 +115,15 @@ class HalfEdge(IdObject):
     """
     printname = 'HE'
 
-    def __init__(self, rev=None, nex=None, pre=None, orig=None, dest=None, face=None):
+    def __init__(
+        self,
+        rev: HalfEdge | None = None,
+        nex: HalfEdge | None = None,
+        pre: HalfEdge | None = None,
+        orig: Vertex | None = None,
+        dest: Vertex | None = None,
+        face: Face | None = None,
+    ) -> None:
         super(HalfEdge, self).__init__()
         # HalfEdge references
         self.rev = rev
@@ -152,7 +162,7 @@ class Vertex(IdObject):
     """
     printname = 'V'
 
-    def __init__(self, any_outgoing=None):
+    def __init__(self, any_outgoing: HalfEdge | None = None) -> None:
         super(Vertex, self).__init__()
         self.any_outgoing = any_outgoing
 
@@ -241,7 +251,7 @@ class Face(IdObject):
     ``vertex_iter()``.
     """
 
-    def __init__(self, any_side=None):
+    def __init__(self, any_side: HalfEdge | None = None) -> None:
         super(Face, self).__init__()
         self.any_side = any_side
 

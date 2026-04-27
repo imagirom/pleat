@@ -1,4 +1,6 @@
 """Module for loading SVG files of crease patterns as half-edge graphs."""
+from __future__ import annotations
+
 import logging
 import operator
 import re

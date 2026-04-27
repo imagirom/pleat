@@ -1,4 +1,5 @@
 """Example graph constructions: rosettes, tiling growth, and hyperbolic mappings."""
+from __future__ import annotations
 
 import logging
 

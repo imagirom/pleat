@@ -1,4 +1,5 @@
 """Edge instructions that describe how to attach tiles to border edges during tiling growth."""
+from __future__ import annotations
 
 from copy import deepcopy
 

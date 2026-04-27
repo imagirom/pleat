@@ -1,4 +1,5 @@
 """Compute folded states of crease patterns: overlap graphs, stacking order, and crease assignments."""
+from __future__ import annotations
 
 import itertools
 import logging

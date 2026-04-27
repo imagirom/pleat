@@ -1,4 +1,5 @@
 """Predefined tile sets for Archimedean, Platonic, and curved tilings."""
+from __future__ import annotations
 
 import numpy as np
 
