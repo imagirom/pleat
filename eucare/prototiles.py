@@ -3,7 +3,7 @@
 from .half import HalfEdge, CyclicHalfedgeGraph, Vertex, Face, InAngleHEG
 from .base import angle_to_axis, unit_vector, unit_vector_to_vector
 from .instructions import attatch_tile_instruction
-from .geometries import *
+from .geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
 import numpy as np
 
 

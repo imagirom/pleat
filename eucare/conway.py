@@ -1,10 +1,13 @@
 """Conway topological operators for transforming tilings."""
 
-from .half import *
+from copy import copy, deepcopy
+import numpy as np
+import networkx as nx
+
+from .half import HalfEdge, HalfEdgeGraph, Face, GeometricHEG
 from .conversions import EHEG_from_nx
 from .base import barycentric_to_euclidean_map, euclidean_to_barycentric_map
 from .utils import invert_mapping
-from copy import deepcopy
 
 
 class TopologicalConwayOperator:

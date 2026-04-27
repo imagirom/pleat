@@ -1,9 +1,11 @@
 """Example graph constructions: rosettes, tiling growth, and hyperbolic mappings."""
 
 import logging
-from .half import *
-from .prototiles import *
-from .example_tilesets import *
+import numpy as np
+
+from .half import HalfEdgeGraph, EuclideanPositionHEG, GeometricHEG, InAngleHEG
+from .prototiles import ProtoTile, RhombusTile, complete_vertex_with_rhombus
+from .example_tilesets import curved_zip, curved_platonic, pgg_2x
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +119,7 @@ def kised_soccer_ball():
     return G
 
 
-from sympy import *
+from sympy import elliptic_f, N
 def hyperbolic_square_graph(G=None, min_length=0.05, dual=False):
     """Map a hyperbolic tiling to the Poincare square via the Schwarz-Christoffel mapping."""
     import eucare as ec

@@ -22,7 +22,7 @@ import numpy as np
 import heapq
 from collections import deque
 from .base import unit_vector, angle_to_axis, edge_lengths_and_in_angles, signed_area
-from .geometries import *
+from .geometries import EuclideanGeometry
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@
 
 import numpy as np
 from .prototiles import RegularEuclideanTile, RegularProtoTile
-from .geometries import *
+from .geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
 
 
 class TileSet:

@@ -24,7 +24,7 @@ from .half import rotate_by
 from .base import orientation
 from .conversions import EHEG_from_nx
 from .rendering import SvgwriteRenderer, CairoRenderer
-from .layout import *
+from .layout import angle_to_height, min_edge_length, optimize_rotation, rotate_graph
 
 
 def intervals_overlapping(interval1, interval2):
