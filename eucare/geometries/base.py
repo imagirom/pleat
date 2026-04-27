@@ -1,4 +1,16 @@
-"""Abstract base class and shared utilities for 2D geometry backends."""
+"""Abstract base class and shared utilities for 2D geometry backends.
+
+A :class:`Geometry` exposes the operations that the rest of eucare needs to
+lay out tiles in arbitrary curvature: ``translation``, rotation, distance,
+angle, and centre of mass.  Each backend (Euclidean, hyperbolic, spherical)
+implements a small set of primitives; the rest are derived in this base
+class.
+
+A point in the Euclidean and hyperbolic backends is a 2D position; in the
+spherical backend it is a 3D unit vector.  Use :meth:`Geometry.to_euclidean`
+to obtain a 2D image suitable for plotting.
+"""
+from __future__ import annotations
 
 from collections import Counter
 

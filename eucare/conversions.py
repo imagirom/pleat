@@ -1,8 +1,18 @@
-"""Convert between NetworkX graphs and half-edge graph representations."""
+"""Convert between NetworkX graphs and half-edge graph representations.
+
+The main entry point is :func:`EHEG_from_nx`, which embeds an undirected
+planar :class:`networkx.Graph` (with vertex positions) into an
+:class:`~eucare.half.EuclideanPositionHEG`.  Faces are recovered from the
+planar embedding implied by the cyclic angular order of edges around each
+vertex; the unbounded outer face is detected as the unique negatively-
+oriented face and removed.
+"""
+from __future__ import annotations
 
 import logging
 from copy import copy
 
+import networkx as nx
 import numpy as np
 
 from .base import angle_to_axis
@@ -12,12 +22,15 @@ logger = logging.getLogger(__name__)
 
 
 def EHEG_from_edgelist(pts, edges):
-    """Construct an EuclideanPositionHEG from a list of points and edges."""
+    """Construct an :class:`EuclideanPositionHEG` from a list of points and edges.
+
+    Currently a stub; raises :class:`NotImplementedError`.
+    """
     raise NotImplementedError
 
 
-def _delete_dangling_edges_nx(nx_graph):
-    """Delete all dangling edges in the NetworkX graph in-place. Return number of deleted edges."""
+def _delete_dangling_edges_nx(nx_graph: nx.Graph) -> int:
+    """Iteratively delete degree-1 vertices in *nx_graph* in place; return the deletion count."""
     finished = False
     n_deleted = 0
     while nx_graph.order() > 0 and not finished:
@@ -30,8 +43,24 @@ def _delete_dangling_edges_nx(nx_graph):
     return n_deleted
 
 
-def EHEG_from_nx(nxg, positions=None, return_v_lookup=False):
-    """Convert a planar NetworkX graph to an EuclideanPositionHEG."""
+def EHEG_from_nx(
+    nxg: nx.Graph,
+    positions: dict | None = None,
+    return_v_lookup: bool = False,
+):
+    """Convert a planar undirected :class:`networkx.Graph` to an :class:`EuclideanPositionHEG`.
+
+    Args:
+        nxg: An undirected, planar graph.  Dangling vertices (degree 1) are
+            pruned with a warning; node and edge attributes are copied onto
+            the resulting :class:`Vertex` / :class:`HalfEdge` objects.
+        positions: Optional ``{node: 2d position}`` mapping.  Defaults to
+            interpreting each node ``n`` as ``np.array(n)``.
+        return_v_lookup: If True, also return ``{nx_node: Vertex}``.
+
+    Returns:
+        The resulting graph, or ``(graph, v_lookup)`` if *return_v_lookup* is True.
+    """
     assert not nxg.is_directed()
     if positions is None:
         positions = {n: np.array(n) for n in nxg.nodes()}

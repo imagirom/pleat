@@ -1,4 +1,11 @@
-"""Hyperbolic geometry via the Poincare disk model."""
+"""Hyperbolic geometry via the Poincare disk model.
+
+Points are complex numbers inside the open unit disk; isometries are Mobius
+transformations represented as 2x2 complex matrices.  Centroids are
+computed by lifting to the hyperboloid model, taking a weighted Euclidean
+mean, and projecting back.
+"""
+from __future__ import annotations
 
 import numpy as np
 

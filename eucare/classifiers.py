@@ -1,4 +1,15 @@
-"""Classifiers for grouping graph elements by equivalence relations."""
+"""Classifiers for grouping graph elements by equivalence relations.
+
+A :class:`Classifier` maps each item to a hashable index; items with the
+same index are deemed equivalent.  Concrete subclasses implement different
+equivalences: by length, by multiset, up to cyclic rotation (with optional
+reflection), and combinations via :class:`NestedClassifier`.
+
+The headline use case is :func:`congruency_classifier`, which groups faces
+of a tiling by polygon congruence (matching edge-length and interior-angle
+sequences up to cyclic rotation).  Used by :mod:`eucare.colorization`.
+"""
+from __future__ import annotations
 
 import numpy as np
 

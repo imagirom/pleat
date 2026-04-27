@@ -1,4 +1,9 @@
-"""Euclidean plane geometry backend."""
+"""Euclidean plane geometry backend.
+
+Flat 2D geometry, used for ordinary tilings of the plane.  Points are 2D
+numpy arrays; rotations are represented as 2x2 matrices.
+"""
+from __future__ import annotations
 
 import numpy as np
 

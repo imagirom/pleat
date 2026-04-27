@@ -1,4 +1,10 @@
-"""Spherical geometry backend using 3D unit-sphere coordinates."""
+"""Spherical geometry backend using 3D unit-sphere coordinates.
+
+Points are unit vectors in R^3 (shape ``(3,)``); isometries are 3x3
+rotation matrices.  Use :meth:`SphereModel.stereographic_projection` (or
+:meth:`Geometry.to_euclidean`) to obtain a 2D image for plotting.
+"""
+from __future__ import annotations
 
 import numpy as np
 
