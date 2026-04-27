@@ -1,3 +1,17 @@
+"""Half-edge data structure (DCEL) for planar graphs.
+
+This module implements the core data structure used throughout eucare.  A half-edge
+graph stores topology via ``HalfEdge``, ``Vertex``, and ``Face`` objects linked
+through ``rev``/``nex``/``pre`` pointers, with progressive specializations that
+add interior angles (``InAngleHEG``), pluggable geometry (``GeometricHEG``), and
+Euclidean vertex positions (``EuclideanPositionHEG``).
+
+Class hierarchy::
+
+    AttributeObject → IdObject → HalfEdge, Vertex, Face
+    HalfEdgeGraph → CyclicHalfedgeGraph
+    HalfEdgeGraph → InAngleHEG → GeometricHEG → EuclideanPositionHEG
+"""
 import logging
 from itertools import chain
 import matplotlib.pyplot as plt
@@ -12,40 +26,10 @@ from .geometries import *
 
 logger = logging.getLogger(__name__)
 
-# TODO: Origami
-# - make recompute_positions more stable in the presence of very small edges
-# - Automatic way to clean up border of CP
-# - Method to extend folds to border of paper
-# - Algorithm for alternating flagstones
-
-# TODO: the big ones
-# - saving and loading of HEG objects (pickle might be enough, but more future-proof file format would be better)
-# - add rendering for proto tiles
-# - conway: add border styles (partially done)
-# - add non euclidean geometries (done)
-# - deletion of parts of graphs (done)
-# - add functions to expand tilings, e.g. all border edges / vertices (done),
-#   or until a certain region (rectangle or sphere or more general..) is filled with the tiling.
-# - related: tilings on the torus / klein bottle etc.
-
-# TODO: optional stuff
-# - implemente 'fill holes' method
-# - detect symmetries and construct prototiles from tilings
-# - add functionality to select parts of the tiling (all borders with pentagons adjacent to them) (don't think really
-#   necessary, can do this pretty easily on a case-by-case basis with list comprehensions)
-# - a class without explicit faces
-
-# TODO: cleanup stuff
-# - separate InAngleHEG and EuclideanPositionHEG?
-# - make up mind about e or h for halfedges
-
-# TODO: real world stuff
-# fold big complex hyperbolic patter
-# lasercut untersetzer für Topf
-# Bierdeckel beidseitig bedrucken mit crease pattern und folded form / backlight
-
 
 class AttributeObject:
+    """Mixin providing dict-like attribute storage via ``obj['key']``."""
+
     def __init__(self):
         super(AttributeObject, self).__init__()
         self.attributes = dict()
@@ -81,8 +65,12 @@ class AttributeObject:
         return self.attributes.items()
 
 
-# TODO: remove this or solve in a better way
 class IdObject(AttributeObject):
+    """AttributeObject with an auto-incrementing ``id`` attribute per subclass.
+
+    Call ``IdObject.reset_ids()`` to reset all counters (useful between
+    independent test runs).
+    """
     current_ids = dict()
 
     def __init__(self):
@@ -90,11 +78,6 @@ class IdObject(AttributeObject):
         cls = type(self)
         IdObject.current_ids[cls] = IdObject.current_ids.get(cls, 0) + 1
         self['id'] = IdObject.current_ids[cls]
-
-    #def __repr__(self):
-    #    cls = type(self)
-    #    clspre = cls.printname if hasattr(cls, 'printname') else cls.__name__
-    #    return f'{clspre}{self["id"]}'
 
     @classmethod
     def reset_ids(cls):
@@ -113,6 +96,20 @@ def check_cyclic_iterator_consistency(iterator):
 
 
 class HalfEdge(IdObject):
+    """A directed half-edge in the DCEL.
+
+    Each undirected edge is represented by a pair of half-edges linked via
+    ``rev``.  Navigation around a face uses ``nex`` / ``pre``; around a vertex
+    use ``orig.outgoing_iter()``.
+
+    Attributes:
+        rev: The reverse (twin) half-edge.
+        nex: The next half-edge around the same face.
+        pre: The previous half-edge around the same face.
+        orig: The origin vertex.
+        dest: The destination vertex.
+        face: The face to the left, or ``None`` for border edges.
+    """
     printname = 'HE'
 
     def __init__(self, rev=None, nex=None, pre=None, orig=None, dest=None, face=None):
@@ -146,6 +143,12 @@ class HalfEdge(IdObject):
 
 
 class Vertex(IdObject):
+    """A vertex in the DCEL.
+
+    Links to one arbitrary outgoing half-edge (``any_outgoing``).  All incident
+    half-edges and faces are reachable via ``outgoing_iter()`` and
+    ``face_iter()``.
+    """
     printname = 'V'
 
     def __init__(self, any_outgoing=None):
@@ -230,6 +233,13 @@ class Vertex(IdObject):
 
 
 class Face(IdObject):
+    """A face (polygon) in the DCEL.
+
+    Links to one arbitrary bounding half-edge (``any_side``).  Iterate
+    over boundary half-edges with ``halfedge_iter()`` and vertices with
+    ``vertex_iter()``.
+    """
+
     def __init__(self, any_side=None):
         super(Face, self).__init__()
         self.any_side = any_side
@@ -327,6 +337,14 @@ def pseudo_incenter(f):
 
 
 class HalfEdgeGraph:
+    """Topology-only half-edge graph (DCEL).
+
+    Stores sets of ``vertices``, ``halfedges``, and ``faces``.  Supports
+    gluing, copying, deletion, subdivision, and consistency checking.
+    Most methods mutate the graph in-place and return ``None``; use
+    ``.copy()`` first if you need the original.
+    """
+
     def __init__(self, other=None):
         if other is not None:
             self.halfedges = copy(other.halfedges)
@@ -957,9 +975,12 @@ class HalfEdgeGraph:
 
 
 class InAngleHEG(HalfEdgeGraph):
-    # class for HalfEdgeGraphs with in-angles.
-    # the angle between e and e.nex is stored in e['in_angle'].
-    # whenever e.face is not None, it should have the 'in_angle' attribute.
+    """Half-edge graph with interior angles and edge lengths.
+
+    The angle between ``e`` and ``e.nex`` is stored in ``e['in_angle']``.
+    Edge lengths are stored in ``e['length']``.  Every non-border half-edge
+    should carry both attributes.
+    """
 
     def __init__(self, angle_sum=None, eps=None, other=None):
         super(InAngleHEG, self).__init__(other=other)
@@ -1017,6 +1038,13 @@ class InAngleHEG(HalfEdgeGraph):
 
 
 class GeometricHEG(InAngleHEG):
+    """Half-edge graph with a pluggable geometry backend.
+
+    The ``geometry`` attribute (default :class:`EuclideanGeometry`) provides
+    ``distance``, ``angle``, and ``center_of_mass`` operations that are
+    used for position recomputation and length/angle calculations.
+    """
+
     def __init__(self, geometry=EuclideanGeometry, **super_kwargs):
         super(GeometricHEG, self).__init__(**super_kwargs)
         self.geometry = geometry
@@ -1185,6 +1213,12 @@ class GeometricHEG(InAngleHEG):
 
 
 class EuclideanPositionHEG(GeometricHEG):
+    """GeometricHEG specialized for Euclidean geometry with 2D vertex positions.
+
+    Vertices carry ``pos`` attributes (numpy arrays of shape (2,)).  Provides
+    epsilon-based vertex merging and position-aware graph operations.
+    """
+
     def __init__(self, **super_kwargs):
         super().__init__(geometry=EuclideanGeometry, **super_kwargs)
 
@@ -1203,6 +1237,12 @@ def any_element(s):
 
 
 class CyclicHalfedgeGraph(HalfEdgeGraph):
+    """A single-face polygon as a half-edge graph.
+
+    Constructed from a list of vertices, creating one interior face and
+    a border.  Useful as a building block for gluing larger graphs.
+    """
+
     def __init__(self, vs, inner_hs=None, outer_hs=None, f=None):
         super(CyclicHalfedgeGraph, self).__init__()
 
@@ -1260,6 +1300,7 @@ def make_polygon_graph(positions):
 
 
 class RegularNGon(CyclicHalfedgeGraph, InAngleHEG):
+    """A regular *n*-gon as a half-edge graph with positions and angles."""
     def __init__(self, n, *super_args, **super_kwargs):
         super(RegularNGon, self).__init__(vs=[Vertex() for _ in range(n)], *super_args, **super_kwargs)
         f = any_element(self.faces)

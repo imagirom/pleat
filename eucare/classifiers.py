@@ -1,11 +1,10 @@
+"""Classifiers for grouping graph elements by equivalence relations."""
+
 import numpy as np
 
 
 class Classifier:
-    """
-    Class to classify stuff, e.g. faces by their number of sides,
-    or by some equivalence relation such as congruency of polygons
-    """
+    """Classify items by a hashable index, optionally tracking items and indices per class."""
 
     def __init__(self, save_items=False, save_indices=False):
         super(Classifier, self).__init__()
@@ -40,7 +39,7 @@ class Classifier:
 
 
 class CountingClassifier(Classifier):
-    """transforms a classifier returning any kind of indices to one returning counting natural numbers"""
+    """Wrap a classifier to remap its indices to consecutive natural numbers."""
 
     def __init__(self, other, *super_args, **super_kwargs):
         super(CountingClassifier, self).__init__(*super_args, **super_kwargs)
@@ -57,6 +56,8 @@ class CountingClassifier(Classifier):
 
 
 class RepresentationClassifier(Classifier):
+    """Classify items by computing a representation and comparing it against known classes."""
+
     def __init__(self, *super_args, **super_kwargs):
         super(RepresentationClassifier, self).__init__(*super_args, **super_kwargs)
         self.current_count = 0
@@ -89,6 +90,8 @@ class RepresentationClassifier(Classifier):
 
 
 class NestedClassifier(Classifier):
+    """Chain multiple classifiers from coarse to fine, producing a tuple index."""
+
     def __init__(self, coarse_to_fine, *super_args, **super_kwargs):
         # coarse_to_fine should be a list of classifier classes
         super(NestedClassifier, self).__init__(*super_args, **super_kwargs)
@@ -112,6 +115,7 @@ class NestedClassifier(Classifier):
 
 
 def lambda_classifier(func):
+    """Create a Classifier class that uses the given function as its index."""
     class LambdaClassifier(Classifier):
         def _get_index(self, item):
             return func(item)
@@ -120,6 +124,7 @@ def lambda_classifier(func):
 
 
 class LenClassifier(Classifier):
+    """Classify items by their length."""
     def _get_index(self, item):
         return len(item)
 
@@ -128,6 +133,7 @@ tol = 1e-4
 
 
 class SumClassifier(RepresentationClassifier):
+    """Classify items by the sum of their elements (with tolerance)."""
     def _compare_representations(self, query_rep, saved_rep):
         return np.all(np.abs(query_rep - saved_rep) < tol)
 
@@ -136,6 +142,7 @@ class SumClassifier(RepresentationClassifier):
 
 
 class UnorderedClassifier(RepresentationClassifier):
+    """Classify items by their sorted elements, ignoring order."""
     def _compare_representations(self, query_rep, saved_rep):
         return np.all(query_rep == saved_rep)
 
@@ -144,6 +151,8 @@ class UnorderedClassifier(RepresentationClassifier):
 
 
 class CyclicClassifier(RepresentationClassifier):
+    """Classify items up to cyclic permutation (and optionally reflection)."""
+
     def __init__(self, tolerance=tol, allow_flip=False, *super_args, **super_kwargs):
         super(CyclicClassifier, self).__init__(*super_args, **super_kwargs)
         self.tolerance = tolerance
@@ -174,6 +183,8 @@ class CyclicClassifier(RepresentationClassifier):
 
 
 class PreMapClassifier(Classifier):
+    """Apply a function to each item before passing it to another classifier."""
+
     def __init__(self, other, func, *super_args, **super_kwargs):
         super(PreMapClassifier, self).__init__(*super_args, **super_kwargs)
         self.func = func
@@ -195,6 +206,7 @@ def _face_to_array(f):
 
 
 def congruency_classifier(allow_flip=False):
+    """Return a classifier that groups faces by polygon congruence (edge lengths and angles)."""
     return CountingClassifier(PreMapClassifier(
         NestedClassifier(
             [LenClassifier, SumClassifier, lambda: CyclicClassifier(allow_flip=allow_flip)]
@@ -203,6 +215,8 @@ def congruency_classifier(allow_flip=False):
 
 
 class AdjacencyClassifier(CyclicClassifier):
+    """Classify faces by the cyclic sequence of a given attribute on their neighbors."""
+
     def __init__(self, key, *super_args, **super_kwargs):
         super(AdjacencyClassifier, self).__init__(tolerance=0, *super_args, **super_kwargs)
         self.key = key

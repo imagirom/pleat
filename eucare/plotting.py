@@ -1,3 +1,4 @@
+"""Matplotlib helpers for quick visualization of half-edge graphs."""
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.collections as mc

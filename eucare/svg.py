@@ -1,3 +1,4 @@
+"""SVG export for half-edge graphs using svgwrite and svgpathtools."""
 import logging
 import matplotlib.pyplot as plt
 import numpy as np

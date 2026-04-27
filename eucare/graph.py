@@ -1,3 +1,8 @@
+"""Alternative NEF graph representation using a NetworkX DiGraph.
+
+Nodes, edges, and faces are all represented as nodes in a single directed
+graph.  Less used than the half-edge structure; kept for legacy compatibility.
+"""
 import networkx as nx
 import collections
 import itertools

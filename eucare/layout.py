@@ -1,3 +1,4 @@
+"""Vertex position optimization for half-edge graphs."""
 import numpy as np
 from copy import copy
 

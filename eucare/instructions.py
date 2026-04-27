@@ -1,3 +1,5 @@
+"""Edge instructions that describe how to attach tiles to border edges during tiling growth."""
+
 from .half import HalfEdgeGraph, HalfEdge
 from copy import deepcopy
 import numpy as np
@@ -7,6 +9,7 @@ from .base import angle_to_axis, unit_vector
 
 
 class HalfEdgeInstruction:
+    """Abstract base for instructions that modify a graph at a given half-edge."""
     def __call__(self, graph, h):
         assert isinstance(graph, HalfEdgeGraph), f'{type(graph)}'
         assert isinstance(h, HalfEdge), f'{type(h)}'
@@ -32,6 +35,8 @@ def special_copy_graph(graph):
 
 
 class GlueTileInstruction(HalfEdgeInstruction):
+    """Glue a copy of a tile graph onto a border edge."""
+
     def __init__(self, tile, edge):
         self.tile = tile
         self.edge = edge
@@ -51,6 +56,8 @@ class GlueTileInstruction(HalfEdgeInstruction):
 
 
 def attatch_tile_instruction(proto_tile, label=None):
+    """Return a callable that builds a fresh tile graph and glues it to the given edge."""
+
     def instruction(graph, edge):
         tile, edge_dict = proto_tile.make_graph()
         if label is not None:

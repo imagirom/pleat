@@ -1,3 +1,4 @@
+"""Miscellaneous utility functions and timing helpers."""
 import logging
 from .half import HalfEdgeGraph, IdObject, AttributeObject
 from time import time

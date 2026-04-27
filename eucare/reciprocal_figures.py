@@ -1,3 +1,5 @@
+"""Compute reciprocal figures and shrink-rotate crease patterns from tilings."""
+
 import logging
 import numpy as np
 import scipy as sc
@@ -14,6 +16,7 @@ from .layout import optimize_rotation
 
 
 def random_directed_set(edges):
+    """Return a set containing exactly one halfedge from each edge pair."""
     if isinstance(edges, HalfEdgeGraph):
         edges = edges.halfedges
     directed_edges = set()
@@ -24,6 +27,12 @@ def random_directed_set(edges):
 
 
 def reciprocal_figure(G, reciprocal_pos_key='reciprocal_pos', rcond=1e-7):
+    """Compute the reciprocal figure of G by solving for dual vertex positions.
+
+    Build a dual graph whose edges are perpendicular to those of G, with
+    positions optimized via least squares to approximate face centroids.
+    Store reciprocal positions on faces of G under *reciprocal_pos_key*.
+    """
     # Step 1: Choose direction for every interior edge.
 
     directed_edges = random_directed_set([e for e in G.halfedges
@@ -140,6 +149,11 @@ def reciprocal_figure(G, reciprocal_pos_key='reciprocal_pos', rcond=1e-7):
 
 
 def shrink_rotate_graph(G, alpha=np.pi/5, factor=0.5, **reciprocal_figure_kwargs):
+    """Build a shrink-rotate tessellation from G using its reciprocal figure.
+
+    Each face is rotated by *alpha* and scaled by *factor* around its
+    reciprocal-figure center, producing an origami crease pattern.
+    """
     f = next(iter(G.faces))
     if 'reciprocal_pos' not in f or len(reciprocal_figure_kwargs):
         logger.info('Calculating reciprocal figure..')
@@ -181,12 +195,14 @@ def shrink_rotate_graph(G, alpha=np.pi/5, factor=0.5, **reciprocal_figure_kwargs
 
 
 def kawasaki_sum(v):
+    """Compute the Kawasaki alternating angle sum at vertex *v*."""
     angles = np.abs(np.array([e['in_angle'] for e in v.incoming_iter()]))
     assert len(angles) % 2 == 0
     return np.sum(((angles + 2*np.pi) % (2*np.pi)) * (-1) ** np.arange(len(angles)))
 
 
 def max_kawasaki_sum(vertices):
+    """Return the maximum Kawasaki sum over all interior vertices."""
     if isinstance(vertices, HalfEdgeGraph):
         vertices = [v for v in vertices.vertices if not v.on_border()]
     return np.max([kawasaki_sum(v) for v in vertices])
@@ -196,9 +212,7 @@ THIS_WAY = 'this_way'
 
 
 def assign_shrink_rotate_creases(SRG):
-    """
-    Assigns crease orientation to shrik rotate cp, given directions on the original graph.
-    """
+    """Assign mountain/valley crease orientations to a shrink-rotate crease pattern."""
     twistfaces = [f for f in SRG.faces if 'twistrotate' in f.attributes]
     for f in twistfaces:
         e_twist = f.any_side
@@ -238,6 +252,7 @@ def assign_shrink_rotate_creases(SRG):
 
 
 def assign_this_way_by_face_z_order(G, key='z_order'):
+    """Assign edge directions based on the z-order of adjacent faces."""
     for e in G.halfedges:
         if e.on_border() or e.rev.on_border():
             continue
@@ -255,6 +270,7 @@ def assign_this_way_by_face_z_order(G, key='z_order'):
 
 
 def assign_this_way_by_vertex_z_order(G, key='z_order'):
+    """Assign edge directions based on the z-order of endpoint vertices."""
     for e in G.halfedges:
         if e.on_border() or e.rev.on_border():
             continue
@@ -272,6 +288,7 @@ def assign_this_way_by_vertex_z_order(G, key='z_order'):
 
 
 def make_SRG(G, simplify_boundary=True, **srg_kwargs):
+    """Build a complete shrink-rotate graph with crease assignments and color keys."""
     SRG = shrink_rotate_graph(G, **srg_kwargs)
     SRG.recompute_lengths_and_angles()
     assign_shrink_rotate_creases(SRG)
@@ -285,7 +302,7 @@ def make_SRG(G, simplify_boundary=True, **srg_kwargs):
         e['color_key'] = colors[e.attributes.get('crease_assignment', 0)]
 
     if simplify_boundary:
-        # join unneccessary boundary vertices
+        # join unnecessary boundary vertices
         to_join = []
         for v in G.vertices:
             if v.on_border() and v.order() == 2:

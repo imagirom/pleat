@@ -1,3 +1,5 @@
+"""Convert between NetworkX graphs and half-edge graph representations."""
+
 import logging
 from .half import EuclideanPositionHEG, Vertex, HalfEdge, Face, rotate_by
 from .base import angle_to_axis, signed_area
@@ -8,11 +10,12 @@ logger = logging.getLogger(__name__)
 
 
 def EHEG_from_edgelist(pts, edges):
+    """Construct an EuclideanPositionHEG from a list of points and edges."""
     raise NotImplementedError
 
 
 def _delete_dangling_edges_nx(nx_graph):
-    """Deletes all dangling edges in the networkx graph, inplace. Returns number of deleted edges"""
+    """Delete all dangling edges in the NetworkX graph in-place. Return number of deleted edges."""
     finished = False
     n_deleted = 0
     while nx_graph.order() > 0 and not finished:
@@ -26,7 +29,7 @@ def _delete_dangling_edges_nx(nx_graph):
 
 
 def EHEG_from_nx(nxg, positions=None, return_v_lookup=False):
-    # converts a networkx graph to a planar EuclideanPositionHalfEdgeGraph
+    """Convert a planar NetworkX graph to an EuclideanPositionHEG."""
     assert not nxg.is_directed()
     if positions is None:
         positions = {n: np.array(n) for n in nxg.nodes()}

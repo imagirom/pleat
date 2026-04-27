@@ -1,3 +1,4 @@
+"""File I/O for the `.heg` half-edge graph format (YAML-based)."""
 import os
 import yaml
 import numpy as np

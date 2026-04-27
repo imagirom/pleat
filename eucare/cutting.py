@@ -1,3 +1,4 @@
+"""Cut half-edge graphs along halfplane boundaries or polygon regions."""
 from collections import defaultdict
 import numpy as np
 import numba

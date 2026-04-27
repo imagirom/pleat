@@ -1,3 +1,5 @@
+"""Conway topological operators for transforming tilings."""
+
 from .half import *
 from .conversions import EHEG_from_nx
 from .base import barycentric_to_euclidean_map, euclidean_to_barycentric_map
@@ -6,6 +8,12 @@ from copy import deepcopy
 
 
 class TopologicalConwayOperator:
+    """Apply a Conway operator to a half-edge graph by substituting a fundamental domain into each face triangle.
+
+    The fundamental domain is a small half-edge graph with three marked vertices (v1, vf, v2)
+    corresponding to a vertex, face center, and adjacent vertex of each triangle.
+    """
+
     def __init__(self, graph, v1, vf, v2):
         self.graph = graph
         self.v1 = v1
@@ -14,12 +22,15 @@ class TopologicalConwayOperator:
         assert all(v in graph.vertices for v in (v1, vf, v2))
 
     def show(self):
+        """Render the fundamental domain graph for visualization."""
         self.graph.show(scale=300, line_width=0.03, render_faces=False)
 
     def get_tri(self, h):
+        """Return the triangle for halfedge h, or None for purely topological operators."""
         return None
 
     def generate_graph_and_corners(self, tri, h=None):
+        """Return a copy of the fundamental domain graph and its three corner vertices."""
         graph, (v_map, _, _) = self.graph.copy(deepcopy_attributes=False, return_mappings=True)
         if h is not None:
             for v in graph.vertices:
@@ -29,6 +40,10 @@ class TopologicalConwayOperator:
         #return deepcopy((self.graph, (self.v1, self.vf, self.v2)))
 
     def __call__(self, graph, faces=None, delete_on_border=True, delete_inner_border=False, copy_graph=False):
+        """Apply the operator to graph, optionally restricted to given faces.
+
+        If copy_graph is True, operate on a copy and preserve pre_conway references.
+        """
         if copy_graph:
             graph, (v_map, h_map, f_map) = graph.copy(return_mappings=True)
             v_map, h_map, f_map = [invert_mapping(m) for m in (v_map, h_map, f_map)]
@@ -219,6 +234,8 @@ class TopologicalConwayOperator:
 
 
 class GeometricConwayOperator(TopologicalConwayOperator):
+    """Conway operator that preserves vertex positions using barycentric coordinate interpolation."""
+
     def __init__(self, *super_args, **super_kwargs):
         super(GeometricConwayOperator, self).__init__(*super_args, **super_kwargs)
         # convert euclidean to barycentric coordinates
@@ -228,11 +245,12 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         self.geometry = None
 
     def get_tri(self, h):
+        """Return the triangle (dest, face midpoint, orig) for halfedge h."""
         midpoint = h.face.get('midpoint', self.geometry.center_of_mass(np.stack([v['pos'] for v in h.face.vertex_iter()])))
         return np.array([h.dest['pos'], midpoint, h.orig['pos']])
 
     def generate_graph_and_corners(self, tri, h=None):
-
+        """Return a copy of the domain with vertex positions mapped from barycentric to Euclidean coordinates."""
         result, corners = super(GeometricConwayOperator, self).generate_graph_and_corners(tri, h)
 
         to_euclidean = self.geometry.barycentric_to_euclidean_map(tri)
@@ -242,6 +260,7 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         return result, corners
 
     def __call__(self, graph, recompute_lengths_and_angles=True, **kwargs):
+        """Apply the geometric operator to a GeometricHEG, optionally recomputing lengths and angles."""
         assert isinstance(graph, GeometricHEG)
         self.geometry = graph.geometry
         result = super().__call__(graph, **kwargs)
@@ -251,6 +270,7 @@ class GeometricConwayOperator(TopologicalConwayOperator):
 
 
 def dual_graph():
+    """Construct the Conway dual operator."""
     v1 = (0, -1)
     vf = (1, 0)
     v2 = (0, 1)
@@ -267,6 +287,7 @@ def dual_graph():
 
 
 def kis_graph():
+    """Construct the Conway kis (raising) operator."""
     # define vertex positions
     v1 = (0, -1)
     vf = (1, 0)
@@ -281,6 +302,7 @@ def kis_graph():
 
 
 def join_graph():
+    """Construct the Conway join operator."""
     # define vertex positions
     v1 = (0, -1)
     vf = (1, 0)
@@ -295,6 +317,7 @@ def join_graph():
 
 
 def ambo_graph():
+    """Construct the Conway ambo (rectification) operator."""
     # define vertex positions
     v1 = (0, -1)
     vf = (1, 0)
@@ -315,6 +338,7 @@ def ambo_graph():
 
 
 def goldberg2_graph():
+    """Construct the Goldberg-2 subdivision operator."""
     # define vertex positions
     v1 = (0, -1)
     vf = (1, 0)
@@ -337,6 +361,7 @@ def goldberg2_graph():
 
 
 def truncate_graph(t=1 / 2):
+    """Construct the Conway truncate operator with cut depth t."""
     v1 = (0, -1)
     vf = (1, 0)
     v2 = (0, 1)
@@ -357,6 +382,7 @@ def truncate_graph(t=1 / 2):
 
 
 def gyro_graph(g=(1 / 4, -1 / 4)):
+    """Construct the Conway gyro operator with snub point position g."""
     v1 = (0, -1)
     vf = (1, 0)
     v2 = (0, 1)
@@ -372,6 +398,7 @@ def gyro_graph(g=(1 / 4, -1 / 4)):
 
 
 def starify_graph(t=1/3):
+    """Construct the starify operator with parameter t controlling star point depth."""
     v1 = (0, -1)
     vf = (1, 0)
     v2 = (0, 1)
@@ -389,6 +416,7 @@ def starify_graph(t=1/3):
 
 
 def alternating_flagstone_graph(t=1/3):
+    """Construct the alternating flagstone operator with parameter t."""
     v1 = (0, -1)
     vf = (1, 0)
     v2 = (0, 1)
@@ -410,6 +438,7 @@ def alternating_flagstone_graph(t=1/3):
 
 
 def twist_rotate_graph(t=1/2):
+    """Construct the twist-rotate operator with parameter t."""
     v1 = (0, -1)
     vf = (1, 0)
     v2 = (0, 1)
@@ -430,6 +459,7 @@ def twist_rotate_graph(t=1/2):
 
 
 def loft_graph(t=1/2):
+    """Construct the loft operator with edge offset parameter t (must be < 1)."""
     assert t < 1
     v1 = (0, -1)
     vf = (1, 0)
@@ -447,6 +477,7 @@ def loft_graph(t=1/2):
 
 
 def lace_graph(t=1/2, join=False):
+    """Construct the lace operator with offset t. If join is True, merge the v1-v2 edge."""
     assert t < 1
     v1 = (0, -1)
     vf = (1, 0)
@@ -470,6 +501,7 @@ def lace_graph(t=1/2, join=False):
 
 
 def expand_graph(t=1/2):
+    """Construct the Conway expand operator with offset parameter t (must be < 1)."""
     assert t < 1
     v1 = (0, -1)
     vf = (1, 0)
@@ -492,6 +524,7 @@ def expand_graph(t=1/2):
 
 
 def flagstone_pvitelli_graph(t=1/4):
+    """Construct the Pvitelli flagstone operator with parameter t (must be < 1)."""
     assert t < 1
     v1 = (0, -1)
     vf = (1, 0)
@@ -531,6 +564,7 @@ def flagstone_pvitelli_graph(t=1/4):
 
 
 def chamfer_graph(t=1/2):
+    """Construct the Conway chamfer operator, derived from loft with the v1-v2 edge deleted."""
     assert t < 1
     result = loft_graph(t)
     e = [e for e in result.v1.outgoing_iter() if e.dest is result.v2][0]

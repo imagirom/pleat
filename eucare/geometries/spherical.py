@@ -1,3 +1,5 @@
+"""Spherical geometry backend using 3D unit-sphere coordinates."""
+
 import numpy as np
 from .base import Geometry
 
@@ -19,6 +21,8 @@ def _rot_z_mat(a1):
 
 
 class SphereModel(Geometry):
+    """Spherical geometry with points on the unit 2-sphere in R^3."""
+
     @classmethod
     def origin(cls):
         return np.array([1, 0, 0])
@@ -84,7 +88,7 @@ class SphereModel(Geometry):
 
     @classmethod
     def stereographic_projection(cls, pts):
-        """stereographic projection with pole at (-1, 0, 0)"""
+        """Apply stereographic projection with pole at (-1, 0, 0)."""
         return 2 * pts[..., 1:] / (pts[..., :1] + 1)
 
     @classmethod

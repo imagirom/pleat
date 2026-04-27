@@ -1,8 +1,11 @@
+"""Euclidean plane geometry backend."""
+
 import numpy as np
 from .base import Geometry
 
 
 class EuclideanGeometry(Geometry):
+    """Flat 2D Euclidean geometry with standard vector operations."""
     @classmethod
     def origin(cls):
         return np.array([0, 0])

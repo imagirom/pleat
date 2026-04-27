@@ -1,12 +1,17 @@
+"""Hyperbolic geometry via the Poincare disk model."""
+
 import numpy as np
 from .base import Geometry
 
 
 def apply_mobius(mat, points):
+    """Apply a Mobius transformation given by a 2x2 matrix to complex-valued points."""
     return (mat[0, 0] * points + mat[0, 1]) / (mat[1, 0] * points + mat[1, 1])
 
 
 class MobiusTransform():
+    """A Mobius transformation represented as a 2x2 complex matrix."""
+
     def __init__(self, mat):
         if not isinstance(mat, np.ndarray):
             mat = np.array(mat)
@@ -30,26 +35,30 @@ class MobiusTransform():
 # TODO: maybe have another class for the hyperboloid model
 
 def complex_to_real(z):
+    """Convert complex numbers to real 2D coordinate arrays."""
     return np.stack([z.real, z.imag], axis=-1)
 
 
 def real_to_complex(x):
+    """Convert real 2D coordinate arrays to complex numbers."""
     assert x.shape[-1] == 2
     return x[..., 0] + 1j * x[..., 1]
 
 
 def poincare_to_hyperboloid(z):
+    """Map Poincare disk coordinates to the hyperboloid model."""
     pts = complex_to_real(z)
     squared_norm = (pts ** 2).sum(-1, keepdims=True)
     return np.concatenate([(1 + squared_norm), 2 * pts], axis=-1) / (1 - squared_norm)
 
 
 def hyperboloid_to_poincare(v):
+    """Map hyperboloid model coordinates back to the Poincare disk."""
     return real_to_complex(v[..., 1:] / (1 + v[..., :1]))
 
 
 def hyperboloid_centroid(vs, ms=None, axis=None):
-    # see https://projecteuclid.org/download/pdf_1/euclid.cmp/1104252873
+    """Compute the centroid on the hyperboloid model, optionally weighted by masses."""
     if axis is None:
         assert len(vs.shape) == 2
         axis = 0
@@ -60,10 +69,13 @@ def hyperboloid_centroid(vs, ms=None, axis=None):
 
 
 def poincare_centroid(zs, ms=None, axis=None):
+    """Compute the centroid of points in the Poincare disk via the hyperboloid model."""
     return hyperboloid_to_poincare(hyperboloid_centroid(poincare_to_hyperboloid(zs), ms, axis))
 
 
 class PoincareDiskModel(Geometry):
+    """Hyperbolic geometry using the Poincare disk model with complex coordinates."""
+
     @classmethod
     def origin(cls):
         return 0 + 0j

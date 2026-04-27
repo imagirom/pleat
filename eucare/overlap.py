@@ -1,3 +1,5 @@
+"""Compute folded states of crease patterns: overlap graphs, stacking order, and crease assignments."""
+
 import logging
 import numpy as np
 import networkx as nx
@@ -26,32 +28,12 @@ from .layout import *
 
 
 def intervals_overlapping(interval1, interval2):
-    """
-    Checks if two intervals are overlapping
-
-    Parameters
-    ----------
-    interval1 : tuple
-    interval2 : tuple
-
-    Returns
-    -------
-    bool
-
-    Examples
-    --------
-    >>> intervals_overlapping([0, 1], [-1, 0.5])
-    True
-    >>> intervals_overlapping([0, 1], [2, 3])
-    False
-    >>> intervals_overlapping([0, 1], [1, 2])
-    True
-
-    """
+    """Check if two intervals overlap (inclusive of endpoints)."""
     return not (interval1[0] > interval2[1]) and not (interval1[1] < interval2[0])
 
 
 def get_potential_intersections(segments, epsilon=1e-12):
+    """Return pairs of segment indices that may intersect, using a sweep-line approach on bounding boxes."""
     # list of start and end points, with index of corresponding segment and flag whether it is a start or an end point.
     segments = np.array(segments).copy()
     segments.sort(axis=1)  # sort each segment by y coordinate
@@ -84,20 +66,19 @@ def get_potential_intersections(segments, epsilon=1e-12):
 
 @jit(nopython=True)
 def _on_segment(p, q, r):
-    """Checks if q lies on segment pr. Points are assumed to be collinear."""
+    """Check if q lies on segment pr, assuming the three points are collinear."""
     return (min(p[0], r[0]) <= q[0] <= max(p[0], r[0])) and (min(p[1], r[1]) <= q[1] <= max(p[1], r[1]))
 
 
 @jit(nopython=True)
 def _det(a, b):
+    """Compute the 2x2 determinant of vectors a and b."""
     return a[0] * b[1] - a[1] * b[0]
 
 
 @jit(nopython=True)
 def line_segment_intersections(s1, s2, eps=1e-12):
-    """
-    see https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
-    """
+    """Return a list of intersection points between two line segments, handling collinear cases."""
 
     if s1.dtype is not np.float64:
         s1 = s1.astype(np.float64)
@@ -132,19 +113,19 @@ def line_segment_intersections(s1, s2, eps=1e-12):
     # Special Cases (or no intersection)
     result = []
 
-    # p1, q1 and p2 are colinear and p2 lies on segment p1q1
+    # p1, q1 and p2 are collinear and p2 lies on segment p1q1
     if o1 == 0 and _on_segment(p1, p2, q1):
         result.append(p2)
 
-    # p1, q1 and q2 are colinear and q2 lies on segment p1q1
+    # p1, q1 and q2 are collinear and q2 lies on segment p1q1
     if o2 == 0 and _on_segment(p1, q2, q1):
         result.append(q2)
 
-    # p2, q2 and p1 are colinear and p1 lies on segment p2q2
+    # p2, q2 and p1 are collinear and p1 lies on segment p2q2
     if o3 == 0 and _on_segment(p2, p1, q2):
         result.append(p1)
 
-    # p2, q2 and q1 are colinear and q1 lies on segment p2q2
+    # p2, q2 and q1 are collinear and q1 lies on segment p2q2
     if o4 == 0 and _on_segment(p2, q1, q2):
         result.append(q1)
 
@@ -152,6 +133,7 @@ def line_segment_intersections(s1, s2, eps=1e-12):
 
 
 def fast_group_closeby(pts, eps):
+    """Cluster nearby points using single-linkage clustering on cityblock distance."""
     Z = linkage_vector(pts, method='single', metric='cityblock')
     unsorted = fcluster(Z, eps, criterion='distance')
     result = []
@@ -166,14 +148,10 @@ def fast_group_closeby(pts, eps):
 
 
 def faster_group_closeby_nx(arr, eps):
-    """
-    Cluster closeby points using (approximage) single linkage clustering implemented via connected components in networkx.
-    :param arr: np.ndarray of shape (N, D)
-    Array cointaining positions to be clustered.
-    :param eps: float
-    Clustering radius, points less than epsilon apart will get the same label.
-    :return: np.ndarray of shape (N)
-    Array which maps each input point to its cluster label.
+    """Cluster nearby points via approximate single-linkage using grid-based connected components.
+
+    Points less than eps apart receive the same label. Return an array mapping
+    each input point to its cluster label.
     """
     if len(arr) == 0:
         return np.zeros(0, dtype=np.int32)
@@ -207,13 +185,18 @@ Plan for cleaner and more efficient overlap-graph creation:
 
 7. return: the nx graph, a mapping from the indices of original segments to the edges in the graph
 
-To use this for cleaning of e.g. svg-imported CPs, provide addtional method that 'cleans' the CP: 
+To use this for cleaning of e.g. svg-imported CPs, provide additional method that 'cleans' the CP:
 Join all straight degree 2 vertices that 
 
 """
 
 
 def overlap_graph(G, eps=1e-10):
+    """Build the overlap graph of a folded crease pattern by intersecting all edges.
+
+    Return an EuclideanPositionHEG whose faces carry 'original_faces' attributes
+    indicating which original faces overlap at each region.
+    """
     from .utils import VerboseTimer
     # TODO: first step: group points in graph
     # list of halfedges representing edges, on the border using the inside halfedge
@@ -395,6 +378,7 @@ LENGTH = 'length'
 SORTED_ORIGINAL_FACES = 'sorted_original_faces'
 
 def find_triplet_overlap_areas(G):
+    """Compute the total overlap area for each triplet of original faces."""
     result = defaultdict(float)
     bar = tqdm(G.faces, desc='finding triplet overlap areas')
     for f in bar:
@@ -406,6 +390,7 @@ def find_triplet_overlap_areas(G):
 
 
 def find_fold_over_facet_lengths(G):
+    """Compute total edge length where a fold passes over a facet."""
     result = defaultdict(float)
     for e in tqdm(G.halfedges, desc='finding fold over facet lengths'):
         if e.on_border() or e.rev.on_border():
@@ -421,8 +406,9 @@ def find_fold_over_facet_lengths(G):
 
 
 def find_conincident_fold_lengths(G):
+    """Compute total edge length where two folds coincide."""
     result = defaultdict(float)
-    for e in tqdm(G.halfedges, desc='finding conicident fold lengths'):
+    for e in tqdm(G.halfedges, desc='finding coincident fold lengths'):
         if e.on_border():
             continue
         folds_on_edge = [group for group in e[FACES_OF_FOLDS_ON_EDGE] if len(group) == 2]
@@ -434,6 +420,7 @@ def find_conincident_fold_lengths(G):
 
 
 def cache_all(cache=None):
+    """Decorator factory that memoizes all calls in a shared cache dict."""
     cache = dict() if cache is None else cache
 
     def wrapper(func):
@@ -453,6 +440,7 @@ SOLVER_ORDER = [pulp.CPLEX, pulp.GLPK]
 
 
 def infer_additional_over_under_pairs(over_under_pairs, facet_triplets):
+    """Transitively close over/under relations: if A over B and B over C within a triplet, infer A over C."""
     # over_dict[f] is set of all facets that f lies over.
     over_dict = defaultdict(set)
     for over, under in over_under_pairs:
@@ -477,6 +465,11 @@ def infer_additional_over_under_pairs(over_under_pairs, facet_triplets):
 
 
 def find_folded_face_order(G, over_under_pairs=(), solver=None, double_fold_weight=0, allow_slack=True, problem_file=None):
+    """Determine the stacking order of overlapping faces by solving an ILP.
+
+    Assign 'sorted_original_faces' to each face of the overlap graph G and return
+    a crease assignment dict mapping original half-edges to MOUNTAIN/VALLEY.
+    """
     if problem_file is None:  # by default, use temporary file
         with tempfile.TemporaryDirectory() as directory_name:
             filename = os.path.join(directory_name, 'Problem.lp')
@@ -540,7 +533,7 @@ def find_folded_face_order(G, over_under_pairs=(), solver=None, double_fold_weig
         add_constraint(over(a, c) + over(c, b) == 1)
 
     for (a, b), (c, d) in tqdm(coincident_fold_lengths, desc='adding coincident fold constraints'):
-        # use auxilliary variable to check if expression is even
+        # use auxiliary variable to check if expression is even
         if double_fold_weight == 0:
             even_between_0_and_4 = 2 * pulp.LpVariable(get_varname(), 0, 2, pulp.LpInteger)
             add_constraint(over(c, a) + over(c, b) + over(d, a) + over(d, b) - even_between_0_and_4 == 0)
@@ -604,7 +597,7 @@ Temporary utility functions - Have to make up mind on how to organize / where to
 
 
 def fold_wireframe(G, initial_face=None):
-    """mirrors all faces of G in-place"""
+    """Fold a crease pattern in place by mirroring alternating faces about their shared edges."""
     if initial_face is None:
         for f in G.faces:
             pos = np.array([v['pos'] for v in f.vertex_iter()])
@@ -623,19 +616,8 @@ def fold_wireframe(G, initial_face=None):
 CREASE_ASSIGNMENT = 'crease_assignment'
 
 
-def color_creases(G):
-    colors = {
-        0: (0, 0, 0),
-        1: (1, 0, 0),
-        -1: (0, 0, 1)
-    }
-    for e in G.halfedges:
-        e['color_key'] = colors[e.attributes.get('crease_assignment', 0)]
-
-
 def get_over_under_pairs_from_creases(G, two_coloring_key='color_key'):
-    # return list of pairs (f1, f2) with f1 over f2
-    # G is assumed to be two-colored
+    """Derive over/under face pairs from mountain/valley crease assignments on a two-colored graph."""
     over_under_pairs = []
     for e in G.halfedges:
         crease_type = e.attributes.get(CREASE_ASSIGNMENT, None)
@@ -653,6 +635,7 @@ BOTTOM = 'bottom_side'
 
 
 def face_order_to_clean_graph(G, side=TOP, top_color=(0.5, 0.5, 0.9), bottom_color=(0.8, 0.8, 0.8)):
+    """Extract a clean renderable graph showing only the top or bottom layer of a folded model."""
     view = G.copy()
 
     color_key_mapping = {
@@ -697,6 +680,7 @@ def face_order_to_clean_graph(G, side=TOP, top_color=(0.5, 0.5, 0.9), bottom_col
 
 
 def color_creases(G, colors=None, color_border=False):
+    """Assign edge colors based on crease assignments (mountain=red, valley=blue, flat=black)."""
     if colors is None:
         colors = {
             0: (0, 0, 0),
@@ -711,6 +695,10 @@ def color_creases(G, colors=None, color_border=False):
 
 
 def fold_complete(G, initial_face=None, overlap_eps=1e-6, area_eps=0):
+    """Fold a crease pattern and compute the full folded state, including overlap and stacking order.
+
+    Return a dict with keys 'CP', 'folded_state', 'folded_view_top', and 'folded_view_bottom'.
+    """
     fold_wireframe(G, initial_face=initial_face)
     over_under_pairs = get_over_under_pairs_from_creases(G)
     result = dict()
@@ -731,26 +719,10 @@ def fold_complete(G, initial_face=None, overlap_eps=1e-6, area_eps=0):
 
 def save_results(results, path='results', render_settings=None, min_foldable_length=None, bbox=None, extra_info=None,
                  opacity=0.15):
-    """
-    Saves .png and .svg versions of crease pattern as well as top and bottom views of folded state in a directory.
-    Additionally, a .svg of the crease pattern optimized for scoring with a cutting plotter or laser cutter is saved.
-    The dimensions of the latter are adjusted such that they fit in the specified bounding box.
-    :param results: dict
-    Output of fold_complete.
-    :param path: str
-    Path to save results in. Will be overwritten if already present.
-    :param render_settings: dict, optional
-    Render settings for everything but the CP for cutting.
-    :param min_foldable_length: float, optional
-    Minimum length a fold should have. If bbox is None, the CP for cutting will be scaled such that the shortest fold
-    has this length.
-    :param bbox: list or tuple, optional
-    Bounding box dimensions in cm. The CP for cutting will be scaled to fit into this box.
-    :param extra_info: str, optional
-    String containing extra information to write to append to info.txt.
-    :param opacity: float, optional
-    opacity of paper for folded state
-    :return:
+    """Save rendered crease pattern, folded views, and a plotter-ready SVG to a directory.
+
+    The plotter SVG is scaled to fit within bbox (in cm) or so that the shortest
+    fold equals min_foldable_length. Results is the output dict from fold_complete.
     """
     if render_settings is None:
         render_settings = dict(face_inset=0, render_vertices=False, render_faces=True, height=2048)
@@ -827,6 +799,7 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
 
 
 def remove_duplicates(G, eps=1e-6, exclude_edges=()):
+    """Merge duplicate vertices and edges within eps distance, returning a clean graph."""
     vs = list(G.vertices)
     pos = np.stack([v['pos'] for v in vs])
 

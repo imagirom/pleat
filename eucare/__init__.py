@@ -1,3 +1,4 @@
+"""Eucare — geometric tilings, Conway operators, and origami crease patterns."""
 import eucare.conway
 import eucare.colorization
 import eucare.example_tilesets

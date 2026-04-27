@@ -1,3 +1,4 @@
+"""Cairo-based renderer for high-quality PNG output of half-edge graphs."""
 import logging
 import cairo
 from .base import angle_to_axis, unit_vector
