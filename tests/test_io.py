@@ -1,0 +1,60 @@
+"""Tests for eucare.io: round-trip save/load of half-edge graphs in the .heg format."""
+from __future__ import annotations
+
+import numpy as np
+
+from eucare.example_graphs import rosette
+from eucare.half import EuclideanPositionHEG, RegularNGon
+from eucare.io import dict_to_graph, graph_to_dict, load_graph, save_graph
+
+
+def _topology_signature(G):
+    return (len(G.vertices), len(G.halfedges), len(G.faces))
+
+
+def test_graph_to_dict_roundtrip_preserves_topology():
+    G = RegularNGon(5)
+    d = graph_to_dict(G)
+    G2 = dict_to_graph(d)
+    assert _topology_signature(G) == _topology_signature(G2)
+    G2.check_consistency()
+
+
+def test_save_load_roundtrip(tmp_path):
+    G = EuclideanPositionHEG(other=rosette(n=6))
+    filename = str(tmp_path / "rosette.heg")
+    save_graph(filename, G)
+    G2 = load_graph(filename)
+    assert _topology_signature(G) == _topology_signature(G2)
+    G2.check_consistency()
+
+
+def test_save_load_preserves_positions(tmp_path):
+    G = EuclideanPositionHEG(other=rosette(n=4))
+    filename = str(tmp_path / "rose4.heg")
+    save_graph(filename, G)
+    G2 = load_graph(filename)
+    # Positions are preserved up to floating-point round-trip.
+    pos_in = sorted(tuple(np.round(v['pos'], 8)) for v in G.vertices)
+    pos_out = sorted(tuple(np.round(v['pos'], 8)) for v in G2.vertices)
+    assert pos_in == pos_out
+
+
+def test_save_refuses_overwrite_by_default(tmp_path):
+    G = RegularNGon(3)
+    filename = str(tmp_path / "tri.heg")
+    save_graph(filename, G)
+    try:
+        save_graph(filename, G)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("expected AssertionError on second save without overwrite=True")
+    save_graph(filename, G, overwrite=True)
+
+
+def test_save_appends_heg_extension(tmp_path):
+    G = RegularNGon(3)
+    base = str(tmp_path / "noext")
+    save_graph(base, G)
+    assert (tmp_path / "noext.heg").exists()
