@@ -274,7 +274,7 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         return result
 
 
-def dual_graph():
+def dual_graph() -> GeometricConwayOperator:
     """Construct the Conway dual operator."""
     v1 = (0, -1)
     vf = (1, 0)
@@ -291,7 +291,7 @@ def dual_graph():
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
-def kis_graph():
+def kis_graph() -> GeometricConwayOperator:
     """Construct the Conway kis (raising) operator."""
     # define vertex positions
     v1 = (0, -1)
@@ -306,7 +306,7 @@ def kis_graph():
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
-def join_graph():
+def join_graph() -> GeometricConwayOperator:
     """Construct the Conway join operator."""
     # define vertex positions
     v1 = (0, -1)
@@ -321,7 +321,7 @@ def join_graph():
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
-def ambo_graph():
+def ambo_graph() -> GeometricConwayOperator:
     """Construct the Conway ambo (rectification) operator."""
     # define vertex positions
     v1 = (0, -1)
@@ -342,7 +342,7 @@ def ambo_graph():
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
-def goldberg2_graph():
+def goldberg2_graph() -> GeometricConwayOperator:
     """Construct the Goldberg-2 subdivision operator."""
     # define vertex positions
     v1 = (0, -1)
@@ -365,7 +365,7 @@ def goldberg2_graph():
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
-def truncate_graph(t=1 / 2):
+def truncate_graph(t: float = 1 / 2) -> GeometricConwayOperator:
     """Construct the Conway truncate operator with cut depth t."""
     v1 = (0, -1)
     vf = (1, 0)
@@ -386,7 +386,7 @@ def truncate_graph(t=1 / 2):
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
-def gyro_graph(g=(1 / 4, -1 / 4)):
+def gyro_graph(g: tuple[float, float] = (1 / 4, -1 / 4)) -> GeometricConwayOperator:
     """Construct the Conway gyro operator with snub point position g."""
     v1 = (0, -1)
     vf = (1, 0)
@@ -402,7 +402,7 @@ def gyro_graph(g=(1 / 4, -1 / 4)):
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
-def starify_graph(t=1/3):
+def starify_graph(t: float = 1/3) -> GeometricConwayOperator:
     """Construct the starify operator with parameter t controlling star point depth."""
     v1 = (0, -1)
     vf = (1, 0)
@@ -420,7 +420,7 @@ def starify_graph(t=1/3):
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
-def alternating_flagstone_graph(t=1/3):
+def alternating_flagstone_graph(t: float = 1/3) -> GeometricConwayOperator:
     """Construct the alternating flagstone operator with parameter t."""
     v1 = (0, -1)
     vf = (1, 0)
@@ -442,7 +442,7 @@ def alternating_flagstone_graph(t=1/3):
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
-def twist_rotate_graph(t=1/2):
+def twist_rotate_graph(t: float = 1/2) -> GeometricConwayOperator:
     """Construct the twist-rotate operator with parameter t."""
     v1 = (0, -1)
     vf = (1, 0)
@@ -463,7 +463,7 @@ def twist_rotate_graph(t=1/2):
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
-def loft_graph(t=1/2):
+def loft_graph(t: float = 1/2) -> GeometricConwayOperator:
     """Construct the loft operator with edge offset parameter t (must be < 1)."""
     assert t < 1
     v1 = (0, -1)
@@ -481,7 +481,7 @@ def loft_graph(t=1/2):
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
-def lace_graph(t=1/2, join=False):
+def lace_graph(t: float = 1/2, join: bool = False) -> GeometricConwayOperator:
     """Construct the lace operator with offset t. If join is True, merge the v1-v2 edge."""
     assert t < 1
     v1 = (0, -1)
@@ -505,7 +505,7 @@ def lace_graph(t=1/2, join=False):
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
-def expand_graph(t=1/2):
+def expand_graph(t: float = 1/2) -> GeometricConwayOperator:
     """Construct the Conway expand operator with offset parameter t (must be < 1)."""
     assert t < 1
     v1 = (0, -1)
@@ -528,7 +528,7 @@ def expand_graph(t=1/2):
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
-def flagstone_pvitelli_graph(t=1/4):
+def flagstone_pvitelli_graph(t: float = 1/4) -> GeometricConwayOperator:
     """Construct the Pvitelli flagstone operator with parameter t (must be < 1)."""
     assert t < 1
     v1 = (0, -1)
@@ -568,7 +568,7 @@ def flagstone_pvitelli_graph(t=1/4):
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
-def chamfer_graph(t=1/2):
+def chamfer_graph(t: float = 1/2) -> GeometricConwayOperator:
     """Construct the Conway chamfer operator, derived from loft with the v1-v2 edge deleted."""
     assert t < 1
     result = loft_graph(t)
