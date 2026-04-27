@@ -131,7 +131,7 @@ def line_intersection(line1, line2):
 
     div = np.linalg.det(diff)
     if div == 0:
-        raise Exception('lines do not intersect')
+        raise ValueError('lines do not intersect (parallel or coincident)')
 
     d = np.array([np.linalg.det(l) for l in (line1, line2)])
     return np.array([np.linalg.det(np.stack([d, dif])) for dif in diff.T]) / div

@@ -132,22 +132,22 @@ class Geometry:
 
     @classmethod
     @root_return
-    def archimedian_side_length(cls, faces_around_corner, **archimedian_side_length_root_kwargs):
+    def archimedean_side_length(cls, faces_around_corner, **archimedean_side_length_root_kwargs):
         multiplicities = Counter(faces_around_corner)
 
         def length_to_angle_deficit(l):
             return sum(k * cls.regular_poly_in_angle(n, cls.platonic_side_length_to_radius(n, l))
                        for n, k in multiplicities.items()) - 2 * np.pi
 
-        if not archimedian_side_length_root_kwargs:
-            archimedian_side_length_root_kwargs = dict(x0=1, x1=2)
+        if not archimedean_side_length_root_kwargs:
+            archimedean_side_length_root_kwargs = dict(x0=1, x1=2)
 
         return root_scalar(lambda l: np.sign(l) * length_to_angle_deficit(abs(l)),
-                           **archimedian_side_length_root_kwargs)
+                           **archimedean_side_length_root_kwargs)
 
     @classmethod
-    def archimedian_side_length_and_angles(cls, faces_around_corner):
-        length = cls.archimedian_side_length(faces_around_corner)
+    def archimedean_side_length_and_angles(cls, faces_around_corner):
+        length = cls.archimedean_side_length(faces_around_corner)
         return length, {n: cls.regular_poly_in_angle(n, cls.platonic_side_length_to_radius(n, length))
                         for n in set(faces_around_corner)}
 

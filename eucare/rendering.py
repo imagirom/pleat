@@ -1,8 +1,11 @@
+import logging
 import cairo
 from .base import angle_to_axis, unit_vector
 from .half import rotate_by
 import numpy as np
 from typing import Iterable
+
+logger = logging.getLogger(__name__)
 try:
     import svgwrite
 except ImportError:
@@ -343,7 +346,7 @@ class SvgwriteRenderer:
                     for key in extra_render_keys:
                         key_edges = [h for h in halfedges if h.attributes.get(key)]
                         if not key_edges:
-                            print(f'skipping redering of {key} as no edges are present')
+                            logger.info('skipping rendering of %s as no edges are present', key)
                             continue
                         assert filename.endswith('.svg')
                         key_filename = '.'.join(filename.split('.')[:-1]) + f'{key}.svg'

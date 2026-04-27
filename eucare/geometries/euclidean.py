@@ -48,7 +48,7 @@ class EuclideanGeometry(Geometry):
         return pts
 
     @classmethod
-    def archimedian_side_length(cls, faces_around_corner, eps=1e-6):
+    def archimedean_side_length(cls, faces_around_corner, eps=1e-6):
         euclidean_vertex_angle = sum(np.pi * (n - 2) / n for n in faces_around_corner)
         if abs(euclidean_vertex_angle - 2 * np.pi) < eps:
             return 1

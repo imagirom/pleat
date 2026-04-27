@@ -1,7 +1,10 @@
+import logging
 from .half import EuclideanPositionHEG, Vertex, HalfEdge, Face, rotate_by
 from .base import angle_to_axis, signed_area
 import numpy as np
 from copy import copy
+
+logger = logging.getLogger(__name__)
 
 
 def EHEG_from_edgelist(pts, edges):
@@ -30,7 +33,7 @@ def EHEG_from_nx(nxg, positions=None, return_v_lookup=False):
     assert isinstance(positions, dict)
     n_dangling = _delete_dangling_edges_nx(nxg)
     if n_dangling > 0:
-        print(f'Warning: Deleted {n_dangling} dangling edges in conversion to EHG')
+        logger.warning('Deleted %d dangling edges in conversion to EHG', n_dangling)
     result = EuclideanPositionHEG()
     v_lookup = dict()
     for n, attrs in nxg.nodes().data():
@@ -94,18 +97,7 @@ def EHEG_from_nx(nxg, positions=None, return_v_lookup=False):
             current_min_area = area
             outside_face = f
     assert outside_face is not None, f'Could not find an outside face to delete. Are all areas 0?'
-    #print(f'area: {outside_face.area()}, order: {outside_face.order()}')
     result.delete_face(outside_face)
-
-    # Old method: leads to errors with error 0 faces
-    # for f in frozenset(result.faces):
-    #     vertex_pos = [v['pos'] for v in f.vertex_iter()]
-    #     if signed_area(vertex_pos) < 0:
-    #         print(f'deleting outside face of order {f.order()} and area {f.area()}..')
-    #         # for e in f.halfedge_iter():
-    #         #     e.face = None
-    #         # result.faces.remove(f)
-    #         result.delete_face(f)
 
     if not return_v_lookup:
         return result

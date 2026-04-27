@@ -1,3 +1,4 @@
+import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import svgpathtools as spt
@@ -7,6 +8,8 @@ from eucare.overlap import MOUNTAIN, VALLEY, CREASE_ASSIGNMENT
 import re
 from collections import defaultdict
 import operator
+
+logger = logging.getLogger(__name__)
 
 
 def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
@@ -21,7 +24,7 @@ def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
         elif len(hits) == 1:
             return hits[0]
         else:
-            assert False, f'Found multiple strokes: {list(hits)}'
+            raise ValueError(f'Found multiple strokes: {list(hits)}')
 
     paths, attributes = spt.svg2paths(filepath, convert_rectangles_to_paths=False)
 
@@ -34,8 +37,6 @@ def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
     edges = []
 
     for path, attrs in zip(paths, attributes):
-        # if len(path) > 1:
-        #    continue
         for line in path:
             assert isinstance(line, spt.path.Line), f'{type(line)}'
             # line = path[0]
@@ -72,22 +73,11 @@ def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
     points += [[0.5, 0.5]]
 
     clustering = ec.overlap.group_closeby(points, 1e-5)
-    # print(np.concatenate([points, clustering[:, None]], axis=1))
     first_occurences = np.argmax(clustering[None] == np.arange(np.max(clustering) + 1)[:, None], axis=1)
     merged_points = points[first_occurences]
 
     line_segments = np.array([[merged_points[clustering[i]], merged_points[clustering[j]]]
                               for i, j, attrs in edges])
-
-    # line_segments = np.array([[points[i], points[j]]
-    #                           for i, j, attrs in edges])
-    # print(line_segments.shape)
-
-    # from eucare.plotting import plot_lines
-    #
-    # plot_lines(line_segments)
-
-    # G = segments_to_clean_graph(line_segments, eps=1e-3)
 
     G = nx.Graph()
     G.add_edges_from([(tuple(merged_points[clustering[i]]), tuple(merged_points[clustering[j]]), attrs)
@@ -96,7 +86,7 @@ def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
     G = ec.conversions.EHEG_from_nx(G)
 
     if len(counts_by_stroke) not in (2, 3):
-        print(f'encountered {len(counts_by_stroke)} different stroke colors, not assigning valleys and mountains')
+        logger.warning('encountered %d different stroke colors, not assigning valleys and mountains', len(counts_by_stroke))
         pass
     else:
         if len(counts_by_stroke) == 3:  # assume one is the border stroke

@@ -1,7 +1,10 @@
+import logging
 from numbers import Number
 
 import numpy as np
 import sdf
+
+logger = logging.getLogger(__name__)
 
 from skimage.measure import marching_cubes
 
@@ -150,11 +153,11 @@ def oct_tree_marching_cubes(f: callable, step: np.ndarray, bounds: np.ndarray | 
         return np.product([len(indices) for indices in block_indices])
 
     n_cells_naive = block_indices_n_cells(block_indices)
-    print(f'{n_cells_naive=}')
+    logger.info('n_cells_naive=%d', n_cells_naive)
 
     # coarsen until the whole box fits into a single grid cell
     while block_indices_n_cells(block_indices) > 1:
-        print(level, block_indices_n_cells(block_indices))
+        logger.debug('level %d, n_cells=%d', level, block_indices_n_cells(block_indices))
         new_block_indices = grids[-1].coarsen_block_indices(block_indices, subdivisions=subdivisions)
         assert block_indices_n_cells(new_block_indices) < block_indices_n_cells(block_indices)
         block_indices = new_block_indices
@@ -167,14 +170,14 @@ def oct_tree_marching_cubes(f: callable, step: np.ndarray, bounds: np.ndarray | 
         pts = grid.cell_centers(indices)
         dists = f(pts)[:, 0]  # for some reason, the distances are returned in an array of shape (n, 1)
         mask = np.abs(dists) <= grid.cell_center_to_corner_distance
-        print(f'{len(grids) - 1 - i}, {mask.mean()=}, {mask.sum()=}')
+        logger.debug('level %d, mask.mean=%.3f, mask.sum=%d', len(grids) - 1 - i, mask.mean(), mask.sum())
         indices = indices[mask]
 
         if i != len(grids) - 1:
             # get indices in finder grid
             indices = grid.subdivide_indices(indices, subdivisions=subdivisions)
 
-    print(f'n_cells={len(indices)}')
+    logger.info('n_cells=%d', len(indices))
     return indices, grids[0]
 
 

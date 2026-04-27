@@ -77,8 +77,8 @@ class SphereModel(Geometry):
         return np.array([np.cos(x), np.sin(x), 0])
 
     @classmethod
-    def archimedian_side_length(cls, faces_around_corner):
-        return super().archimedian_side_length(faces_around_corner, bracket=[0.1, 2*np.pi/max(faces_around_corner)])
+    def archimedean_side_length(cls, faces_around_corner):
+        return super().archimedean_side_length(faces_around_corner, bracket=[0.1, 2*np.pi/max(faces_around_corner)])
 
     # --- Methods Specific to this geometry ---
 

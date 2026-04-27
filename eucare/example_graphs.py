@@ -1,6 +1,9 @@
+import logging
 from .half import *
 from .prototiles import *
 from .example_tilesets import *
+
+logger = logging.getLogger(__name__)
 
 
 # TODO https://en.wikipedia.org/wiki/File:Planar_Fractalizing_Truncated_Hexagonal_Tiling_II.png
@@ -139,7 +142,7 @@ def hyperbolic_square_graph(G=None, min_length=0.05, dual=False):
     nv_after = G.order
     while nv_before != nv_after:
         nv_before = nv_after
-        print(nv_before)
+        logger.debug('vertices: %d', nv_before)
         for v in G.vertices:
             if 'square_pos' not in v:
                 v['square_pos'] = complex_to_array(disk_to_square(v['pos'], np.sqrt(1j).conjugate()))

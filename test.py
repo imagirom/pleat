@@ -9,7 +9,7 @@ from tqdm import tqdm as tqdm
 import eucare.plotting as euplt
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-from eucare.redering import CairoRenderer
+from eucare.rendering import CairoRenderer
 from eucare.example_tilesets import *
 
 # tile = copy(tile)

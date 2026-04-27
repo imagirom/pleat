@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import networkx as nx
 import os
@@ -14,11 +15,13 @@ from functools import cmp_to_key
 from copy import copy
 from numba import jit
 
+logger = logging.getLogger(__name__)
+
 from .utils import random_directed_set
 from .half import rotate_by
 from .base import orientation
 from .conversions import EHEG_from_nx
-from .redering import SvgwriteRenderer, CairoRenderer
+from .rendering import SvgwriteRenderer, CairoRenderer
 from .layout import *
 
 
@@ -96,10 +99,6 @@ def line_segment_intersections(s1, s2, eps=1e-12):
     see https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
     """
 
-    #     if not intervals_overlapping([min(s1[:, 0]), max(s1[:, 0])], [min(s2[:, 0]), max(s2[:, 0])]):
-    #         return []  # separated in x
-    #     if not intervals_overlapping([min(s1[:, 1]), max(s1[:, 1])], [min(s2[:, 1]), max(s2[:, 1])]):
-    #         return []  # separated in y
     if s1.dtype is not np.float64:
         s1 = s1.astype(np.float64)
     if s2.dtype is not np.float64:
@@ -123,7 +122,7 @@ def line_segment_intersections(s1, s2, eps=1e-12):
         div = _det(xdiff, ydiff)
         if div == 0:
             # return [] # TODO: investigate when this happens..
-            raise Exception('lines do not intersect')
+            raise ValueError('lines do not intersect')
         d = (_det(p1, q1), _det(p2, q2))
         x = _det(d, xdiff) / div
         y = _det(d, ydiff) / div
@@ -150,47 +149,6 @@ def line_segment_intersections(s1, s2, eps=1e-12):
         result.append(q1)
 
     return result
-
-
-def poly_intersection_points(p1, p2):
-    """
-    Compute points of intersection bewteen two 2D polygons.
-
-    Parameters
-    ----------
-    p1 : np.ndarray
-    ccw points in first polygon.
-    p2 : np.ndarray
-    ccw points in second polygon.
-
-    Returns
-    -------
-    np.ndarray or False
-        List of intersection points. If none are found, returns False.
-
-    """
-
-    if not intervals_overlapping([np.min(p1[:, 0]), np.max(p1[:, 0])], [np.min(p1[:, 0]), np.max(p1[:, 0])]):
-        return False  # separated in x
-    if not intervals_overlapping([np.min(p1[:, 1]), np.max(p1[:, 1])], [np.min(p1[:, 1]), np.max(p1[:, 1])]):
-        return False  # separated in y
-
-    intersection_info = [(i, j, p)
-                         for i, s1 in enumerate(zip(p1, rotate_by(p1, 1)))
-                         for j, s2 in enumerate(zip(p2, rotate_by(p2, 1)))
-                         for p in line_segment_intersections[s1, s2]]
-    return intersection_info
-
-
-def old_group_closeby(pts, eps):
-    nxgraph = nx.Graph()
-    nxgraph.add_nodes_from(np.arange(len(pts), dtype=int))
-    nxgraph.add_edges_from(get_potential_intersections(np.stack([pts, pts + eps], axis=1)))
-    components = nx.connected_components(nxgraph)
-    new_labels = np.empty(len(pts), dtype=int)
-    for label, c in enumerate(components):
-        new_labels[np.array(list(c))] = label
-    return new_labels
 
 
 def fast_group_closeby(pts, eps):
@@ -261,7 +219,7 @@ def overlap_graph(G, eps=1e-10):
     # list of halfedges representing edges, on the border using the inside halfedge
     edges = [h.rev if h.on_border() else h for h in G.halfedges_representing_edges()]
 
-    print('number of edges:', len(edges))
+    logger.info('number of edges: %d', len(edges))
     line_segments = np.array([[e.orig['pos'], e.dest['pos']] for e in edges])
 
     timer = VerboseTimer()
@@ -289,10 +247,10 @@ def overlap_graph(G, eps=1e-10):
 
     # ------ group closeby crossings ------
 
-    print('n crossings:', len(crossings), '. clustering them..')
+    logger.info('n crossings: %d. clustering them..', len(crossings))
     clustering = group_closeby(crossings, eps)
     timer.round('clustered crossings')
-    print('reduced n crossings', np.max(clustering) + 1)
+    logger.info('reduced n crossings: %d', np.max(clustering) + 1)
 
     # first_occurences = np.argmax(np.equal(clustering[None], np.arange(np.max(clustering) + 1)[:, None]), axis=1)
     first_occurences = np.array([np.argmax(clustering == i) for i in range(max(clustering)+1)])  # memory efficient
@@ -311,7 +269,7 @@ def overlap_graph(G, eps=1e-10):
     timer.round('filtered crossings')
 
     # ------ get crossing orders, construct nx graph ------
-    print('getting crossing orders..')
+    logger.info('getting crossing orders..')
     # nodes = np.arange(n_filtered_crossings)
     nx_edges = []
     edge_to_ordered_ids = []
@@ -330,13 +288,13 @@ def overlap_graph(G, eps=1e-10):
     nx_edges = np.concatenate(nx_edges)
     timer.round('crossing orders')
 
-    print('constructing nx graph..')
+    logger.info('constructing nx graph..')
     nx_graph = nx.Graph()
     nx_graph.add_edges_from(nx_edges)
     nx_positions = {i: pos for i, pos in enumerate(filtered_crossings)}
     timer.round('nx graph constructed.')
-    print('order of nx graph:', nx_graph.order())
-    print('converting to EHEG..')
+    logger.info('order of nx graph: %d', nx_graph.order())
+    logger.info('converting to EHEG..')
 
     overlap_G, v_lookup = EHEG_from_nx(nx_graph, nx_positions, return_v_lookup=True)
     overlap_G.recompute_lengths_and_angles()
@@ -344,7 +302,7 @@ def overlap_graph(G, eps=1e-10):
 
     # ------ assign original vertices, edges ------
     overlap_G.check_consistency()
-    print('assigning original vertices and edges..')
+    logger.info('assigning original vertices and edges..')
     for v in overlap_G.vertices:
         v['original_vertices'] = set()
     for e in overlap_G.halfedges:
@@ -365,7 +323,7 @@ def overlap_graph(G, eps=1e-10):
     for i in tqdm(range(len(edges)), desc='assigning original vertices, edges, faces'):
         ordered_ids_0 = edge_to_ordered_ids[i]
         if len(ordered_ids_0) == 0:
-            assert False, f'this should not happen, as orig and dest of every edge should be crossings. {edges[i]}'
+            raise RuntimeError(f'orig and dest of every edge should be crossings, but edge {edges[i]} has no crossings')
         for e in (edges[i], edges[i].rev):
             ordered_ids = ordered_ids_0
             if e is edges[i].rev:
@@ -396,24 +354,13 @@ def overlap_graph(G, eps=1e-10):
                         new_edge['original_face_groups'][frozenset((e, e.rev))] = set()
                     new_edge['original_face_groups'][frozenset((e, e.rev))].add(e.face)
 
-                ## old method that is equivalent as long as there is a unique edge from k to l,
-                ## which should always be the case.
-                # for new_edge in v_lookup[k].outgoing_iter():
-                #     if v_lookup[l] is new_edge.dest:
-                #         new_edge['original_edges'].add(e)
-                #         #new_edge.rev['original_edges'].add(e)
-                #         if not e.on_border():
-                #             if frozenset((e, e.rev)) not in new_edge['original_face_groups']:
-                #                 new_edge['original_face_groups'][frozenset((e, e.rev))] = set()
-                #             new_edge['original_face_groups'][frozenset((e, e.rev))].add(e.face)
-
     # convert the face groups from a dict to a list of sets, as the information which edge the individual original faces
     # were coming from is no longer required.
     for e in overlap_G.halfedges:
         e['original_face_groups'] = [frozenset(group) for group in e['original_face_groups'].values()]
 
     # ------ assign original faces ------
-    print('assigning original faces..')
+    logger.info('assigning original faces..')
     # start on the border where there are no original faces crossing the edge (as can and does happen in the middle of
     # the folded model).
     initial_edge = next(overlap_G.border_edge_iter()).rev
@@ -436,7 +383,7 @@ def overlap_graph(G, eps=1e-10):
                         {e_orig.face for e_orig in e.rev['original_edges'] if not e_orig.on_border()})
                 ))
     timer.round('complete')
-    print('done.')
+    logger.info('done.')
     return overlap_G
 
 
@@ -537,19 +484,18 @@ def find_folded_face_order(G, over_under_pairs=(), solver=None, double_fold_weig
                                           double_fold_weight=double_fold_weight,
                                           allow_slack=allow_slack,
                                           problem_file=filename)
-    print(f'Processing overlap graph with {G.order} facets..')
+    logger.info('Processing overlap graph with %d facets..', G.order)
     triplet_overlap_areas = find_triplet_overlap_areas(G)
     fold_over_facet_lengths = find_fold_over_facet_lengths(G)
     coincident_fold_lengths = find_conincident_fold_lengths(G)
-    print(f'Found {len(triplet_overlap_areas)} overlapping triplets, ' \
-          f'{len(fold_over_facet_lengths)} folds over facets, ' \
-          f'{len(coincident_fold_lengths)} coincident folds..')
+    logger.info('Found %d overlapping triplets, %d folds over facets, %d coincident folds..',
+                len(triplet_overlap_areas), len(fold_over_facet_lengths), len(coincident_fold_lengths))
 
     n_over_under_before = len(over_under_pairs)
     over_under_pairs = infer_additional_over_under_pairs(over_under_pairs, set(triplet_overlap_areas.keys()));
 
-    print(
-        f'Preprocessing increased number of known over-under relations from {n_over_under_before} to {len(over_under_pairs)}..')
+    logger.info('Preprocessing increased number of known over-under relations from %d to %d..',
+                n_over_under_before, len(over_under_pairs))
 
     n_vars = 0
 
@@ -608,7 +554,7 @@ def find_folded_face_order(G, over_under_pairs=(), solver=None, double_fold_weig
         if double_fold_weight > 0 and objective != 0:
             prob.setObjective(objective)
         # write ILP to file and solve it
-        print(f'Writing problem to file {problem_file} ..')
+        logger.info('Writing problem to file %s ..', problem_file)
         prob.writeLP(problem_file)
         if solver is None:
             for solver_class in SOLVER_ORDER:
@@ -618,10 +564,10 @@ def find_folded_face_order(G, over_under_pairs=(), solver=None, double_fold_weig
             if solver is None:
                 solver = 'auto'
 
-        print(f'Solving ILP with solver {solver.__class__.__name__ if isinstance(solver, pulp.LpSolver) else solver}..')
+        logger.info('Solving ILP with solver %s..', solver.__class__.__name__ if isinstance(solver, pulp.LpSolver) else solver)
         prob.solve(solver=solver)
     else:
-        print('Skipping ILP since everything is already determined..')
+        logger.info('Skipping ILP since everything is already determined..')
 
     def comparison_func(a, b):
         result = over_dict.get((a, b), 1 - over_dict.get((b, a), 0.5))
@@ -631,16 +577,16 @@ def find_folded_face_order(G, over_under_pairs=(), solver=None, double_fold_weig
             result = 0
         result = int(1 - 2 * result)
         if result == 0:
-            print('order unclear!')
+            logger.warning('order unclear!')
         return result
 
-    print(f'determining face order..')
+    logger.info('determining face order..')
     for f in G.faces:
         original_faces = list(f[ORIGINAL_FACES]).copy()
         original_faces.sort(key=cmp_to_key(comparison_func))
         f[SORTED_ORIGINAL_FACES] = original_faces
 
-    print(f'assigning creases..')
+    logger.info('assigning creases..')
     crease_assignment = dict()
     original_faces = {f_orig for f in G.faces for f_orig in f[ORIGINAL_FACES]}
     original_edges = {e for f in original_faces for e in f.halfedge_iter()}
@@ -698,7 +644,7 @@ def get_over_under_pairs_from_creases(G, two_coloring_key='color_key'):
             if crease_type is MOUNTAIN:
                 e_above = e_above.rev
             over_under_pairs.append([e_above.face, e_above.rev.face])
-    print('number of pairs', len(over_under_pairs))
+    logger.info('number of pairs: %d', len(over_under_pairs))
     return over_under_pairs
 
 
@@ -769,7 +715,7 @@ def fold_complete(G, initial_face=None, overlap_eps=1e-6, area_eps=0):
     over_under_pairs = get_over_under_pairs_from_creases(G)
     result = dict()
     G_over = overlap_graph(G, overlap_eps)
-    assert area_eps == 0, 'Not implemeted!'
+    assert area_eps == 0, 'Not implemented!'
     crease_assignment = find_folded_face_order(G_over, over_under_pairs)
     # make CP
     for e in G.halfedges:
@@ -816,13 +762,13 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
         optimize_rotation(SRG, angle_offset=0 if bbox[0] < bbox[1] else np.pi / 2)
         scale = max(angle_to_height(SRG, 0) / bbox[0], angle_to_height(SRG, np.pi / 2) / bbox[1])
         if min_foldable_length is not None:
-            assert min_edge_length(SRG, inculde_border=False) / scale <= min_foldable_length, \
+            assert min_edge_length(SRG, include_border=False) / scale <= min_foldable_length, \
                 f'Sheet to small, would result in a crease with length of only {min_edge_length(SRG) / scale:4.2}cm.' \
                 f'Specify a larger bbox or set min_foldable_length to None to ignore this.'
     else:
         optimize_rotation(SRG, angle_offset=0)
         min_foldable_length = 0.5 if min_foldable_length is None else min_foldable_length
-        scale = min_edge_length(SRG, inculde_border=False) / min_foldable_length
+        scale = min_edge_length(SRG, include_border=False) / min_foldable_length
 
     folded = results['folded_state']
     folded_angle = optimize_rotation(folded, angle_offset=0)
@@ -866,8 +812,8 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
     text = f'{len([h for h in SRG.halfedges if not (h.on_border() or h.rev.on_border())])//2} creases, ' \
            f'{len([h for h in SRG.halfedges if h.on_border()])} edges on border, ' \
            f'{len(SRG.faces)} faces.' \
-           f'\nThe shortest fold has a length of {min_edge_length(SRG, inculde_border=False) / scale:4.2f}cm ' \
-           f'({min_edge_length(SRG, inculde_border=True) / scale:4.2f}cm inculding the border).' \
+           f'\nThe shortest fold has a length of {min_edge_length(SRG, include_border=False) / scale:4.2f}cm ' \
+           f'({min_edge_length(SRG, include_border=True) / scale:4.2f}cm including the border).' \
            f'\nThe crease pattern fits in a box of {angle_to_height(SRG, np.pi/2)/scale:4.2f}cm x ' \
            f'{angle_to_height(SRG, 0)/scale:4.2f}cm.' \
            f'\nThe folded model fits in a box of {angle_to_height(folded, np.pi/2)/scale:4.2f}cm x ' \
@@ -877,7 +823,7 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
     with open(os.path.join(path, 'info.txt'), 'w') as f:
         f.write(text)
 
-    print(text)
+    logger.info(text)
 
 
 def remove_duplicates(G, eps=1e-6, exclude_edges=()):

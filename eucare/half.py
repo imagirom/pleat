@@ -1,3 +1,4 @@
+import logging
 from itertools import chain
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -8,6 +9,8 @@ import heapq
 from collections import deque
 from .base import unit_vector, angle_to_axis, edge_lengths_and_in_angles, signed_area
 from .geometries import *
+
+logger = logging.getLogger(__name__)
 
 # TODO: Origami
 # - make recompute_positions more stable in the presence of very small edges
@@ -102,7 +105,7 @@ class IdObject(AttributeObject):
             IdObject.current_ids[cls] = 0
 
 
-def check_cyclic_iterator_consitency(iterator):
+def check_cyclic_iterator_consistency(iterator):
     items = set()
     for item in iterator:
         assert item not in items, f'{iterator}, {item}, {items}'
@@ -212,8 +215,8 @@ class Vertex(IdObject):
         return self
 
     def check_consistency(self):
-        check_cyclic_iterator_consitency(self.outgoing_iter())
-        check_cyclic_iterator_consitency(self.reverse_outgoing_iter())
+        check_cyclic_iterator_consistency(self.outgoing_iter())
+        check_cyclic_iterator_consistency(self.reverse_outgoing_iter())
         for e in self.outgoing_iter():
             assert e.orig is self, f'{self}, {e.orig}, {e}'
         for e in self.incoming_iter():
@@ -305,8 +308,8 @@ class Face(IdObject):
         return signed_area(np.stack([v['pos'] for v in self.vertex_iter()]))
 
     def check_consistency(self):
-        check_cyclic_iterator_consitency(self.halfedge_iter())
-        check_cyclic_iterator_consitency(self.reverse_halfedge_iter())
+        check_cyclic_iterator_consistency(self.halfedge_iter())
+        check_cyclic_iterator_consistency(self.reverse_halfedge_iter())
         for e in self.halfedge_iter():
             assert e.face is self, f'{self}, {e.face}, {e}'
         assert self.order() > 1, f'{self}, {self.order()}'
@@ -372,46 +375,6 @@ class HalfEdgeGraph:
 
     def delete_face(self, f):
         self.delete_faces({f})
-
-        # # removes the face from the mesh, together with all of its edges that lie on the border
-        # self.faces.remove(f)
-        # # mark edges that will be deleted
-        # any_deletions = False
-        # adjacent_halfedges = list(f.halfedge_iter())
-        # n_edge_deletions = 0
-        # for h in adjacent_halfedges:
-        #     h.face = None
-        #     if h.rev.on_border():
-        #         h['to_delete'] = True
-        #         any_deletions = True
-        #         n_edge_deletions += 1
-        # if not any_deletions:
-        #     # nothing left to do
-        #     return
-        # #print(f'deleting {n_edge_deletions} edges that do not have a face anymore')
-        # # update pre and nex where necessary, remove the edges
-        # for h in adjacent_halfedges:
-        #     if 'to_delete' in h.attributes:
-        #         if 'to_delete' not in h.rev.nex.rev.attributes:
-        #             h2 = h
-        #             while 'to_delete' in h2.attributes:
-        #                 h2 = h2.rev.nex
-        #             h.pre.nex = h2
-        #             h2.pre = h.pre
-        #             h.orig.any_outgoing = h.pre.rev
-        #         if 'to_delete' not in h.rev.pre.rev.attributes:
-        #             # TODO?: while 'to_delete' h.nex.pre ...
-        #             # (this is not necessary, if borders of the tilings are sufficiently far apart..)
-        #             h2 = h
-        #             while 'to_delete' in h2.attributes:
-        #                 h2 = h.rev.pre
-        #             h.nex.pre = h2
-        #             h2.nex = h.nex
-        #             h.dest.any_outgoing = h.nex
-        #         else:
-        #             # remove vertex surrounded by border
-        #             self.vertices.remove(h.dest)
-        #         self.halfedges.difference_update({h, h.rev})
 
     def fill_holes(self):
         """Fill all 'holes' inside the graph: Add faces to enclosed areas which are not yet a face"""
@@ -910,13 +873,15 @@ class HalfEdgeGraph:
                 referenced_faces != self.faces or
                 referenced_halfedges != self.halfedges
         ):
-            print('='*50)
-            print('consistency error')
+            logger.error('='*50)
+            logger.error('consistency error')
 
-            print(f'halfedges: {referenced_halfedges.difference(self.halfedges)}, '
-                  f'{self.halfedges.difference(referenced_halfedges)}')
-            f'vertices: {referenced_vertices.difference(self.vertices)}, {self.vertices.difference(referenced_vertices)}'
-            f'faces: {referenced_faces.difference(self.faces)}, {self.faces.difference(referenced_faces)}'
+            logger.error('halfedges: %s, %s', referenced_halfedges.difference(self.halfedges),
+                         self.halfedges.difference(referenced_halfedges))
+            logger.error('vertices: %s, %s', referenced_vertices.difference(self.vertices),
+                         self.vertices.difference(referenced_vertices))
+            logger.error('faces: %s, %s', referenced_faces.difference(self.faces),
+                         self.faces.difference(referenced_faces))
 
             reference_dict = {obj: set() for obj in
                               referenced_halfedges.union(referenced_vertices).union(referenced_faces).union([None])}
@@ -932,8 +897,8 @@ class HalfEdgeGraph:
             for obj in (referenced_vertices.difference(self.vertices)
                         .union(referenced_faces.difference(self.faces))
                         .union(referenced_halfedges.difference(self.halfedges))):
-                print(f'{obj} referenced by {reference_dict[obj]}.')
-            assert False
+                logger.error('%s referenced by %s.', obj, reference_dict[obj])
+            raise RuntimeError('Graph consistency check failed. See log for details.')
 
     def copy(self, deepcopy_attributes=False, return_mappings=False):
         def copy_with_attributes(obj):
@@ -1046,7 +1011,7 @@ class InAngleHEG(HalfEdgeGraph):
             # TODO: think about reverse properly...
             self.autoclose_vertex(e1.rev.orig, reverse=False, recursive=auto_close_recursive)
         else:
-            assert False
+            raise RuntimeError('Expected vertex to be on border after glue operation')
         if e1.rev.dest in self.vertices and e1.rev.dest.on_border():  # this might not be the case, if everything is closed by the previous operation
             self.autoclose_vertex(e1.rev.dest, reverse=True, recursive=auto_close_recursive)
 
@@ -1086,7 +1051,7 @@ class GeometricHEG(InAngleHEG):
             lengths = [h['length'] for h in hs]
             edge_to_start = hs[np.argmax(lengths)]
         if edge_to_start.on_border():
-            assert False, f'{edge_to_start}'
+            raise ValueError(f'edge_to_start must not be on border, got {edge_to_start}')
 
         # delete old positions
         vertices = set.union(set(), *(f.vertex_iter() for f in faces))\
@@ -1182,7 +1147,7 @@ class GeometricHEG(InAngleHEG):
     def show(self, render_faces=True, render_edges=True, render_vertices=True, block=True,
              figsize=None, for_cutting=False, filename='output', **kwargs):
         figsize = (5, 5) if figsize is None else figsize
-        from .redering import CairoRenderer
+        from .rendering import CairoRenderer
         import matplotlib.image as mpimg
         render_position_key = 'euclidean_pos'
         for v in self.vertices:

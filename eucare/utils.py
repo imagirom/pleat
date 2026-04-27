@@ -1,6 +1,9 @@
+import logging
 from .half import HalfEdgeGraph, IdObject, AttributeObject
 from time import time
 from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 
 
 def invert_mapping(mapping):
@@ -20,7 +23,7 @@ def random_directed_set(edges):
 class VerboseTimer(IdObject):
     def __init__(self):
         super(VerboseTimer, self).__init__()
-        print(f'Starting Timer {self["id"]}')
+        logger.debug('Starting Timer %s', self["id"])
         self.last = time()
         self.rounds = []
 
@@ -28,7 +31,7 @@ class VerboseTimer(IdObject):
         current = time()
         interval = current - self.last
         self.rounds.append(interval)
-        print(f'Timer {self["id"]}, Round {len(self.rounds)} ({msg}): {interval}')
+        logger.debug('Timer %s, Round %d (%s): %s', self["id"], len(self.rounds), msg, interval)
         self.last = time()
 
 
@@ -36,11 +39,11 @@ def print_attribute_info(objs):
     """Print info about the attributes of the AttributeObject(s) objs. Also works on HalfEdgeGraphs."""
 
     if isinstance(objs, HalfEdgeGraph):
-        print('Vertices:')
+        logger.info('Vertices:')
         print_attribute_info(objs.vertices)
-        print('Halfedges:')
+        logger.info('Halfedges:')
         print_attribute_info(objs.halfedges)
-        print('Faces:')
+        logger.info('Faces:')
         print_attribute_info(objs.faces)
         return
 
@@ -54,6 +57,6 @@ def print_attribute_info(objs):
             except TypeError:
                 pass
             counter[key] += 1
-    print(f'{len(objs)} Objects')
+    logger.info('%d Objects', len(objs))
     for key, count in sorted(counter.items()):
-        print(f"Key '{key}': {count} objects" + f" ({len(attribute_dict[key])} distinct hashable values)")
+        logger.info("Key '%s': %d objects (%d distinct hashable values)", key, count, len(attribute_dict[key]))

@@ -1,6 +1,9 @@
+import logging
 import numpy as np
 import scipy as sc
 from copy import copy
+
+logger = logging.getLogger(__name__)
 
 from .conway import dual_graph, twist_rotate_graph
 from .half import HalfEdgeGraph
@@ -23,10 +26,8 @@ def random_directed_set(edges):
 def reciprocal_figure(G, reciprocal_pos_key='reciprocal_pos', rcond=1e-7):
     # Step 1: Choose direction for every interior edge.
 
-    #print(len(G.halfedges))
     directed_edges = random_directed_set([e for e in G.halfedges
                                           if not (e.on_border() or e.rev.on_border())])
-    #print(f'n edges: {len(directed_edges)}')
 
     # Step 2: Construct array of all vectors of the directed edges, mapping from edge to index
     edge_vectors = np.stack([e.orig['pos'] - e.dest['pos'] for e in directed_edges])
@@ -34,7 +35,6 @@ def reciprocal_figure(G, reciprocal_pos_key='reciprocal_pos', rcond=1e-7):
     dual_vectors = edge_vectors @ rotation_matrix(np.pi/2)
     dual_directions = dual_vectors / np.linalg.norm(dual_vectors, axis=1, keepdims=True)
     edges_to_ids = {e: i for i, e in enumerate(directed_edges)}
-    #print('dual directions shape:', dual_directions.shape)
 
     # Step 3: Formulate constraints as linear problem Ax = 0
     # Every constraint is a row in the matrix A.
@@ -42,7 +42,6 @@ def reciprocal_figure(G, reciprocal_pos_key='reciprocal_pos', rcond=1e-7):
     # Hence, compute one row for each interior vertex.
 
     interior_vertices = [v for v in G.vertices if not v.on_border()]
-    #print('number of interor vertices=constraints:', len(interior_vertices))
 
     rows = []
     n_edges = len(directed_edges)
@@ -56,24 +55,11 @@ def reciprocal_figure(G, reciprocal_pos_key='reciprocal_pos', rcond=1e-7):
         rows.append(row)
     B = np.stack(rows)
     A = (B[:, None, :] * dual_directions.T[: None]).reshape(-1, n_edges)
-    #print('A.shape:', A.shape)
     U = sc.linalg.null_space(A, rcond=rcond)
-    #print('U.shape:', U.shape)
     assert U.shape[1] > 0, f'G does not have a reciprocal figure!'
     # Step 4: Formulate and solve least squares problem to make reciprocal graph as
     # similar as possible to result of conway.dual_graph()(G)
 
-    # need map face in primal -> vertex in dual!
-
-    # need linear map coords in solution space -> dual edge lenghts
-    # this is just U @ coords
-    #coords = np.random.rand(U.shape[1])
-    #print(((U @ coords)[:, None] * dual_directions).shape)
-
-    # need linear map dual edge lengths -> dual edge offsets
-    # this is just dual_directions
-
-    # need linear map (dual edge offsets, position of interior_vertices[0]) -> dual vertex positons
     to_process = set(G.faces)
     anchor = to_process.pop()
     coefficients = {anchor: np.zeros(n_edges, dtype=np.float32)}
@@ -98,14 +84,9 @@ def reciprocal_figure(G, reciprocal_pos_key='reciprocal_pos', rcond=1e-7):
 
     faces = G.faces
     n_faces = len(faces)
-    #print('n_faces:', n_faces)
     D2P = np.stack([coefficients[f] for f in faces])
-    #print('D2P.shape:', D2P.shape)
-
-    #M = (D2P @ U)#[:, None] * dual_directions
 
     M = np.moveaxis(np.dot(D2P, np.moveaxis(U[:, :, None] * dual_directions[:, None], 0, 1)), 1, 2)
-    #print('M.shape', M.shape)
 
     # Add two columns to M, corresponding to the offset of the dual graph
     xy_columns = np.zeros((n_faces, 2, 2), dtype=np.float32)
@@ -115,19 +96,17 @@ def reciprocal_figure(G, reciprocal_pos_key='reciprocal_pos', rcond=1e-7):
 
     # Get 'ground truth' face centers: for now just com of the faces
     face_centers = np.stack([f.midpoint() for f in faces])
-    #print('face_centers.shape', face_centers.shape)
 
     # flatten xy
     M = M.reshape(n_faces * 2, -1)
     face_centers = face_centers.reshape(n_faces * 2)
 
-    print(f'optimizing rotation centers using {M.shape[-1]} degrees of freedom..')
+    logger.info('optimizing rotation centers using %d degrees of freedom..', M.shape[-1])
     # solve the least squares problem
     sol = sc.optimize.lsq_linear(M, face_centers, lsq_solver='exact')
     assert sol['success'], f"{sol['message']}"
     sol = sol['x']
 
-    #sol[2:] *= 1 + np.random.randn(len(sol) - 2) * 0.3
     dual_vertices = M @ sol
     dual_vertices = dual_vertices.reshape(-1, 2)
 
@@ -163,16 +142,11 @@ def reciprocal_figure(G, reciprocal_pos_key='reciprocal_pos', rcond=1e-7):
 def shrink_rotate_graph(G, alpha=np.pi/5, factor=0.5, **reciprocal_figure_kwargs):
     f = next(iter(G.faces))
     if 'reciprocal_pos' not in f or len(reciprocal_figure_kwargs):
-        print('Calculating reciprocal figure..')
+        logger.info('Calculating reciprocal figure..')
         _ = reciprocal_figure(G, **reciprocal_figure_kwargs)
-        print('Done with reciprocal figure.')
+        logger.info('Done with reciprocal figure.')
     # Step 6: get shrink-rotate graph and apply mapping
     SRG, (_, _, f_map) = G.copy(return_mappings=True)
-    # faces = []
-    # dual_vertices = []
-    # for v in D.vertices:
-    #     dual_vertices.append(v['pos'])
-    #     faces.append(v['pre'])
 
     inverse_f_map = invert_mapping(f_map)  # to get from 'pre_conway' of SRG to G
 
@@ -322,8 +296,8 @@ def make_SRG(G, simplify_boundary=True, **srg_kwargs):
 
     mks = max_kawasaki_sum(SRG)
     if mks > 1e-12:
-        print('High mks: ', mks)
+        logger.warning('High max Kawasaki sum: %s', mks)
 
-    print(f'CP has {len(SRG.halfedges) // 2} edges')
+    logger.info('CP has %d edges', len(SRG.halfedges) // 2)
 
     return SRG
