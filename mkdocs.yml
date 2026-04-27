@@ -27,7 +27,6 @@ plugins:
   - search
   - mkdocs-jupyter:
       include: ["*.ipynb"]
-      ignore_h1: true
       execute: false
       include_requirejs: true
   - gen-files:

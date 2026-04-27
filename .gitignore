@@ -23,3 +23,7 @@ htmlcov/
 
 # Docs
 site/
+.cache/
+
+# Editors
+.vscode/

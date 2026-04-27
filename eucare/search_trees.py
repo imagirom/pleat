@@ -1,3 +1,5 @@
+"""Search trees for half-edge graphs."""
+
 def bfs_tree(start, neighbor_iter):
     """breadth first search tree starting from a node or set"""
     boundary = start if isinstance(start, set) else {start}

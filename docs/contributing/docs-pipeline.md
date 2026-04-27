@@ -76,7 +76,5 @@ committing the notebook to `notebooks/`.
 
 ### Notebook headings
 
-`ignore_h1: true` is set in `mkdocs.yml`, so the first `#`-level heading in each
-notebook is stripped from the rendered page (MkDocs already shows the nav title at the
-top). Add a `# My Notebook Title` markdown cell as the very first cell of any new
+Add a `# My Notebook Title` markdown cell as the very first cell of any new
 notebook so the title appears correctly in both Jupyter and the docs.

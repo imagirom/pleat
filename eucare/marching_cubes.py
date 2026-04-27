@@ -10,6 +10,8 @@ from skimage.measure import marching_cubes
 
 """
 
+This is for generating STLs for 3D printing, not Origami.
+
 Inputs: 
 - callable sdf which maps array of positions, shape (n, 3) to array of signed distances of shape (n).
 - bounds (could be automatically estimated using ``sdf.mesh._estimate_bounds``) of shape ((x0, y0, z0), (x1, y1, z1))

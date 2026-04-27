@@ -1,4 +1,4 @@
-"""SVG export for half-edge graphs using svgwrite and svgpathtools."""
+"""Module for loading SVG files of crease patterns as half-edge graphs."""
 import logging
 import matplotlib.pyplot as plt
 import numpy as np

@@ -1,4 +1,10 @@
-"""Cairo-based renderer for high-quality PNG output of half-edge graphs."""
+"""Renderers for half-edge graphs.
+
+Provides :class:`CairoRenderer` (raster/vector output via pycairo) and
+:class:`SvgwriteRenderer` (vector output via svgwrite), plus small polygon
+helpers (:func:`inset_corner`, :func:`inset_poly`) and color utilities.
+"""
+
 import logging
 import cairo
 from .base import angle_to_axis, unit_vector
