@@ -593,6 +593,17 @@ class HalfEdgeGraph:
                 h.face.any_side = h
         self.vertices.remove(v)
 
+    def join_order_2_boundary_vertices(self):
+        """Simplify the boundary by joining all degree 2 vertices on the boundary."""
+        # join unnecessary boundary vertices
+        to_join = []
+        for v in self.vertices:
+            if v.on_border() and v.order() == 2:
+                to_join.append(v)
+        for v in to_join:
+            self.join_vertex(v)
+        self.recompute_lengths_and_angles()
+
     def join_edge(self, h):
         """
         Contract the halfedge h (and its reverse), merging the adjacent vertices

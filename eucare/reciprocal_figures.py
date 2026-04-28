@@ -303,14 +303,7 @@ def make_SRG(G: GeometricHEG, simplify_boundary: bool = True, **srg_kwargs) -> E
         e['color_key'] = colors[e.attributes.get('crease_assignment', 0)]
 
     if simplify_boundary:
-        # join unnecessary boundary vertices
-        to_join = []
-        for v in G.vertices:
-            if v.on_border() and v.order() == 2:
-                to_join.append(v)
-        for v in to_join:
-            G.join_vertex(v)
-        G.recompute_lengths_and_angles()
+        G.join_order_2_boundary_vertices()
 
     mks = max_kawasaki_sum(SRG)
     if mks > 1e-12:
