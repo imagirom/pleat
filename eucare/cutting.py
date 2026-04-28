@@ -248,7 +248,7 @@ def cut_out_poly(G: "EuclideanPositionHEG", poly, delete_outside: bool = True, e
                         for f in v.common_faces_iter(v2)
                         if f.area() > 0 and (not corners or np.all(parallelpointinpolygon(
                             np.array(corners),
-                            inset_poly(np.stack([vf['pos'] for vf in f.vertex_iter()]), -eps)
+                            np.asarray(inset_poly(np.stack([vf['pos'] for vf in f.vertex_iter()]), -eps))
                         )))
                     )
                     if v2 is v:
@@ -302,7 +302,7 @@ def cut_out_poly(G: "EuclideanPositionHEG", poly, delete_outside: bool = True, e
                         for f in v.common_faces_iter(v2)
                         if f.area() < 0 and (not corners or np.all(parallelpointinpolygon(
                             np.array(corners),
-                            inset_poly(np.stack([vf['pos'] for vf in reversed(list(f.vertex_iter()))]), -eps)
+                            np.asarray(inset_poly(np.stack([vf['pos'] for vf in reversed(list(f.vertex_iter()))]), -eps))
                         )))
                     )
                     if v2 is v:

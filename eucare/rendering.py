@@ -323,6 +323,8 @@ class CairoRenderer:
 
         if self.line_width == 'auto':
             self.line_width = self.auto_line_width(graph)
+        elif isinstance(self.line_width, str) and self.line_width.endswith('%'):
+            self.line_width = float(self.line_width[:-1]) / 100 * self.auto_line_width(graph)
         self.vertex_radius = self.vertex_radius if self.vertex_radius is not None else self.line_width
         self.face_inset = self.face_inset if self.face_inset is not None else self.line_width
 

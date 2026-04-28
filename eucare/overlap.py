@@ -724,8 +724,14 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
     """Save rendered crease pattern, folded views, and a plotter-ready SVG to a directory.
 
     The plotter SVG is scaled to fit within bbox (in cm) or so that the shortest
-    fold equals min_foldable_length. Results is the output dict from fold_complete.
+    fold equals min_foldable_length. Results is the output dict from fold_complete, with keys 'CP', 'folded_state', 'folded_view_top', and 'folded_view_bottom'. 
+    Additionally, a key 'CP_for_origami_simulator' can be provided, which is a version of the CP optimized for folding in Origami Simulator.
     """
+    valid_keys = ['CP', 'folded_state', 'folded_view_top', 'folded_view_bottom', 'CP_for_origami_simulator']
+    for key in results.keys():
+        if key not in valid_keys:
+            raise ValueError(f'Unexpected key {key} in results dict. Expected keys are {valid_keys}.')
+
     if render_settings is None:
         render_settings = dict(face_inset=0, render_vertices=False, render_faces=True, height=2048)
     render_settings = copy(render_settings)
@@ -778,6 +784,12 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
             f['color_key'] = [0, 0, 0, opacity]
     results['folded_state'].show(**backlight_settings)
 
+    if 'CP_for_origami_simulator' in results:
+        optimize_rotation(results['CP_for_origami_simulator'], angle_offset=0)
+        cp_for_simulator_settings = cp_settings.copy()
+        cp_for_simulator_settings.update(dict(filename=os.path.join(path, 'CP_for_origami_simulator')))
+        results['CP_for_origami_simulator'].show(**cp_for_simulator_settings)
+
     sheet_height = angle_to_height(SRG, np.pi / 2) / scale
 
     plotter = SvgwriteRenderer()
@@ -801,7 +813,11 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
 
 
 def remove_duplicates(G, eps=1e-6, exclude_edges=()):
-    """Merge duplicate vertices and edges within eps distance, returning a clean graph."""
+    """Merge duplicate vertices and edges within eps distance, returning a clean graph.
+    
+    The faces of the resulting graph are built from scratch based on the new edges, so this only works 
+    for planar graphs.
+    """
     vs = list(G.vertices)
     pos = np.stack([v['pos'] for v in vs])
 
