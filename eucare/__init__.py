@@ -6,6 +6,7 @@ pattern for interactive/notebook use).
 """
 
 # Core data structures and geometry
+import eucare.alternating_flagstones
 import eucare.base
 import eucare.classifiers
 import eucare.colorization
@@ -26,8 +27,6 @@ import eucare.io
 import eucare.layout
 import eucare.overlap
 import eucare.plotting
-
-# Tilings
 import eucare.prototiles
 import eucare.reciprocal_figures
 import eucare.search_trees

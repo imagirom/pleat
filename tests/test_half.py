@@ -365,6 +365,74 @@ class TestNormalizePositions:
         assert np.max(np.abs(ps)) <= 1.0 + 1e-9
 
 
+class TestScalePositions:
+    def test_scale_positions_multiplies_positions(self):
+        from eucare.example_graphs import rosette
+        G = rosette(n=4)
+        G.recompute_lengths_and_angles()
+        before = np.stack([v['pos'] for v in G.vertices]).copy()
+        verts = list(G.vertices)
+        G.scale_positions(2.5)
+        after = np.stack([v['pos'] for v in verts])
+        np.testing.assert_allclose(after, 2.5 * before)
+
+    def test_scale_positions_recomputes_lengths(self):
+        from eucare.example_graphs import rosette
+        G = rosette(n=4)
+        G.recompute_lengths_and_angles()
+        len_before = next(iter(G.halfedges))['length']
+        G.scale_positions(3.0)
+        # at least one halfedge with a length attribute → must scale by 3.
+        scaled = next(h['length'] for h in G.halfedges if 'length' in h.attributes)
+        np.testing.assert_allclose(scaled, 3.0 * len_before)
+
+    def test_scale_positions_rejects_non_euclidean(self):
+        import pytest
+        from eucare.example_graphs import from_tiles
+        from eucare.example_tilesets import curved_platonic
+        G = from_tiles(curved_platonic(7, 3), rings=1)
+        with pytest.raises(NotImplementedError):
+            G.scale_positions(2.0)
+
+
+class TestNormalizeEdgeLengths:
+    def test_geometric_mean_default(self):
+        from eucare.example_graphs import rosette
+        G = rosette(n=4)
+        G.recompute_lengths_and_angles()
+        G.normalize_edge_lengths(factor=1.0)
+        lengths = np.array([h['length'] for h in G.halfedges if 'length' in h.attributes])
+        # geometric mean ≈ exp(mean(log(lengths)))
+        gmean = np.exp(np.mean(np.log(lengths)))
+        np.testing.assert_allclose(gmean, 1.0, atol=1e-9)
+
+    def test_arithmetic_mean(self):
+        from eucare.example_graphs import rosette
+        G = rosette(n=5)
+        G.recompute_lengths_and_angles()
+        G.normalize_edge_lengths(mode='arithmetic', factor=2.0)
+        lengths = np.array([h['length'] for h in G.halfedges if 'length' in h.attributes])
+        np.testing.assert_allclose(np.mean(lengths), 2.0, atol=1e-9)
+
+    def test_factor_scales_target(self):
+        from eucare.example_graphs import rosette
+        G = rosette(n=4)
+        G.recompute_lengths_and_angles()
+        G.normalize_edge_lengths(factor=1.0)
+        G.normalize_edge_lengths(factor=4.0)
+        lengths = np.array([h['length'] for h in G.halfedges if 'length' in h.attributes])
+        gmean = np.exp(np.mean(np.log(lengths)))
+        np.testing.assert_allclose(gmean, 4.0, atol=1e-9)
+
+    def test_invalid_mode_raises(self):
+        import pytest
+        from eucare.example_graphs import rosette
+        G = rosette(n=4)
+        G.recompute_lengths_and_angles()
+        with pytest.raises(ValueError, match="Invalid mode"):
+            G.normalize_edge_lengths(mode='median')
+
+
 class TestCentralFaceVertex:
     def test_central_face_and_vertex(self):
         from eucare.example_graphs import rosette

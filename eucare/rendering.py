@@ -305,7 +305,11 @@ class CairoRenderer:
 
     @staticmethod
     def auto_line_width(graph):
-        lengths = np.array([np.linalg.norm(h.dest['pos'] - h.orig['pos']) for h in graph.halfedges])
+        lengths = np.array([
+            h['length'] if 'length' in h.attributes
+            else float(np.linalg.norm(h.dest['pos'] - h.orig['pos']))
+            for h in graph.halfedges
+        ])
         return min(np.min(lengths) / 2, np.mean(lengths) / 10)
 
     def render_graph(self, graph, render_vertices=True, render_faces=True, render_edges=True, for_cutting=False):

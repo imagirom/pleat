@@ -185,9 +185,12 @@ def delete_new_outside(G: "HalfEdgeGraph", border_key: str = 'new_border') -> No
 
 
 def cut_out_poly(G: "EuclideanPositionHEG", poly, delete_outside: bool = True, eps: float = 1e-10):
-    poly_segments = np.stack(list(rotate_by(poly, (0, 1))))
+    # numba-jit'd ``line_segment_intersections`` requires a uniform float64
+    # dtype across both segment arrays; cast defensively here so that callers
+    # that produced positions via float32 paths (e.g. torch optimisers) work.
+    poly_segments = np.stack(list(rotate_by(poly, (0, 1)))).astype(np.float64)
     es = list(G.halfedges_representing_edges())
-    edge_segments = np.array([[e.orig['pos'], e.dest['pos']] for e in es])
+    edge_segments = np.array([[e.orig['pos'], e.dest['pos']] for e in es], dtype=np.float64)
     crossing_positions, segments1_to_crossings, segments2_to_crossings, crossings_to_segments1, crossings_to_segments2 = \
         get_ordered_crossings(poly_segments, edge_segments, eps=eps)
 

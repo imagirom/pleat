@@ -264,7 +264,7 @@ class GeometricConwayOperator(TopologicalConwayOperator):
             v['pos'] = to_euclidean(v['pos'])
         return result, corners
 
-    def __call__(self, graph, recompute_lengths_and_angles=True, **kwargs):
+    def __call__(self, graph: GeometricHEG, recompute_lengths_and_angles=True, **kwargs):
         """Apply the geometric operator to a GeometricHEG, optionally recomputing lengths and angles."""
         assert isinstance(graph, GeometricHEG)
         self.geometry = graph.geometry

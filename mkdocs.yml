@@ -80,6 +80,7 @@ nav:
           - GomJau-Hogg Notation: notebooks/GomJau-Hogg Notation.ipynb
           - Hyperbolic and Other Rings: notebooks/Hyperbolic and other Rings.ipynb
           - Origami Crease Patterns: notebooks/Better reciprocal Figures.ipynb
+          - Alternating Flagstones: notebooks/Alternating Flagstones.ipynb
   - Contributing:
       - Docs Pipeline: contributing/docs-pipeline.md
   - API Reference: reference/

@@ -1169,7 +1169,7 @@ class GeometricHEG(InAngleHEG):
             return positions
 
     def normalize_positions(self):
-        ps, vs = self.get_position_view()
+        ps, _ = self.get_position_view()
         k = ps.copy()
         k = np.array([complex(*ki) for ki in k])
         k -= np.mean(k)
@@ -1177,6 +1177,41 @@ class GeometricHEG(InAngleHEG):
         k = np.stack([k.real, k.imag], axis=-1)
         ps[:] = k
         self.recompute_lengths_and_angles()
+
+    def scale_positions(self, factor):
+        if self.geometry is not EuclideanGeometry:
+            raise NotImplementedError('Scaling only implemented for Euclidean geometry.')
+        for v in self.vertices:
+            v['pos'] = factor * v['pos']
+        self.recompute_lengths_and_angles()
+
+    def normalize_edge_lengths(self, mode: str ='geometric', factor: float =1) -> None:
+        """
+        Scales the graph such that the mean of the edge lengths is equal to the given factor.
+        
+        Arguments:
+            mode: One of 'geometric', 'arithmetic', 'harmonic', 'min', 'max'. Specifies the type of mean to use for calculating the mean edge length.
+            factor: The desired mean edge length after scaling.
+        
+        """
+        if self.geometry is not EuclideanGeometry:
+            raise NotImplementedError('Scaling only implemented for Euclidean geometry.')
+        
+        lengths = np.array([h['length'] for h in self.halfedges])
+        if mode == 'geometric':
+            mean_length = np.exp(np.mean(np.log(lengths)))
+        elif mode == 'arithmetic':
+            mean_length = np.mean(lengths)
+        elif mode == 'harmonic':
+            mean_length = len(lengths) / np.sum(1 / lengths)
+        elif mode == 'min':
+            mean_length = np.min(lengths)
+        elif mode == 'max':
+            mean_length = np.max(lengths)
+        else:
+            raise ValueError(f"Invalid mode '{mode}'. Expected one of 'geometric', 'arithmetic', 'harmonic', 'min', 'max'.")
+        factor = factor / mean_length
+        self.scale_positions(factor)
 
     def convert_to_euclidean(self):
         for v in self.vertices:
