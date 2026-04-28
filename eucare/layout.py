@@ -1,6 +1,6 @@
-"""Vertex position optimisations for half-edge graphs.
+"""Vertex position optimizations for half-edge graphs.
 
-Provides helpers to find the rotation angle that minimises the bounding-box
+Provides helpers to find the rotation angle that minimizes the bounding-box
 height of a graph (useful before rendering elongated tilings) and a
 ``min_edge_length`` query used to set tolerances elsewhere.
 """
@@ -49,7 +49,7 @@ def rotate_graph(G: "GeometricHEG", angle: float) -> None:
 
 
 def optimize_rotation(G: "GeometricHEG", angle_offset: float = 0) -> float:
-    """Rotate *G* in place to minimise its bounding-box height; return the applied angle."""
+    """Rotate *G* in place to minimize its bounding-box height; return the applied angle."""
     angle = optimal_rotation(G, angle_offset)
     rotate_graph(G, angle)
     return angle
