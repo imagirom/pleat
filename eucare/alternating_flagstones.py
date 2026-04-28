@@ -412,6 +412,9 @@ def optimize_alternating_flagstone(
         if loss.item() < tol:
             break
 
+        if progress and i % 10 == 0:
+            iterator.set_postfix(loss=loss.item())
+
         if i == ramp_step:
             for g in optimizer.param_groups:
                 g["lr"] *= ramp_factor
