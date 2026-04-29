@@ -31,11 +31,3 @@ def set_equal_aspect(ax: Axes | None = None) -> None:
     ax = plt.gca() if ax is None else ax
     ax.set_aspect('equal', adjustable='box')
     ax.margins(0.05)
-
-
-#def show_lines(points, connections, ax=None):
-#    plt.scatter(points[:, 0], points[:, 1])
-#    lines = [np.array([points[i], points[j]]) for (i, j) in connections]
-#    lc = mc.LineCollection(lines, linewidths=1)
-#    ax = plt.gca()
-#    ax.add_collection(lc)

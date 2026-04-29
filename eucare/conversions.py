@@ -21,14 +21,6 @@ from .half import EuclideanPositionHEG, Face, HalfEdge, Vertex, rotate_by
 logger = logging.getLogger(__name__)
 
 
-def EHEG_from_edgelist(pts, edges):
-    """Construct an :class:`EuclideanPositionHEG` from a list of points and edges.
-
-    Currently a stub; raises :class:`NotImplementedError`.
-    """
-    raise NotImplementedError
-
-
 def _delete_dangling_edges_nx(nx_graph: nx.Graph) -> int:
     """Iteratively delete degree-1 vertices in *nx_graph* in place; return the deletion count."""
     finished = False
