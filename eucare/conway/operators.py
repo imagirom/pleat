@@ -339,32 +339,23 @@ class GeometricConwayOperator(TopologicalConwayOperator):
     def show(
         self,
         annotate_barycentric: bool = False,
-        show_corners: bool = True,
         delete_color: tuple[float, float, float] = (0.85, 0.15, 0.15),
         join_color: tuple[float, float, float] = (0.15, 0.65, 0.20),
         keep_color: tuple[float, float, float] = (0.30, 0.30, 0.30),
-        corner_color: tuple[float, float, float] = (1.00, 0.55, 0.00),
-        filename: str = 'conway_operator',
         **show_kwargs: object,
     ) -> None:
         """Render the fundamental-domain graph, colouring elements by their role.
 
         Vertices and edges flagged as ``delete`` are drawn in *delete_color*
-        (and edges become dashed via the existing renderer behaviour); vertices
-        flagged as ``join`` are drawn in *join_color*; the three corner
-        vertices ``(v1, vf, v2)`` are highlighted in *corner_color* if
-        ``show_corners`` is True; everything else uses *keep_color*.
+        (default: red), and edges become dashed via the existing renderer behaviour; 
+        vertices flagged as ``join`` are drawn in *join_color* (default: green); everything else uses *keep_color*.
 
         Args:
             annotate_barycentric: If True, print a table of each vertex's
                 barycentric coordinates to stdout.
-            show_corners: If True, override the corner vertices' colour.
             delete_color: RGB triple for delete-marked elements.
             join_color: RGB triple for join-marked vertices.
             keep_color: RGB triple for retained elements.
-            corner_color: RGB triple for the three triangle corners.
-            filename: Stem for the SVG/PNG output written by
-                :meth:`HalfEdgeGraph.show`.
             **show_kwargs: Forwarded to :meth:`HalfEdgeGraph.show`.
         """
         from ..half import EuclideanGeometry
@@ -376,13 +367,9 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         for v in graph_copy.vertices:
             v['pos'] = to_euclidean(v['pos'])
 
-        corner_set = {v_map[c] for c in (self.v1, self.vf, self.v2)} if show_corners else set()
-
         # Assign colours based on role.
         for v in graph_copy.vertices:
-            if v in corner_set:
-                v['color_key'] = corner_color
-            elif v.attributes.get('delete', False):
+            if v.attributes.get('delete', False):
                 v['color_key'] = delete_color
             elif v.attributes.get('join', False):
                 v['color_key'] = join_color
@@ -400,11 +387,16 @@ class GeometricConwayOperator(TopologicalConwayOperator):
             for v in graph_copy.vertices:
                 bary = inv[v]['pos']
                 role = (
-                    'corner' if v in corner_set
-                    else 'delete' if v.attributes.get('delete', False)
+                    'delete' if v.attributes.get('delete', False)
                     else 'join' if v.attributes.get('join', False)
                     else 'keep'
                 )
                 print(f'  {role:>6}: ({bary[0]:+.3f}, {bary[1]:+.3f}, {bary[2]:+.3f})')
 
-        graph_copy.show(filename=filename, **show_kwargs)
+        kwargs = dict(
+            line_width='50%',
+            face_inset=0,
+        )
+        kwargs.update(show_kwargs)
+
+        graph_copy.show(**kwargs)
