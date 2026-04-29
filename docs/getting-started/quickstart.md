@@ -41,7 +41,7 @@ G = from_tiles(tiles, rings=3)
 ## Shrink-rotate origami
 
 ```python
-from eucare.reciprocal_figures import make_SRG, assign_this_way_by_face_z_order
+from eucare.reciprocal_figures import shrink_rotate_pattern, assign_this_way_by_face_z_order
 from eucare.search_trees import face_bfs_tree
 from eucare.overlap import fold_complete
 import numpy as np
@@ -56,7 +56,7 @@ for orig, dest in face_bfs_tree(central):
 assign_this_way_by_face_z_order(G)
 
 # Build shrink-rotate crease pattern
-SRG = make_SRG(G)
+SRG = shrink_rotate_pattern(G)
 
 # Fold (requires PuLP solver)
 results = fold_complete(SRG, overlap_eps=1e-8)
