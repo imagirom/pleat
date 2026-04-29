@@ -28,6 +28,8 @@ import eucare.layout
 import eucare.overlap
 import eucare.plotting
 import eucare.prototiles
+import eucare.flat_foldable
 import eucare.reciprocal_figures
 import eucare.search_trees
+import eucare.shrink_rotate
 import eucare.svg

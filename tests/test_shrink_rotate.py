@@ -22,10 +22,9 @@ from eucare.reciprocal_figures import (
     assign_shrink_rotate_creases,
     assign_this_way_by_face_z_order,
     kawasaki_sum,
-    make_SRG,
     max_kawasaki_sum,
     reciprocal_figure,
-    shrink_rotate_graph,
+    shrink_rotate_pattern,
 )
 from eucare.search_trees import face_bfs_tree
 
@@ -81,22 +80,22 @@ class TestShrinkRotate:
 
     def test_basic_srg(self):
         G = _make_graph(rings=3)
-        SRG = shrink_rotate_graph(G)
+        SRG = shrink_rotate_pattern(G)
         SRG.check_consistency()
         assert len(SRG.faces) > len(G.faces)  # SRG has more faces (twist-rotate subdivides)
 
     def test_srg_parameters(self):
         G = _make_graph(rings=3)
-        SRG1 = shrink_rotate_graph(G, alpha=np.pi / 6, factor=0.3)
+        SRG1 = shrink_rotate_pattern(G, alpha=np.pi / 6, factor=0.3)
         SRG1.check_consistency()
         G = _make_graph(rings=3)
-        SRG2 = shrink_rotate_graph(G, alpha=np.pi / 4, factor=0.7)
+        SRG2 = shrink_rotate_pattern(G, alpha=np.pi / 4, factor=0.7)
         SRG2.check_consistency()
 
     def test_kawasaki_sum_near_zero(self):
         """For a valid flat-foldable CP, Kawasaki sums should be near zero."""
         G = _make_graph(rings=3)
-        SRG = shrink_rotate_graph(G)
+        SRG = shrink_rotate_pattern(G)
         mks = max_kawasaki_sum(SRG)
         assert mks < 1e-6, f"Max Kawasaki sum too large: {mks}"
 
@@ -107,7 +106,7 @@ class TestCreaseAssignment:
     def test_assign_creases(self):
         G = _make_graph(rings=3)
         _assign_face_z_order(G)
-        SRG = make_SRG(G)
+        SRG = shrink_rotate_pattern(G)
         # Check that some edges have crease assignments
         assigned = [e for e in SRG.halfedges
                     if CREASE_ASSIGNMENT in e.attributes and not (e.on_border() or e.rev.on_border())]
@@ -117,7 +116,7 @@ class TestCreaseAssignment:
         """Crease assignment should be consistent between e and e.rev."""
         G = _make_graph(rings=3)
         _assign_face_z_order(G)
-        SRG = make_SRG(G)
+        SRG = shrink_rotate_pattern(G)
         for e in SRG.halfedges:
             if CREASE_ASSIGNMENT in e.attributes and CREASE_ASSIGNMENT in e.rev.attributes:
                 assert e[CREASE_ASSIGNMENT] == e.rev[CREASE_ASSIGNMENT]
@@ -129,7 +128,7 @@ class TestFolding:
     def test_fold_wireframe(self):
         G = _make_graph(rings=3)
         _assign_face_z_order(G)
-        SRG = make_SRG(G)
+        SRG = shrink_rotate_pattern(G)
         fold_wireframe(SRG)
         SRG.check_consistency()
 
@@ -147,7 +146,7 @@ class TestOverlapGraph:
     def test_overlap_graph_basic(self):
         G = _make_graph(lambda: platonic(4), rings=2)
         _assign_face_z_order(G)
-        SRG = make_SRG(G)
+        SRG = shrink_rotate_pattern(G)
         fold_wireframe(SRG)
         OG = overlap_graph(SRG, eps=1e-8)
         OG.check_consistency()
@@ -165,7 +164,7 @@ class TestFoldComplete:
         """Full pipeline on a small tiling."""
         G = _make_graph(lambda: platonic(4), rings=2)
         _assign_face_z_order(G)
-        SRG = make_SRG(G)
+        SRG = shrink_rotate_pattern(G)
         results = fold_complete(SRG, overlap_eps=1e-8)
         assert 'CP' in results
         assert 'folded_state' in results
@@ -177,7 +176,7 @@ class TestFoldComplete:
     def test_fold_complete_triangular(self):
         G = _make_graph(lambda: platonic(3), rings=2)
         _assign_face_z_order(G)
-        SRG = make_SRG(G)
+        SRG = shrink_rotate_pattern(G)
         results = fold_complete(SRG, overlap_eps=1e-8)
         assert 'CP' in results
         results['folded_state'].check_consistency()

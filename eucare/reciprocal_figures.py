@@ -1,314 +1,48 @@
-"""Compute reciprocal figures and shrink-rotate crease patterns from tilings."""
+"""Back-compatibility shim — the implementation moved.
+
+Public API has been split between :mod:`eucare.shrink_rotate` (pipeline,
+reciprocal figures, crease orientation, widgets) and
+:mod:`eucare.flat_foldable` (Kawasaki/Maekawa flat-foldability tests).
+
+This module re-exports the names that used to live here so that existing
+code keeps working. The ``make_SRG`` alias has been retired — call
+:func:`eucare.shrink_rotate.shrink_rotate_pattern` directly (it now performs
+crease assignment by default; pass ``assign_creases=False`` for the bare
+topology variant).
+"""
 from __future__ import annotations
 
-import logging
-from copy import copy
+from .flat_foldable import kawasaki_sum, max_kawasaki_sum
+from .shrink_rotate import (
+    THIS_WAY,
+    assign_shrink_rotate_creases,
+    assign_this_way_by_distance,
+    assign_this_way_by_face_area,
+    assign_this_way_by_face_bfs,
+    assign_this_way_by_face_degree,
+    assign_this_way_by_face_z_order,
+    assign_this_way_by_vertex_z_order,
+    assign_this_way_from_center,
+    clear_this_way,
+    reciprocal_figure,
+    shrink_rotate_pattern,
+)
+from .utils import random_directed_set
 
-import numpy as np
-import scipy as sc
-
-from .base import rotation_matrix
-from .conway import dual_graph, twist_rotate_graph
-from .half import EuclideanPositionHEG, GeometricHEG, HalfEdgeGraph, Vertex
-from .overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
-from .utils import invert_mapping, random_directed_set
-
-logger = logging.getLogger(__name__)
-
-
-def kawasaki_sum(v: Vertex, in_angle_key: str = 'in_angle') -> float:
-    """Alternating sum of in-angles around an interior vertex.
-
-    A flat-foldable interior vertex satisfies Kawasaki's theorem: the
-    alternating sum of consecutive sector angles equals zero (i.e. the
-    even-indexed angles sum to the same value as the odd-indexed angles).
-    Border vertices simply sum to the boundary angle and are not constrained.
-    """
-    return sum(((-1) ** i) * h[in_angle_key] for i, h in enumerate(v.outgoing_iter()))
-
-
-def reciprocal_figure(G: GeometricHEG, reciprocal_pos_key: str = 'reciprocal_pos', rcond: float = 1e-7) -> None:
-    """Compute the reciprocal figure of G by solving for dual vertex positions.
-
-    Build a dual graph whose edges are perpendicular to those of G, with
-    positions optimized via least squares to approximate face centroids.
-    Store reciprocal positions on faces of G under *reciprocal_pos_key*.
-    """
-    # Step 1: Choose direction for every interior edge.
-
-    directed_edges = random_directed_set([e for e in G.halfedges
-                                          if not (e.on_border() or e.rev.on_border())])
-
-    # Step 2: Construct array of all vectors of the directed edges, mapping from edge to index
-    edge_vectors = np.stack([e.orig['pos'] - e.dest['pos'] for e in directed_edges])
-
-    dual_vectors = edge_vectors @ rotation_matrix(np.pi/2)
-    dual_directions = dual_vectors / np.linalg.norm(dual_vectors, axis=1, keepdims=True)
-    edges_to_ids = {e: i for i, e in enumerate(directed_edges)}
-
-    # Step 3: Formulate constraints as linear problem Ax = 0
-    # Every constraint is a row in the matrix A.
-    # Every interior vertex leads to a constraint.
-    # Hence, compute one row for each interior vertex.
-
-    interior_vertices = [v for v in G.vertices if not v.on_border()]
-
-    rows = []
-    n_edges = len(directed_edges)
-    for v in interior_vertices:
-        row = np.zeros(n_edges, dtype=np.float32)
-        for e in v.outgoing_iter():
-            if e in directed_edges:
-                row[edges_to_ids[e]] = -1
-            else:
-                row[edges_to_ids[e.rev]] = 1
-        rows.append(row)
-    B = np.stack(rows)
-    A = (B[:, None, :] * dual_directions.T[: None]).reshape(-1, n_edges)
-    U = sc.linalg.null_space(A, rcond=rcond)
-    assert U.shape[1] > 0, 'G does not have a reciprocal figure!'
-    # Step 4: Formulate and solve least squares problem to make reciprocal graph as
-    # similar as possible to result of conway.dual_graph()(G)
-
-    to_process = set(G.faces)
-    anchor = to_process.pop()
-    coefficients = {anchor: np.zeros(n_edges, dtype=np.float32)}
-    border = {anchor}
-    while border:
-        new_border = set()
-        for f in border:
-            for e in f.halfedge_iter():
-                f2 = e.rev.face
-                if f2 not in coefficients:
-                    if e in directed_edges:
-                        coefficients[f2] = copy(coefficients[f])
-                        coefficients[f2][edges_to_ids[e]] = -1
-                    elif e.rev in directed_edges:
-                        coefficients[f2] = copy(coefficients[f])
-                        coefficients[f2][edges_to_ids[e.rev]] = 1
-                    else:
-                        continue
-                    new_border.add(f2)
-        border = new_border
-    assert set(coefficients.keys()) == set(G.faces)
-
-    faces = G.faces
-    n_faces = len(faces)
-    D2P = np.stack([coefficients[f] for f in faces])
-
-    M = np.moveaxis(np.dot(D2P, np.moveaxis(U[:, :, None] * dual_directions[:, None], 0, 1)), 1, 2)
-
-    # Add two columns to M, corresponding to the offset of the dual graph
-    xy_columns = np.zeros((n_faces, 2, 2), dtype=np.float32)
-    xy_columns[:, 0, 0] = 1
-    xy_columns[:, 1, 1] = 1
-    M = np.concatenate([xy_columns, M], axis=-1)
-
-    # Get 'ground truth' face centers: for now just com of the faces
-    face_centers = np.stack([f.midpoint() for f in faces])
-
-    # flatten xy
-    M = M.reshape(n_faces * 2, -1)
-    face_centers = face_centers.reshape(n_faces * 2)
-
-    logger.info('optimizing rotation centers using %d degrees of freedom..', M.shape[-1])
-    # solve the least squares problem
-    sol = sc.optimize.lsq_linear(M, face_centers, lsq_solver='exact')
-    assert sol['success'], f"{sol['message']}"
-    sol = sol['x']
-
-    dual_vertices = M @ sol
-    dual_vertices = dual_vertices.reshape(-1, 2)
-
-    # save reciprocal positions in attribute of faces of G
-    if reciprocal_pos_key is not None:
-        for i, f in enumerate(faces):
-            f[reciprocal_pos_key] = dual_vertices[i]
-
-    # Step 5: make reciprocal figure into face graph
-    D, (v_map, e_map, f_map) = G.copy(return_mappings=True)
-    face2reciprocalpos = {f_map[f]: dual_vertices[i] for i, f in enumerate(faces)}
-
-    D = dual_graph()(D)
-    for v in D.vertices:
-        v['pos'] = face2reciprocalpos[v['pre_conway']]
-
-    inv_v_map = invert_mapping(f_map)
-    for v in D.vertices:
-        v['pre'] = inv_v_map[v['pre_conway']]
-    inv_e_map = invert_mapping(e_map)
-    for e in D.halfedges:
-        if 'pre_conway' in e.attributes:
-            e['pre'] = inv_e_map[e['pre_conway']]
-    inv_f_map = invert_mapping(v_map)
-    for f in D.faces:
-        f['pre'] = inv_f_map[f['pre_conway']]
-
-    # idea: always have 'pre' and 'nex' keys for each operation mapping graphs to graphs, when applicable
-
-    return D
-
-
-def shrink_rotate_graph(G: GeometricHEG, alpha: float = np.pi/5, factor: float = 0.5, **reciprocal_figure_kwargs) -> EuclideanPositionHEG:
-    """Build a shrink-rotate tessellation from G using its reciprocal figure.
-
-    Each face is rotated by *alpha* and scaled by *factor* around its
-    reciprocal-figure center, producing an origami crease pattern.
-    """
-    f = next(iter(G.faces))
-    if 'reciprocal_pos' not in f or len(reciprocal_figure_kwargs):
-        logger.info('Calculating reciprocal figure..')
-        _ = reciprocal_figure(G, **reciprocal_figure_kwargs)
-        logger.info('Done with reciprocal figure.')
-    # Step 6: get shrink-rotate graph and apply mapping
-    SRG, (_, _, f_map) = G.copy(return_mappings=True)
-
-    inverse_f_map = invert_mapping(f_map)  # to get from 'pre_conway' of SRG to G
-
-    SRG = twist_rotate_graph()(SRG)
-
-    twistfaces = list(filter(lambda f: 'twistrotate' in f.attributes, SRG.faces))
-    for f in twistfaces:
-        ps, vs = np.array([[v['pos'], v] for v in f.vertex_iter()], dtype=object).T
-        ps = np.stack(ps)
-
-        midpoint = np.mean(ps, axis=0, keepdims=True)
-        ps = midpoint + (ps - midpoint) * 2
-
-        for v, p in zip(vs, ps):
-            v['base_pos'] = p
-
-    for f in twistfaces:
-        ps, vs = np.array([[v['base_pos'], v] for v in f.vertex_iter()], dtype=object).T
-        ps = np.stack(ps)
-        assert 'pre_conway' in f.attributes
-        f['pre_conway'] = inverse_f_map[f['pre_conway']]
-        rotation_center = f['pre_conway']['reciprocal_pos']
-        f['rotation_center'] = rotation_center
-
-        ps = rotation_center + (ps - rotation_center) @ rotation_matrix(alpha) * factor
-
-        for v, p in zip(vs, ps):
-            v['pos'] = p
-
-    SRG.recompute_lengths_and_angles()
-    return SRG
-
-
-def kawasaki_sum(v: Vertex) -> float:
-    """Compute the Kawasaki alternating angle sum at vertex *v*."""
-    angles = np.abs(np.array([e['in_angle'] for e in v.incoming_iter()]))
-    assert len(angles) % 2 == 0
-    return np.sum(((angles + 2*np.pi) % (2*np.pi)) * (-1) ** np.arange(len(angles)))
-
-
-def max_kawasaki_sum(vertices) -> float:
-    """Return the maximum Kawasaki sum over all interior vertices."""
-    if isinstance(vertices, HalfEdgeGraph):
-        vertices = [v for v in vertices.vertices if not v.on_border()]
-    return np.max([kawasaki_sum(v) for v in vertices])
-
-
-THIS_WAY = 'this_way'
-
-
-def assign_shrink_rotate_creases(SRG: HalfEdgeGraph) -> None:
-    """Assign mountain/valley crease orientations to a shrink-rotate crease pattern."""
-    twistfaces = [f for f in SRG.faces if 'twistrotate' in f.attributes]
-    for f in twistfaces:
-        e_twist = f.any_side
-        while e_twist.rev.on_border():
-            e_twist = e_twist.nex
-        # get edge in orig graph that matches e_twist
-        e = None
-        for e_orig in f['pre_conway'].halfedge_iter():
-            if e_orig.rev in e_twist.rev.nex.nex.rev.face['pre_conway'].halfedge_iter():
-                e = e_orig
-                break
-        assert e is not None
-        e_twist_initial = e_twist
-        while True:
-            if THIS_WAY in e.attributes and not e_twist.rev.on_border():
-                e_twist.rev[CREASE_ASSIGNMENT] = MOUNTAIN
-                e_twist.rev.nex.nex.nex[CREASE_ASSIGNMENT] = VALLEY
-                if True: #e_twist.rev['in_angle'] < np.pi / 2:
-                    e_twist.rev.nex[CREASE_ASSIGNMENT] = MOUNTAIN
-                    e_twist.rev.nex.nex[CREASE_ASSIGNMENT] = VALLEY
-                else:
-                    e_twist.rev.nex[CREASE_ASSIGNMENT] = VALLEY
-                    e_twist.rev.nex.nex[CREASE_ASSIGNMENT] = MOUNTAIN
-            e = e.nex
-            e_twist = e_twist.nex
-            if e_twist is e_twist_initial:
-                break
-    for e in SRG.halfedges:  # make crease assignment of e and e.rev consistent
-        if e.on_border() or e.rev.on_border():
-            if CREASE_ASSIGNMENT in e.attributes:
-                del e[CREASE_ASSIGNMENT]
-        elif CREASE_ASSIGNMENT in e.attributes:
-            if CREASE_ASSIGNMENT in e.rev.attributes:
-                assert e[CREASE_ASSIGNMENT] == e.rev[CREASE_ASSIGNMENT]
-            else:
-                e.rev[CREASE_ASSIGNMENT] = e[CREASE_ASSIGNMENT]
-
-
-def assign_this_way_by_face_z_order(G: HalfEdgeGraph, key: str = 'z_order') -> None:
-    """Assign edge directions based on the z-order of adjacent faces."""
-    for e in G.halfedges:
-        if e.on_border() or e.rev.on_border():
-            continue
-        if THIS_WAY in e:
-            del e[THIS_WAY] # only in case it was assigned before
-
-        f1, f2 = e.face, e.rev.face
-        if f1[key] > f2[key]:
-            e[THIS_WAY] = True
-        elif f1[key] == f2[key]:
-            z_orig = np.mean([f[key] for f in e.orig.true_face_iter()])
-            z_dest = np.mean([f[key] for f in e.dest.true_face_iter()])
-            if z_orig > z_dest:
-                e[THIS_WAY] = True
-
-
-def assign_this_way_by_vertex_z_order(G: HalfEdgeGraph, key: str = 'z_order') -> None:
-    """Assign edge directions based on the z-order of endpoint vertices."""
-    for e in G.halfedges:
-        if e.on_border() or e.rev.on_border():
-            continue
-        if THIS_WAY in e:
-            del e[THIS_WAY]  # only in case it was assigned before
-
-        v1, v2 = e.orig, e.dest
-        if v1[key] > v2[key]:
-            e[THIS_WAY] = True
-        elif v1[key] == v2[key]:
-            z_orig = np.mean([v[key] for v in e.face.vertex_iter()])
-            z_dest = np.mean([v[key] for v in e.rev.face.vertex_iter()])
-            if z_orig > z_dest:
-                e[THIS_WAY] = True
-
-
-def make_SRG(G: GeometricHEG, simplify_boundary: bool = True, **srg_kwargs) -> EuclideanPositionHEG:
-    """Build a complete shrink-rotate graph with crease assignments and color keys."""
-    SRG = shrink_rotate_graph(G, **srg_kwargs)
-    SRG.recompute_lengths_and_angles()
-    assign_shrink_rotate_creases(SRG)
-
-    colors = {
-        0: (0, 0, 0),
-        1: (1, 0, 0),
-        -1: (0, 0, 1)
-    }
-    for e in SRG.halfedges:
-        e['color_key'] = colors[e.attributes.get('crease_assignment', 0)]
-
-    if simplify_boundary:
-        G.join_order_2_boundary_vertices()
-
-    mks = max_kawasaki_sum(SRG)
-    if mks > 1e-12:
-        logger.warning('High max Kawasaki sum: %s', mks)
-
-    logger.info('CP has %d edges', len(SRG.halfedges) // 2)
-
-    return SRG
+__all__ = [
+    "THIS_WAY",
+    "assign_shrink_rotate_creases",
+    "assign_this_way_by_distance",
+    "assign_this_way_by_face_area",
+    "assign_this_way_by_face_bfs",
+    "assign_this_way_by_face_degree",
+    "assign_this_way_by_face_z_order",
+    "assign_this_way_by_vertex_z_order",
+    "assign_this_way_from_center",
+    "clear_this_way",
+    "kawasaki_sum",
+    "max_kawasaki_sum",
+    "random_directed_set",
+    "reciprocal_figure",
+    "shrink_rotate_pattern",
+]
