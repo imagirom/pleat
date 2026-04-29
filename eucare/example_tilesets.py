@@ -4,21 +4,23 @@ from __future__ import annotations
 import numpy as np
 
 from .geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
-from .prototiles import RegularEuclideanTile, RegularProtoTile
+from .prototiles import ProtoTile, RegularEuclideanTile, RegularProtoTile
 
 
 class TileSet:
     """A collection of tiles with a designated root tile for tiling expansion."""
 
-    def __init__(self, tiles, root_tile):
+    def __init__(self, tiles: list[ProtoTile], root_tile: ProtoTile) -> None:
+        """Store the tile list and the designated root tile."""
         self.tiles = tiles
         self.root_tile = root_tile
 
-    def expand_to_area(self, area):
+    def expand_to_area(self, area: float) -> None:
+        """Expand the tiling until at least ``area`` is covered (not implemented)."""
         raise NotImplementedError
 
 
-def align_tiles(tile1, label1, tile2, label2):
+def align_tiles(tile1: ProtoTile, label1, tile2: ProtoTile, label2) -> None:
     """Set mutual gluing instructions between two tiles along the given edge labels."""
     tile1.edge_instructions[label1] = tile2.attach_instruction(label2)
     tile2.edge_instructions[label2] = tile1.attach_instruction(label1)
@@ -26,7 +28,7 @@ def align_tiles(tile1, label1, tile2, label2):
 # TODO: alternate approach: do something like f12.to_attach = [f4, f6] * 6
 
 
-def platonic(n):
+def platonic(n: int) -> list[RegularEuclideanTile]:
     """Return tiles for the Euclidean Platonic tiling with n-gons (n must be 3, 4, or 6)."""
     assert n in (3, 4, 6)
     t = RegularEuclideanTile(n, edge_labels=['a'] * n)
@@ -34,14 +36,14 @@ def platonic(n):
     return [t]
 
 
-def square_strip():
+def square_strip() -> list[RegularEuclideanTile]:
     """Return tiles for a strip of squares with two distinct edge labels."""
     t = RegularEuclideanTile(4, edge_labels=['a', 'b', 'a', 'b'])
     align_tiles(t, 'a', t, 'a')
     return [t]
 
 
-def t_3_12_12():
+def t_3_12_12() -> tuple[RegularEuclideanTile, ...]:
     """Return tiles for the (3.12.12) Archimedean tiling."""
     f3 = RegularEuclideanTile(3, edge_labels=[12, 12, 12])
     f12 = RegularEuclideanTile(12, edge_labels=[12, 3] * 6)
@@ -50,7 +52,7 @@ def t_3_12_12():
     return f3, f12
 
 
-def t_4_6_12():
+def t_4_6_12() -> tuple[RegularEuclideanTile, ...]:
     """Return tiles for the (4.6.12) Archimedean tiling."""
     f4 = RegularEuclideanTile(4, edge_labels=[6, 12] * 2)
     f6 = RegularEuclideanTile(6, edge_labels=[4, 12] * 3)
@@ -61,7 +63,7 @@ def t_4_6_12():
     return f4, f6, f12
 
 
-def t_3_3_4_3_4():
+def t_3_3_4_3_4() -> tuple[RegularEuclideanTile, ...]:
     """Return tiles for the (3.3.4.3.4) Archimedean tiling."""
     tri = RegularEuclideanTile(3)
     sq1 = RegularEuclideanTile(4, edge_labels=[1]*4)
@@ -72,7 +74,7 @@ def t_3_3_4_3_4():
     return sq1, sq2, tri
 
 
-def t_3_3_3_3_6():
+def t_3_3_3_3_6() -> tuple[RegularEuclideanTile, ...]:
     """Return tiles for the (3.3.3.3.6) Archimedean tiling."""
     tri_a = RegularEuclideanTile(3, edge_labels=['3b']*3)
     tri_b = RegularEuclideanTile(3, edge_labels=['3a', '3b', '6a'])
@@ -85,7 +87,7 @@ def t_3_3_3_3_6():
 # for printing: TA3 (Triangle, A, side 3) or Q1. Letters in ceter, numbers in sides.
 
 
-def pgg_2x():
+def pgg_2x() -> tuple[RegularEuclideanTile, ...]:
     """Return tiles for a pgg wallpaper group tiling with two copies."""
     tri_11 = RegularEuclideanTile(3)
     tri_12 = RegularEuclideanTile(3)
@@ -111,7 +113,7 @@ def pgg_2x():
     return sq1, sq2, tri_11, tri_12, tri_21, tri_22
 
 
-def u2_4_6_12__3_4_6_4():
+def u2_4_6_12__3_4_6_4() -> tuple[RegularEuclideanTile, ...]:
     """Return tiles for the 2-uniform (4.6.12; 3.4.6.4) tiling."""
     triangle = RegularEuclideanTile(3, edge_labels=[4, 4, 4])
     square = RegularEuclideanTile(4, edge_labels=[3, '6a', 12, '6b'])
@@ -146,8 +148,17 @@ def u2_4_6_12__3_4_6_4():
 # cairo_sq_B.edge_instructions['a'] = attatch_tile_instruction(cairo_tri, 1)
 
 
-def archimedean_vertex_to_geometry(face_orders):
-    """Determine the geometry (Euclidean, spherical, or hyperbolic) from vertex face orders."""
+def archimedean_vertex_to_geometry(face_orders: "list[int] | tuple[int, ...]") -> type:
+    """Determine the geometry (Euclidean, spherical, or hyperbolic) from vertex face orders.
+
+    Args:
+        face_orders: Sizes of the faces meeting at a vertex.
+
+    Returns:
+        :class:`EuclideanGeometry`, :class:`SphereModel`, or
+        :class:`PoincareDiskModel` -- whichever makes the vertex's interior
+        angle sum exactly ``2*pi``.
+    """
     euclidean_vertex_angle = sum(np.pi * (n-2) / n for n in face_orders)
     if abs(euclidean_vertex_angle - 2*np.pi) < 1e-6:
         return EuclideanGeometry
@@ -157,7 +168,7 @@ def archimedean_vertex_to_geometry(face_orders):
         return PoincareDiskModel
 
 
-def curved_platonic(n, k):
+def curved_platonic(n: int, k: int) -> list[RegularProtoTile]:
     """Return tiles for a {n, k} Platonic tiling in the appropriate geometry."""
     # angles in units of pi
     geo = archimedean_vertex_to_geometry([n]*k)
@@ -167,7 +178,7 @@ def curved_platonic(n, k):
     return [t]
 
 
-def curved_snub(n, k):
+def curved_snub(n: int, k: int) -> list[RegularProtoTile]:
     """Return tiles for the snub {n, k} tiling in the appropriate geometry."""
     face_orders = [n, 3, 3, k, 3]
     geo = archimedean_vertex_to_geometry(face_orders)
@@ -181,7 +192,7 @@ def curved_snub(n, k):
     return [t2, t3, t1]
 
 
-def curved_expand(n, k):
+def curved_expand(n: int, k: int) -> list[RegularProtoTile]:
     """Return tiles for the expanded {n, k} tiling in the appropriate geometry."""
     face_orders = [n, 4, k, 4]
     geo = archimedean_vertex_to_geometry(face_orders)
@@ -194,7 +205,7 @@ def curved_expand(n, k):
     return [t2, t3, t1]
 
 
-def curved_truncate(n, k):
+def curved_truncate(n: int, k: int) -> list[RegularProtoTile]:
     """Return tiles for the truncated {n, k} tiling in the appropriate geometry."""
     face_orders = [2*n, k, 2*n]
     geo = archimedean_vertex_to_geometry(face_orders)
@@ -206,7 +217,7 @@ def curved_truncate(n, k):
     return [t2, t1]
 
 
-def curved_ambo(n, k):
+def curved_ambo(n: int, k: int) -> list[RegularProtoTile]:
     """Return tiles for the rectified (ambo) {n, k} tiling in the appropriate geometry."""
     face_orders = [n, k, n, k]
     geo = archimedean_vertex_to_geometry(face_orders)
@@ -217,7 +228,7 @@ def curved_ambo(n, k):
     return [t2, t1]
 
 
-def curved_omnitruncate(n, k):
+def curved_omnitruncate(n: int, k: int) -> list[RegularProtoTile]:
     """Return tiles for the omnitruncated {n, k} tiling in the appropriate geometry."""
     face_orders = [2*n, 4, 2*k]
     geo = archimedean_vertex_to_geometry(face_orders)
@@ -231,7 +242,7 @@ def curved_omnitruncate(n, k):
     return [t2, t3, t1]
 
 
-def curved_zip(n, k):
+def curved_zip(n: int, k: int) -> list[RegularProtoTile]:
     """Return tiles for the zipped (bitruncated dual) {n, k} tiling in the appropriate geometry."""
     face_orders = [n, 2*k, 2*k]
     geo = archimedean_vertex_to_geometry(face_orders)

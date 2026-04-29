@@ -7,7 +7,7 @@ import numpy as np
 from sympy import N, elliptic_f
 
 from .example_tilesets import curved_zip, pgg_2x
-from .half import EuclideanPositionHEG, GeometricHEG, HalfEdgeGraph, InAngleHEG
+from .half import EuclideanPositionHEG, GeometricHEG, HalfEdge, HalfEdgeGraph, InAngleHEG, Vertex
 from .prototiles import ProtoTile, RhombusTile, complete_vertex_with_rhombus
 
 logger = logging.getLogger(__name__)
@@ -15,8 +15,17 @@ logger = logging.getLogger(__name__)
 
 # TODO https://en.wikipedia.org/wiki/File:Planar_Fractalizing_Truncated_Hexagonal_Tiling_II.png
 
-def get_edge_with(graph, func=None, on_border=False):
-    """Return the first half-edge satisfying func, optionally restricted to border edges."""
+def get_edge_with(graph: HalfEdgeGraph, func: "callable | None" = None, on_border: bool = False) -> HalfEdge:
+    """Return the first half-edge satisfying ``func``, optionally restricted to border edges.
+
+    Args:
+        graph: Graph to search.
+        func: Predicate ``HalfEdge -> bool``. Defaults to always-True.
+        on_border: If True, search only border half-edges.
+
+    Raises:
+        LookupError: If no matching half-edge exists.
+    """
     assert isinstance(graph, HalfEdgeGraph)
     func = func if func is not None else lambda _: True
     edge_iter = graph.border_edge_iter() if on_border else graph.halfedges
@@ -26,8 +35,17 @@ def get_edge_with(graph, func=None, on_border=False):
     raise LookupError('Cannot find edge with requested property')
 
 
-def get_vertex_with(graph, func=None, on_border=False):
-    """Return the first vertex satisfying func, optionally restricted to border vertices."""
+def get_vertex_with(graph: HalfEdgeGraph, func: "callable | None" = None, on_border: bool = False) -> Vertex:
+    """Return the first vertex satisfying ``func``, optionally restricted to border vertices.
+
+    Args:
+        graph: Graph to search.
+        func: Predicate ``Vertex -> bool``. Defaults to always-True.
+        on_border: If True, search only vertices on the border.
+
+    Raises:
+        LookupError: If no matching vertex exists.
+    """
     assert isinstance(graph, HalfEdgeGraph)
     func = func if func is not None else lambda _: True
     vertex_iter = (e.orig for e in graph.border_edge_iter()) if on_border else graph.vertices
@@ -37,8 +55,8 @@ def get_vertex_with(graph, func=None, on_border=False):
     raise LookupError('Cannot find vertex with requested property')
 
 
-def rosette(n=8):
-    """Construct a rosette pattern from n rhombus tiles around a central vertex."""
+def rosette(n: int = 8) -> EuclideanPositionHEG:
+    """Construct a rosette pattern from ``n`` rhombus tiles around a central vertex."""
     assert isinstance(n, int)
     alpha = 2 * np.pi / n
     G, edgedict = RhombusTile(alpha).make_graph(add_positions=True)
@@ -57,14 +75,14 @@ def rosette(n=8):
     return G
 
 
-def complete_vertex(G, v):
+def complete_vertex(G: HalfEdgeGraph, v: Vertex) -> None:
     """Attach tiles around a border vertex until it is fully surrounded."""
     assert v in G.vertices, f'{v} not in the vertices of {G}'
     while v.on_border():
         G.execute_edge_instruction(v.get_outgoing_border())
 
 
-def add_vertex_ring(G):
+def add_vertex_ring(G: HalfEdgeGraph) -> None:
     """Complete all border vertices, prioritizing those with the largest angle sum."""
     vs = [h.orig for h in G.border_edges()]
     vs = sorted(vs, key=lambda v: -v.angle_sum())
@@ -73,7 +91,7 @@ def add_vertex_ring(G):
             complete_vertex(G, v)
 
 
-def complete_closest_vertices(G, eps=1e-6):
+def complete_closest_vertices(G: GeometricHEG, eps: float = 1e-6) -> None:
     """Complete border vertices closest to the origin."""
     assert isinstance(G, GeometricHEG)
     vertex_dists = {e.orig: G.geometry.distance_to_origin(e.orig['pos']) for e in G.border_edge_iter()}
@@ -81,8 +99,28 @@ def complete_closest_vertices(G, eps=1e-6):
     [complete_vertex(G, v) for v, d in vertex_dists.items() if d-d_min < eps and v.on_border()]
 
 
-def from_tiles(tiles, rings=2, vertex_based=True, base_tile=-1, add_positions=True):
-    """Grow a tiling from a list of proto-tiles by expanding for the given number of rings."""
+def from_tiles(
+    tiles: list[ProtoTile],
+    rings: int = 2,
+    vertex_based: bool = True,
+    base_tile: "int | ProtoTile | HalfEdgeGraph" = -1,
+    add_positions: bool = True,
+) -> HalfEdgeGraph:
+    """Grow a tiling from a list of proto-tiles by expanding for the given number of rings.
+
+    Args:
+        tiles: Proto-tiles available for the tiling.
+        rings: Number of expansion rings.
+        vertex_based: If True, expand by completing border vertices; otherwise
+            expand edge by edge.
+        base_tile: Starting tile -- index into ``tiles``, a :class:`ProtoTile`,
+            or a pre-built :class:`HalfEdgeGraph`.
+        add_positions: If True, attach geometric positions during growth.
+
+    Returns:
+        The grown half-edge graph (:class:`GeometricHEG` if ``add_positions``
+        is True, otherwise :class:`InAngleHEG`).
+    """
     if isinstance(base_tile, int):
         base_tile = tiles[base_tile]
     if isinstance(base_tile, ProtoTile):
@@ -105,13 +143,13 @@ def from_tiles(tiles, rings=2, vertex_based=True, base_tile=-1, add_positions=Tr
     return G
 
 
-def pgg_2x_tiling(rings=15):
+def pgg_2x_tiling(rings: int = 15) -> HalfEdgeGraph:
     """Construct a pgg wallpaper group tiling with the given number of rings."""
     tiles = pgg_2x()
     return from_tiles(tiles, rings)
 
 
-def kised_soccer_ball():
+def kised_soccer_ball() -> HalfEdgeGraph:
     """Construct a kised soccer ball (icosahedron variant) on the sphere."""
     from eucare.conway import kis_graph
     n, k = (5, 3)
@@ -122,8 +160,22 @@ def kised_soccer_ball():
     return G
 
 
-def hyperbolic_square_graph(G=None, min_length=0.05, dual=False):
-    """Map a hyperbolic tiling to the Poincare square via the Schwarz-Christoffel mapping."""
+def hyperbolic_square_graph(
+    G: GeometricHEG | None = None,
+    min_length: float = 0.05,
+    dual: bool = False,
+) -> GeometricHEG:
+    """Map a hyperbolic tiling to the Poincare square via the Schwarz-Christoffel mapping.
+
+    Args:
+        G: Hyperbolic tiling to map. Defaults to a {7, 3} tiling with one ring.
+        min_length: Minimum target edge length in the square; growth stops once
+            no border vertex falls below this threshold.
+        dual: If True, take the dual graph before mapping.
+
+    Returns:
+        A copy of the tiling with positions in the unit square.
+    """
     import eucare as ec
 
     def wrapped_elliptic_f(z, m):
