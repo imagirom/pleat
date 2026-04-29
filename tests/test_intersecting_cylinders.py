@@ -1,4 +1,5 @@
 """Tests for the intersecting-cylinders subpackage."""
+
 import numpy as np
 import pytest
 
@@ -11,7 +12,9 @@ from eucare.intersecting_cylinders import (
     convert_all_to_triangle_twists,
     convert_to_triangle_twist,
     make_intersecting_cylinders,
-    spherical_profile,
+    show_3d,
+    to_3d_mesh,
+    top_view,
 )
 
 
@@ -40,25 +43,11 @@ class TestProfile:
         p = circular_profile()
         assert np.all(np.diff(p.l) >= 0)
 
-    def test_spherical_profile_flat_region(self):
-        flat_until = 0.6
-        p = spherical_profile(flat_until=flat_until)
-        # The first segment of the (t, l) curve is flat (l = 0).
-        assert p.l[0] == pytest.approx(0.0)
-        # Some points should still lie in the flat region.
-        flat_t = p.t[p.l == 0]
-        assert flat_t.size >= 1
-
-    def test_spherical_profile_rejects_bad_arg(self):
-        with pytest.raises(ValueError):
-            spherical_profile(flat_until=1.0)
-        with pytest.raises(ValueError):
-            spherical_profile(flat_until=-0.1)
-
     def test_custom_profile(self):
         # Triangular bump: linear up, linear down.
         def fn(x):
             return np.where(x < 0.5, x, 1.0 - x)
+
         p = Profile.from_function(fn, n_samples=200)
         assert p.t[0] == 0.0
         assert p.shrink_factor > 0.0
@@ -80,22 +69,22 @@ class TestMakeIntersectingCylinders:
         G = _make_graph(p=4, rings=2)
         CP = make_intersecting_cylinders(G, circular_profile(), r=1.0)
         for h in CP.halfedges:
-            assert 'color_key' in h
+            assert "color_key" in h
         # Reverses share color.
         for h in CP.halfedges:
-            assert h['color_key'] == h.rev['color_key']
+            assert h["color_key"] == h.rev["color_key"]
 
     def test_curve_pos_on_red_edges(self):
         G = _make_graph(p=4, rings=2)
         CP = make_intersecting_cylinders(G, circular_profile(), r=1.0)
-        red = [h for h in CP.halfedges if h['color_key'] == (1.0, 0.0, 0.0)]
+        red = [h for h in CP.halfedges if h["color_key"] == (1.0, 0.0, 0.0)]
         assert len(red) > 0
         for h in red:
-            assert 'curve_pos' in h
-            curve = h['curve_pos']
+            assert "curve_pos" in h
+            curve = h["curve_pos"]
             assert curve.ndim == 2 and curve.shape[1] == 2
             # Reverse halfedge stores reversed polyline.
-            np.testing.assert_allclose(h['curve_pos'], h.rev['curve_pos'][::-1])
+            np.testing.assert_allclose(h["curve_pos"], h.rev["curve_pos"][::-1])
 
     def test_r_less_than_one(self):
         G = _make_graph(p=4, rings=2)
@@ -110,18 +99,63 @@ class TestMakeIntersectingCylinders:
         with pytest.raises(ValueError):
             make_intersecting_cylinders(G, circular_profile(), r=1.5)
 
-    def test_spherical_profile_pipeline(self):
+    def test_scaled_circular_pipeline(self):
         G = _make_graph(p=4, rings=2)
-        CP = make_intersecting_cylinders(G, spherical_profile(flat_until=0.5), r=1.0)
+        CP = make_intersecting_cylinders(G, circular_profile(scale=1.0), r=1.0)
         CP.check_consistency()
         assert len(CP.halfedges) > 0
+
+
+class TestTopView:
+    @pytest.mark.parametrize("r", [1.0, 0.7])
+    def test_top_view_consistent(self, r):
+        G = _make_graph(p=4, rings=2)
+        tv = top_view(G, r=r)
+        tv.check_consistency()
+        assert len(tv.faces) > 0
+
+    def test_top_view_does_not_mutate_input(self):
+        G = _make_graph(p=4, rings=2)
+        n_faces_before = len(G.faces)
+        _ = top_view(G, r=1.0)
+        assert len(G.faces) == n_faces_before
+
+
+class TestMesh3d:
+    @pytest.mark.parametrize("r", [1.0, 0.7])
+    def test_to_3d_mesh_shape(self, r):
+        G = _make_graph(p=4, rings=2)
+        verts, tris = to_3d_mesh(G, circular_profile(scale=1.0), r=r, n_along_edge=4)
+        assert verts.ndim == 2 and verts.shape[1] == 3
+        assert tris.ndim == 2 and tris.shape[1] == 3
+        # All triangle indices reference valid vertices.
+        assert tris.min() >= 0
+        assert tris.max() < len(verts)
+
+    def test_to_3d_mesh_z_positive(self):
+        G = _make_graph(p=4, rings=2)
+        verts, _ = to_3d_mesh(G, circular_profile(scale=1.0), r=1.0, n_along_edge=4)
+        assert verts[:, 2].min() == pytest.approx(0.0)
+        assert verts[:, 2].max() > 0.0
+
+    def test_to_3d_mesh_invalid_r(self):
+        G = _make_graph(p=4, rings=2)
+        with pytest.raises(ValueError):
+            to_3d_mesh(G, circular_profile(), r=0.0)
+
+    def test_show_3d_returns_figure(self):
+        plotly = pytest.importorskip("plotly")
+        G = _make_graph(p=4, rings=2)
+        fig = show_3d(G, circular_profile(scale=1.0), r=1.0, n_along_edge=4)
+        assert isinstance(fig, plotly.graph_objects.Figure)
 
 
 class TestTriangleTwist:
     @staticmethod
     def _hub_cp():
         import eucare as ec
-        G = ec.io.load_graph('graphs/irregular2.heg')
+
+        G = ec.io.load_graph("graphs/irregular2.heg")
         G = ec.conway.kis_graph()(G, delete_on_border=True)
         return make_intersecting_cylinders(G, circular_profile(), r=1.0)
 

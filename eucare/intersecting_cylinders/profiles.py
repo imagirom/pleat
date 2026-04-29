@@ -96,34 +96,3 @@ def circular_profile(scale: float = 1.3, n_samples: int = 1000, rdp_tol: float =
         n_samples=n_samples,
         rdp_tol=rdp_tol,
     )
-
-
-def spherical_profile(
-    flat_until: float = 0.6,
-    n_samples: int = 1000,
-    rdp_tol: float = 1e-4,
-) -> Profile:
-    """Flat from ``0`` to ``flat_until``, then a quarter-circle of radius ``1 - flat_until``.
-
-    This produces a profile shaped like the equator-to-pole arc of a sphere:
-    a flat region near the edge of the tile, then a sudden curve up.
-
-    Args:
-        flat_until: Fraction of the edge that stays flat (``y = 0``); must lie
-            in ``[0, 1)``.
-        n_samples: Forwarded to :meth:`Profile.from_function`.
-        rdp_tol: Forwarded to :meth:`Profile.from_function`.
-    """
-    if not 0.0 <= flat_until < 1.0:
-        raise ValueError("flat_until must be in [0, 1)")
-    a = float(flat_until)
-    radius = 1.0 - a
-
-    def fn(x: NDArray[np.float64]) -> NDArray[np.float64]:
-        return np.where(
-            x > a,
-            np.sqrt(np.clip(radius * radius - (1.0 - x) ** 2, 0.0, 1.0)),
-            0.0,
-        )
-
-    return Profile.from_function(fn, n_samples=n_samples, rdp_tol=rdp_tol)

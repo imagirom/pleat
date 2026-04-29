@@ -51,8 +51,7 @@ def make_intersecting_cylinders(
         G: Input tiling. Mutated in place to record midpoints, then a working
             copy is taken before applying Conway operators.
         profile: Cross-section curve. See
-            :func:`~eucare.intersecting_cylinders.profiles.circular_profile` and
-            :func:`~eucare.intersecting_cylinders.profiles.spherical_profile`.
+            :func:`~eucare.intersecting_cylinders.profiles.circular_profile`.
         r: Triangle scaling. ``r=1`` produces curved triangles meeting at face
             incenters; ``0 < r < 1`` keeps a downscaled copy of the original
             face and produces curved quadrilaterals instead.
@@ -148,3 +147,33 @@ def make_intersecting_cylinders(
             h["color_key"] = _BLUE
 
     return G
+
+
+def top_view(G: "EuclideanPositionHEG", r: float = 1.0) -> "EuclideanPositionHEG":
+    """Return the flat top-view projection of an intersecting-cylinders model.
+
+    The projection of every curved triangle (``r=1``) or curved quadrilateral
+    (``r<1``) onto the base plane is a flat polygon. For ``r=1`` these are
+    triangles from each edge to the face incenter (the Conway *join* operator).
+    For ``r<1`` they are trapezoids from each edge to the corresponding edge of
+    the down-scaled inner face (the Conway *chamfer* operator with ``t = r``).
+
+    Args:
+        G: Input tiling whose faces have well-defined (pseudo-)incenters.
+            A working copy is taken; the input is not modified.
+        r: Triangle scaling matching the value passed to
+            :func:`make_intersecting_cylinders`.
+
+    Returns:
+        A new ``EuclideanPositionHEG`` representing the top-view tessellation.
+    """
+    if not 0.0 < r <= 1.0:
+        raise ValueError("r must lie in (0, 1]")
+
+    G = G.copy()
+    for f in G.faces:
+        f["midpoint"] = f.pseudo_incenter()
+
+    if r == 1.0:
+        return conway.join_graph()(G, delete_on_border=False)
+    return conway.chamfer_graph(r)(G, delete_on_border=False)
