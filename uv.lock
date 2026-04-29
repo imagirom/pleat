@@ -865,6 +865,7 @@ dev = [
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "rdp" },
     { name = "ruff" },
 ]
 docs = [
@@ -884,6 +885,9 @@ image = [
     { name = "mahotas" },
     { name = "scikit-image", version = "0.25.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scikit-image", version = "0.26.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+intersecting-cylinders = [
+    { name = "rdp" },
 ]
 notebook = [
     { name = "ipympl" },
@@ -931,6 +935,8 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "pyyaml" },
+    { name = "rdp", marker = "extra == 'dev'" },
+    { name = "rdp", marker = "extra == 'intersecting-cylinders'" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "scikit-image", marker = "extra == 'docs'" },
     { name = "scikit-image", marker = "extra == 'image'" },
@@ -944,7 +950,7 @@ requires-dist = [
     { name = "tqdm" },
     { name = "widgetsnbextension", marker = "extra == 'notebook'" },
 ]
-provides-extras = ["ilp", "rendering", "notebook", "threed", "torch", "image", "dev", "docs"]
+provides-extras = ["ilp", "rendering", "notebook", "threed", "torch", "image", "intersecting-cylinders", "dev", "docs"]
 
 [[package]]
 name = "exceptiongroup"
@@ -3482,6 +3488,16 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a1/cf/f2b3784d536250ffd4be70e049f3b60981235d70c6e8ce7e3ef21e1adb25/pyzmq-27.1.0-pp311-pypy311_pp73-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:f605d884e7c8be8fe1aa94e0a783bf3f591b84c24e4bc4f3e7564c82ac25e271", size = 747371, upload-time = "2025-09-08T23:09:54.563Z" },
     { url = "https://files.pythonhosted.org/packages/01/1b/5dbe84eefc86f48473947e2f41711aded97eecef1231f4558f1f02713c12/pyzmq-27.1.0-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:c9f7f6e13dff2e44a6afeaf2cf54cee5929ad64afaf4d40b50f93c58fc687355", size = 544862, upload-time = "2025-09-08T23:09:56.509Z" },
 ]
+
+[[package]]
+name = "rdp"
+version = "0.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/67/42/80a54cc4387256335c32b48bd42db80967ab5f40d6ffcd8167b3dd988c11/rdp-0.8.tar.gz", hash = "sha256:19ec92f0803587891a00b439441e5e23fc9410500983f02941e4cf9ac3113e4b", size = 4382, upload-time = "2016-12-19T01:34:07.454Z" }
 
 [[package]]
 name = "referencing"
