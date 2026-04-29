@@ -81,6 +81,7 @@ nav:
           - Hyperbolic and Other Rings: notebooks/Hyperbolic and other Rings.ipynb
           - Origami Crease Patterns: notebooks/Better reciprocal Figures.ipynb
           - Alternating Flagstones: notebooks/Alternating Flagstones.ipynb
+          - Image To Graph: notebooks/Image To Graph.ipynb
   - Contributing:
       - Docs Pipeline: contributing/docs-pipeline.md
   - API Reference: reference/

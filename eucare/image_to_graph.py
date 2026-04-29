@@ -47,9 +47,11 @@ def colorize_segmentation(seg, ignore_label=None, ignore_color=(0, 0, 0)):
     return result
 
 
-def plot_image(image, figheight=5, title=None, **kwargs):
+def plot_image(image, figheight=5, title=None, colorbar=False, **kwargs):
     plt.figure(figsize=(figheight * image.shape[1] / image.shape[0], figheight))
-    plt.imshow(image, **kwargs)
+    im = plt.imshow(image, **kwargs)
+    if colorbar:
+        plt.colorbar(im, fraction=0.046, pad=0.04)
     if title is not None:
         plt.title(title)
     plt.axis('off')
