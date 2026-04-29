@@ -20,6 +20,14 @@ class TopologicalConwayOperator:
     """
 
     def __init__(self, graph: HalfEdgeGraph, v1: Vertex, vf: Vertex, v2: Vertex) -> None:
+        """Store the fundamental domain and its three corner vertices.
+
+        Args:
+            graph: Half-edge graph encoding the fundamental domain.
+            v1: Corner mapped to ``h.dest`` of each triangle.
+            vf: Corner mapped to the face midpoint of each triangle.
+            v2: Corner mapped to ``h.orig`` of each triangle.
+        """
         self.graph = graph
         self.v1 = v1
         self.vf = vf
@@ -30,12 +38,23 @@ class TopologicalConwayOperator:
         """Render the fundamental domain graph for visualization."""
         self.graph.show(scale=300, line_width=0.03, render_faces=False)
 
-    def get_tri(self, h):
-        """Return the triangle for halfedge h, or None for purely topological operators."""
+    def get_tri(self, h: HalfEdge) -> "np.ndarray | None":
+        """Return the triangle for half-edge ``h``, or None for purely topological operators."""
         return None
 
-    def generate_graph_and_corners(self, tri, h=None):
-        """Return a copy of the fundamental domain graph and its three corner vertices."""
+    def generate_graph_and_corners(
+        self, tri: "np.ndarray | None", h: HalfEdge | None = None
+    ) -> tuple[HalfEdgeGraph, tuple[Vertex, Vertex, Vertex]]:
+        """Return a copy of the fundamental-domain graph and its three corner vertices.
+
+        Args:
+            tri: Optional reference triangle for geometric subclasses.
+            h: Optional original half-edge; if given, every interior vertex of
+                the copy gets ``pre_conway = h`` for traceability.
+
+        Returns:
+            Tuple ``(graph_copy, (v1, vf, v2))``.
+        """
         graph, (v_map, _, _) = self.graph.copy(deepcopy_attributes=False, return_mappings=True)
         if h is not None:
             for v in graph.vertices:
@@ -44,10 +63,28 @@ class TopologicalConwayOperator:
         return graph, (v_map[self.v1], v_map[self.vf], v_map[self.v2])
         #return deepcopy((self.graph, (self.v1, self.vf, self.v2)))
 
-    def __call__(self, graph, faces=None, delete_on_border=True, delete_inner_border=False, copy_graph=False):
-        """Apply the operator to graph, optionally restricted to given faces.
+    def __call__(
+        self,
+        graph: HalfEdgeGraph,
+        faces: "set[Face] | None" = None,
+        delete_on_border: bool = True,
+        delete_inner_border: bool = False,
+        copy_graph: bool = False,
+    ) -> HalfEdgeGraph:
+        """Apply the operator to ``graph``, optionally restricted to ``faces``.
 
-        If copy_graph is True, operate on a copy and preserve pre_conway references.
+        Args:
+            graph: Input half-edge graph; mutated in place unless ``copy_graph``.
+            faces: Faces to apply the operator to. Defaults to all faces.
+            delete_on_border: If True, delete faces whose original border edge
+                was marked for deletion.
+            delete_inner_border: If True, also clear the ``delete`` flag on
+                inner border edges.
+            copy_graph: If True, operate on a deep-ish copy and preserve
+                ``pre_conway`` references back to the original objects.
+
+        Returns:
+            The (possibly copied) graph after substitution.
         """
         if copy_graph:
             graph, (v_map, h_map, f_map) = graph.copy(return_mappings=True)
@@ -241,7 +278,14 @@ class TopologicalConwayOperator:
 class GeometricConwayOperator(TopologicalConwayOperator):
     """Conway operator that assigns new vertex positions using barycentric coordinate interpolation."""
 
-    def __init__(self, *super_args, **super_kwargs):
+    def __init__(self, *super_args: object, **super_kwargs: object) -> None:
+        """Store the fundamental domain and convert its positions to barycentric coordinates.
+
+        After construction, every vertex in ``self.graph`` carries barycentric
+        coordinates relative to the corner triangle ``(v1, vf, v2)``. They are
+        re-projected to Euclidean coordinates per target triangle inside
+        :meth:`generate_graph_and_corners`.
+        """
         super(GeometricConwayOperator, self).__init__(*super_args, **super_kwargs)
         # convert euclidean to barycentric coordinates
         to_barycentric = euclidean_to_barycentric_map(np.array([self.v1['pos'], self.vf['pos'], self.v2['pos']]))
@@ -249,13 +293,15 @@ class GeometricConwayOperator(TopologicalConwayOperator):
             v['pos'] = to_barycentric(v['pos'])
         self.geometry = None
 
-    def get_tri(self, h):
-        """Return the triangle (dest, face midpoint, orig) for halfedge h."""
+    def get_tri(self, h: HalfEdge) -> np.ndarray:
+        """Return the triangle ``(h.dest, face midpoint, h.orig)`` for half-edge ``h``."""
         midpoint = h.face.get('midpoint', self.geometry.center_of_mass(np.stack([v['pos'] for v in h.face.vertex_iter()])))
         return np.array([h.dest['pos'], midpoint, h.orig['pos']])
 
-    def generate_graph_and_corners(self, tri, h=None):
-        """Return a copy of the domain with vertex positions mapped from barycentric to Euclidean coordinates."""
+    def generate_graph_and_corners(
+        self, tri: np.ndarray, h: HalfEdge | None = None
+    ) -> tuple[HalfEdgeGraph, tuple[Vertex, Vertex, Vertex]]:
+        """Return a copy of the domain with positions mapped from barycentric to Euclidean coordinates."""
         result, corners = super(GeometricConwayOperator, self).generate_graph_and_corners(tri, h)
 
         to_euclidean = self.geometry.barycentric_to_euclidean_map(tri)
@@ -264,8 +310,23 @@ class GeometricConwayOperator(TopologicalConwayOperator):
             v['pos'] = to_euclidean(v['pos'])
         return result, corners
 
-    def __call__(self, graph: GeometricHEG, recompute_lengths_and_angles=True, **kwargs):
-        """Apply the geometric operator to a GeometricHEG, optionally recomputing lengths and angles."""
+    def __call__(
+        self,
+        graph: GeometricHEG,
+        recompute_lengths_and_angles: bool = True,
+        **kwargs: object,
+    ) -> GeometricHEG:
+        """Apply the geometric operator to ``graph``.
+
+        Args:
+            graph: Geometric half-edge graph to operate on.
+            recompute_lengths_and_angles: If True, recompute edge lengths and
+                interior angles after substitution.
+            **kwargs: Forwarded to :meth:`TopologicalConwayOperator.__call__`.
+
+        Returns:
+            The transformed graph.
+        """
         assert isinstance(graph, GeometricHEG)
         self.geometry = graph.geometry
         result = super().__call__(graph, **kwargs)
