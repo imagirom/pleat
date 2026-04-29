@@ -20,15 +20,24 @@ from rdp import rdp
 class Profile:
     """Arc-length-parametrised cross-section curve.
 
+    The cross-section is a curve in the ``(perpendicular, height)`` plane defined
+    by a height function ``fn(x)`` for ``x in [0, 1]``. Samples of this curve are
+    simplified by Ramer-Douglas-Peucker and stored in normalised form so that
+    the **total arc length is 1**.
+
     Attributes:
-        t: Normalised position along the flat edge (``[0, shrink_factor]``).
-        l: Normalised arc length, parallel to ``t`` (``[0, shrink_factor]`` end).
+        t: ``perpendicular_axis * shrink_factor``; ranges in ``[0, shrink_factor]``.
+            This is what the crease pattern uses as the perpendicular component
+            of the curved fold.
+        l: Normalised arc length; ranges in ``[0, 1]``.
+        y: ``height_axis * shrink_factor``; ranges in ``[0, ymax * shrink_factor]``.
+            Used for 3D mesh construction.
         shrink_factor: ``1 / total_unscaled_arc_length`` of the original curve.
-            After normalisation ``t[-1] == l[-1] == shrink_factor``.
     """
 
     t: NDArray[np.float64]
     l: NDArray[np.float64]
+    y: NDArray[np.float64]
     shrink_factor: float
 
     @classmethod
@@ -51,22 +60,34 @@ class Profile:
             A :class:`Profile` with the curve normalised so total arc length is 1.
         """
         t_dense = np.linspace(0.0, 1.0, n_samples)
-        y = np.asarray(fn(t_dense), dtype=float)
+        y_dense = np.asarray(fn(t_dense), dtype=float)
 
-        dy = np.diff(y)
+        dy = np.diff(y_dense)
         dt = np.diff(t_dense)
         l_dense = np.concatenate([[0.0], np.cumsum(np.sqrt(dy * dy + dt * dt))])
 
-        # rdp deprecates 2D vectors in NumPy 2.0; pad with a zero column.
-        tl = np.stack([t_dense, l_dense, np.zeros_like(t_dense)], axis=-1)
-        tl = rdp(tl, rdp_tol)[:, :2]
-        t, l = tl.T
+        # Simplify the (t, l) polyline; pad with a zero column to silence the
+        # numpy 2.0 deprecation warning about 2D vectors. ``return_mask`` lets us
+        # subset the parallel ``y`` array at the same surviving indices.
+        mask = rdp(
+            np.stack([t_dense, l_dense, np.zeros_like(t_dense)], axis=-1),
+            rdp_tol,
+            return_mask=True,
+        )
+        t = t_dense[mask]
+        l = l_dense[mask]
+        y = y_dense[mask]
 
         total_length = float(l[-1])
         if total_length <= 0.0:
             raise ValueError("profile must have positive total arc length")
         shrink_factor = 1.0 / total_length
-        return cls(t=t * shrink_factor, l=l * shrink_factor, shrink_factor=shrink_factor)
+        return cls(
+            t=t * shrink_factor,
+            l=l * shrink_factor,
+            y=y * shrink_factor,
+            shrink_factor=shrink_factor,
+        )
 
     def plot(self, ax=None) -> None:
         """Plot the simplified ``(l, t)`` polyline; convenience for notebooks."""

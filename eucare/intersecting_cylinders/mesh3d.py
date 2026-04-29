@@ -28,20 +28,34 @@ def to_3d_mesh(
 ) -> tuple[NDArray[np.float64], NDArray[np.int64]]:
     """Build a triangle mesh of the folded intersecting-cylinders surface.
 
-    For every face the surface is decomposed into one curved patch per edge.
-    The patch sits at ``z = 0`` along the edge and rises to height
-    ``alt_length = |c - hc|`` (the inradius for a face with a true incenter)
-    where ``hc`` is the foot of the perpendicular from the incenter ``c`` onto
-    the edge. With ``r = 1`` each patch is a curved triangle peaking at
-    ``(hc, alt_length)``; with ``0 < r < 1`` the patch is a curved
-    quadrilateral whose top edge lies on the lifted shrunken inner face.
+    The surface above each face is decomposed into one curved strip per edge,
+    plus, for ``r < 1``, a flat lifted copy of the shrunken inner face.
+
+    Geometry. Each strip is parametrised by ``(s, w) in [0, 1]^2``:
+
+    * ``s`` runs along the edge from ``p1`` to ``p2``;
+    * ``w`` runs from the edge (at perpendicular distance 0) to the
+      corresponding inner-face point.
+
+    The shrinking is governed by the same ``expand_t`` used by
+    :func:`make_intersecting_cylinders` (so the mesh's inner edges line up
+    exactly with the inner shrunken face produced by the crease pattern):
+
+        ``expand_t = (1 - r) * sf / (1 - (1 - r) * (1 - sf))``
+
+    where ``sf = profile.shrink_factor``. For ``r = 1`` the strip extends all
+    the way to the incenter (``perp_3D in [0, R]``); for ``r < 1`` it ends at
+    the inner edge (``perp_3D in [0, expand_t * R]``).
+
+    The 3D height at perpendicular fraction ``p in [0, 1]`` is
+    ``height(p) * R`` where ``R = |c - hc|`` is the (pseudo-)inradius.
 
     Args:
         G: Input tiling whose faces have well-defined (pseudo-)incenters.
             A working copy is made; the input is not modified.
         profile: Cross-section curve.
         r: Triangle scaling matching :func:`make_intersecting_cylinders`.
-        n_along_edge: Number of subdivisions along each edge of every patch.
+        n_along_edge: Number of subdivisions along each edge of every strip.
 
     Returns:
         ``(vertices, triangles)`` with shapes ``(N, 3)`` and ``(M, 3)`` ready
@@ -55,43 +69,94 @@ def to_3d_mesh(
         f["midpoint"] = f.pseudo_incenter()
 
     sf = profile.shrink_factor
-    l_norm = profile.l / sf  # in [0, 1]
-    t_norm = profile.t / sf  # in [0, 1]
-    n_profile = len(t_norm)
-    n_cols = n_along_edge + 1
+    perp_axis = profile.t / sf  # perpendicular fraction in [0, 1]
+    height_axis = profile.y / sf  # height (in same units as perp), in [0, ymax]
+
+    # Apex perp fraction: 1 for r=1 (strip reaches incenter), expand_t for r<1.
+    if r == 1.0:
+        apex_perp = 1.0
+    else:
+        apex_perp = (1.0 - r) * sf / (1.0 - (1.0 - r) * (1.0 - sf))
+    inner_scale = 1.0 - apex_perp  # scale factor of inner face (about c)
+
+    # Sub-sample the profile within [0, apex_perp], inserting an exact endpoint.
+    interior = perp_axis[(perp_axis > 0) & (perp_axis < apex_perp - 1e-12)]
+    sub_perp = np.concatenate([[0.0], interior, [apex_perp]])
+    sub_height = np.interp(sub_perp, perp_axis, height_axis)
+
+    n_perp = len(sub_perp)
+    n_along = n_along_edge + 1
 
     vertices: list[NDArray[np.float64]] = []
     triangles: list[tuple[int, int, int]] = []
 
     for f in G.faces:
         c = f.midpoint()
+        if not np.all(np.isfinite(c)):
+            continue
+
+        # Compute per-face inradius from the first non-degenerate edge.
+        face_R: float | None = None
+        for h0 in f.halfedge_iter():
+            hc0 = base.project_to_line(np.stack([h0.orig["pos"], h0.dest["pos"]]), c)
+            R0 = float(np.linalg.norm(c - hc0))
+            if R0 > 0:
+                face_R = R0
+                break
+        if face_R is None:
+            continue
+
+        # Curved strips: one per halfedge of the face.
         for h in f.halfedge_iter():
             p1 = h.orig["pos"]
             p2 = h.dest["pos"]
             hc = base.project_to_line(np.stack([p1, p2]), c)
-            alt_length = float(np.linalg.norm(c - hc))
-            if alt_length == 0.0:
+            R = float(np.linalg.norm(c - hc))
+            if R == 0.0:
                 continue
 
+            p1_inner = inner_scale * p1 + apex_perp * c
+            p2_inner = inner_scale * p2 + apex_perp * c
+
             base_idx = len(vertices)
-            for j in range(n_cols):
-                u = j / (n_cols - 1)
-                edge_pt = p1 + u * (p2 - p1)
-                dest_xy = hc if r == 1.0 else (1.0 - r) * edge_pt + r * c
-                offset = dest_xy - edge_pt
-                for k in range(n_profile):
-                    xy = edge_pt + offset * l_norm[k]
-                    z = alt_length * t_norm[k]
+            for j in range(n_along):
+                s = j / (n_along - 1)
+                edge_pt = p1 + s * (p2 - p1)
+                inner_pt = p1_inner + s * (p2_inner - p1_inner)
+                for k in range(n_perp):
+                    w = sub_perp[k] / apex_perp  # 0 at edge, 1 at inner_pt
+                    xy = (1.0 - w) * edge_pt + w * inner_pt
+                    z = sub_height[k] * R
                     vertices.append(np.array([xy[0], xy[1], z]))
 
-            for j in range(n_cols - 1):
-                for k in range(n_profile - 1):
-                    a = base_idx + j * n_profile + k
+            for j in range(n_along - 1):
+                for k in range(n_perp - 1):
+                    a = base_idx + j * n_perp + k
                     b = a + 1
-                    cc = a + n_profile
+                    cc = a + n_perp
                     d = cc + 1
                     triangles.append((a, b, d))
                     triangles.append((a, d, cc))
+
+        # Flat lifted inner face for r<1 (fan triangulation from c).
+        if r < 1.0:
+            z_lift = sub_height[-1] * face_R
+            c_idx = len(vertices)
+            vertices.append(np.array([c[0], c[1], z_lift]))
+            inner_corner_idx: list[int] = []
+            for v in f.vertex_iter():
+                p_inner = inner_scale * v["pos"] + apex_perp * c
+                inner_corner_idx.append(len(vertices))
+                vertices.append(np.array([p_inner[0], p_inner[1], z_lift]))
+            n_corners = len(inner_corner_idx)
+            for i in range(n_corners):
+                triangles.append(
+                    (
+                        c_idx,
+                        inner_corner_idx[i],
+                        inner_corner_idx[(i + 1) % n_corners],
+                    )
+                )
 
     return np.asarray(vertices, dtype=float), np.asarray(triangles, dtype=np.int64)
 

@@ -43,6 +43,16 @@ class TestProfile:
         p = circular_profile()
         assert np.all(np.diff(p.l) >= 0)
 
+    def test_y_height_array(self):
+        # y array must have same length as t and l, start at 0, and be monotonic
+        # for the circular profile.
+        p = circular_profile(scale=1.0)
+        assert p.y.shape == p.t.shape == p.l.shape
+        assert p.y[0] == pytest.approx(0.0)
+        # circular_profile(scale=1.0) ranges in y_axis ∈ [0, 1] (i.e. y/sf ∈ [0, 1]).
+        assert (p.y[-1] / p.shrink_factor) == pytest.approx(1.0, abs=1e-3)
+        assert np.all(np.diff(p.y) >= -1e-12)
+
     def test_custom_profile(self):
         # Triangular bump: linear up, linear down.
         def fn(x):
@@ -137,6 +147,29 @@ class TestMesh3d:
         verts, _ = to_3d_mesh(G, circular_profile(scale=1.0), r=1.0, n_along_edge=4)
         assert verts[:, 2].min() == pytest.approx(0.0)
         assert verts[:, 2].max() > 0.0
+
+    def test_half_cylinder_apex_height(self):
+        # For platonic 4 with circular_profile(scale=1.0) and r=1, every face
+        # should fold into a half-cylinder of radius R = inradius. The apex
+        # height equals R.
+        G = _make_graph(p=4, rings=2)
+        verts, _ = to_3d_mesh(G, circular_profile(scale=1.0), r=1.0, n_along_edge=4)
+        # Inradius of a unit square is 0.5.
+        assert verts[:, 2].max() == pytest.approx(0.5, rel=1e-3)
+
+    def test_r_less_than_one_z_lift(self):
+        # For r < 1 the maximum z equals z_lift = height(expand_t) * R.
+        from eucare.intersecting_cylinders.profiles import circular_profile as cp
+
+        profile = cp(scale=1.0)
+        sf = profile.shrink_factor
+        r = 0.7
+        expand_t = (1 - r) * sf / (1 - (1 - r) * (1 - sf))
+        expected_z_lift = np.sqrt(1 - (1 - expand_t) ** 2) * 0.5
+
+        G = _make_graph(p=4, rings=2)
+        verts, _ = to_3d_mesh(G, profile, r=r, n_along_edge=4)
+        assert verts[:, 2].max() == pytest.approx(expected_z_lift, rel=2e-3)
 
     def test_to_3d_mesh_invalid_r(self):
         G = _make_graph(p=4, rings=2)
