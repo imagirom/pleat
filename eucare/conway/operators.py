@@ -331,3 +331,80 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         if recompute_lengths_and_angles:
             result.recompute_lengths_and_angles()
         return result
+
+    #: Canonical reference triangle for visualizing the fundamental domain.
+    #: Matches the ``v1, vf, v2`` layout used by every factory in :mod:`eucare.conway.factories`.
+    _SHOW_REFERENCE_TRIANGLE: np.ndarray = np.array([[0.0, -1.0], [1.0, 0.0], [0.0, 1.0]])
+
+    def show(
+        self,
+        annotate_barycentric: bool = False,
+        show_corners: bool = True,
+        delete_color: tuple[float, float, float] = (0.85, 0.15, 0.15),
+        join_color: tuple[float, float, float] = (0.15, 0.65, 0.20),
+        keep_color: tuple[float, float, float] = (0.30, 0.30, 0.30),
+        corner_color: tuple[float, float, float] = (1.00, 0.55, 0.00),
+        filename: str = 'conway_operator',
+        **show_kwargs: object,
+    ) -> None:
+        """Render the fundamental-domain graph, colouring elements by their role.
+
+        Vertices and edges flagged as ``delete`` are drawn in *delete_color*
+        (and edges become dashed via the existing renderer behaviour); vertices
+        flagged as ``join`` are drawn in *join_color*; the three corner
+        vertices ``(v1, vf, v2)`` are highlighted in *corner_color* if
+        ``show_corners`` is True; everything else uses *keep_color*.
+
+        Args:
+            annotate_barycentric: If True, print a table of each vertex's
+                barycentric coordinates to stdout.
+            show_corners: If True, override the corner vertices' colour.
+            delete_color: RGB triple for delete-marked elements.
+            join_color: RGB triple for join-marked vertices.
+            keep_color: RGB triple for retained elements.
+            corner_color: RGB triple for the three triangle corners.
+            filename: Stem for the SVG/PNG output written by
+                :meth:`HalfEdgeGraph.show`.
+            **show_kwargs: Forwarded to :meth:`HalfEdgeGraph.show`.
+        """
+        from ..half import EuclideanGeometry
+
+        # Project barycentric vertex positions back to a canonical Euclidean triangle.
+        graph_copy, (v_map, _, _) = self.graph.copy(deepcopy_attributes=False, return_mappings=True)
+        graph_copy.geometry = EuclideanGeometry
+        to_euclidean = EuclideanGeometry.barycentric_to_euclidean_map(self._SHOW_REFERENCE_TRIANGLE)
+        for v in graph_copy.vertices:
+            v['pos'] = to_euclidean(v['pos'])
+
+        corner_set = {v_map[c] for c in (self.v1, self.vf, self.v2)} if show_corners else set()
+
+        # Assign colours based on role.
+        for v in graph_copy.vertices:
+            if v in corner_set:
+                v['color_key'] = corner_color
+            elif v.attributes.get('delete', False):
+                v['color_key'] = delete_color
+            elif v.attributes.get('join', False):
+                v['color_key'] = join_color
+            else:
+                v['color_key'] = keep_color
+        for h in graph_copy.halfedges:
+            if h.attributes.get('delete', False) or h.rev.attributes.get('delete', False):
+                h['color_key'] = delete_color
+            elif 'color_key' not in h.attributes:
+                h['color_key'] = keep_color
+
+        if annotate_barycentric:
+            inv = {v_map[u]: u for u in self.graph.vertices}
+            print('Barycentric coordinates relative to (v1, vf, v2):')
+            for v in graph_copy.vertices:
+                bary = inv[v]['pos']
+                role = (
+                    'corner' if v in corner_set
+                    else 'delete' if v.attributes.get('delete', False)
+                    else 'join' if v.attributes.get('join', False)
+                    else 'keep'
+                )
+                print(f'  {role:>6}: ({bary[0]:+.3f}, {bary[1]:+.3f}, {bary[2]:+.3f})')
+
+        graph_copy.show(filename=filename, **show_kwargs)

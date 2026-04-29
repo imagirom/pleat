@@ -185,3 +185,27 @@ class TestConwayOperatorInternals:
         op = dual_graph()
         # Not invoking show() (would write to disk); just verify the op has the expected attributes.
         assert hasattr(op, 'v1') and hasattr(op, 'vf') and hasattr(op, 'v2')
+
+
+@pytest.mark.parametrize(
+    'factory_name',
+    ['dual_graph', 'kis_graph', 'gyro_graph', 'flagstone_pvitelli_graph'],
+)
+def test_geometric_show_smoke(factory_name, tmp_path, monkeypatch, capsys):
+    """``GeometricConwayOperator.show`` runs end-to-end and writes an SVG/PNG."""
+    import eucare.conway as conway_mod
+
+    factory = getattr(conway_mod, factory_name)
+    op = factory()
+
+    # Suppress IPython display side-effects.
+    import IPython.display as ipd
+    monkeypatch.setattr(ipd, 'display', lambda *a, **k: None)
+
+    monkeypatch.chdir(tmp_path)
+    op.show(annotate_barycentric=True, filename='smoke')
+
+    assert (tmp_path / 'smoke.svg').exists()
+    assert (tmp_path / 'smoke.png').exists()
+    captured = capsys.readouterr().out
+    assert 'Barycentric' in captured
