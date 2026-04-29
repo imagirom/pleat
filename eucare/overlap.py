@@ -374,6 +374,7 @@ def overlap_graph(G: "EuclideanPositionHEG", eps: float = 1e-10) -> "EuclideanPo
 
 MOUNTAIN = 1
 VALLEY = -1
+BORDER = 0
 ORIGINAL_FACES = 'original_faces'
 FACES_OF_FOLDS_ON_EDGE = 'original_face_groups'
 LENGTH = 'length'
@@ -438,7 +439,7 @@ def cache_all(cache=None):
     return wrapper
 
 
-SOLVER_ORDER = [pulp.CPLEX, pulp.GLPK]
+SOLVER_ORDER = [pulp.CPLEX, pulp.GLPK, pulp.PULP_CBC_CMD]
 
 
 def infer_additional_over_under_pairs(over_under_pairs: list, facet_triplets: set) -> list:
@@ -553,8 +554,9 @@ def find_folded_face_order(G: "EuclideanPositionHEG", over_under_pairs=(), solve
         prob.writeLP(problem_file)
         if solver is None:
             for solver_class in SOLVER_ORDER:
-                solver = solver_class()
-                if solver.available():
+                candidate = solver_class()
+                if candidate.available():
+                    solver = candidate
                     break
             if solver is None:
                 solver = 'auto'
