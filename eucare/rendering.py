@@ -79,7 +79,15 @@ def random_color(seed: object = None) -> np.ndarray:
 
 
 def is_color(obj: object) -> bool:
-    """Return True if *obj* looks like an RGB(A) tuple/list of numbers."""
+    """Return True if *obj* looks like an RGB(A) tuple/list of numbers or a #RRGGBB string."""
+    if isinstance(obj, str):
+        if obj.startswith('#') and len(obj) == 7:
+            try:
+                int(obj[1:], 16)
+                return True
+            except ValueError:
+                return False
+        return False
     return isinstance(obj, Iterable) and len(obj) in (3, 4) and all([isinstance(c, (int, float)) for c in obj])
 
 
@@ -263,6 +271,8 @@ class CairoRenderer:
         """Set the current cairo source colour, accepting RGB/RGBA tuples or any hashable seed."""
         if not is_color(color):
             color = random_color(color)
+        if isinstance(color, str):
+            color = np.array([int(color[i:i+2], 16) / 255 for i in (1, 3, 5)])
         if len(color) == 3:
             self.dc.set_source_rgb(*color)
         else:
