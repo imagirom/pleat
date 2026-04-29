@@ -7,13 +7,16 @@ helpers (:func:`inset_corner`, :func:`inset_poly`) and color utilities.
 from __future__ import annotations
 
 import logging
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 import cairo
 import numpy as np
 
 from .base import angle_to_axis, unit_vector
 from .half import rotate_by
+
+if TYPE_CHECKING:
+    from .half import HalfEdgeGraph
 
 logger = logging.getLogger(__name__)
 try:
@@ -43,7 +46,12 @@ FLAT_COLOR: str = '#888888'
 
 
 def inset_corner(a: np.ndarray, b: np.ndarray, c: np.ndarray, dist: float, eps: float = 1e-10) -> np.ndarray:
-    # insets angle abc
+    """Inset the corner ``a -> b -> c`` inwards by ``dist``.
+
+    Returns a point inside the angle at ``b`` such that its distance to both
+    edges of the angle equals ``dist``.  If the corner is straight (``v == w``),
+    returns ``b`` unchanged.
+    """
     w = b - a
     v = b - c
     if np.linalg.norm(v - w) < eps:  # 180 degree "corner"
@@ -54,6 +62,7 @@ def inset_corner(a: np.ndarray, b: np.ndarray, c: np.ndarray, dist: float, eps: 
 
 
 def inset_poly(pts: list, dist: float) -> list:
+    """Inset a polygon's vertices inwards by ``dist`` (see :func:`inset_corner`)."""
     return [inset_corner(a, b, c, dist) for a, b, c in rotate_by(pts, (0, 1, 2))]
 
 
@@ -61,12 +70,14 @@ _seed_offset = np.random.randint(2**16)
 
 
 def random_color(seed: object = None) -> np.ndarray:
+    """Return a random RGB triple in ``[0, 1]^3``, optionally seeded by a hashable."""
     if seed is not None:
         np.random.seed((hash(seed) + _seed_offset) % 2**32)
     return np.random.uniform(0, 1, 3)
 
 
 def is_color(obj: object) -> bool:
+    """Return True if *obj* looks like an RGB(A) tuple/list of numbers."""
     return isinstance(obj, Iterable) and len(obj) in (3, 4) and all([isinstance(c, (int, float)) for c in obj])
 
 
@@ -154,9 +165,42 @@ def multi_show(
 
 
 class CairoRenderer:
-    def __init__(self, width=None, height=None, line_width='auto', vertex_radius=None,
-                 scale='auto', face_inset=None, path='output.svg',
-                 position_key='pos', curve_position_key='curve_pos'):
+    """Render half-edge graphs to PNG / SVG via pycairo.
+
+    Faces, edges, and vertices are rendered in that order so edges and
+    vertex markers sit on top of face fills.  Per-element ``color_key`` and
+    ``line_width`` attributes override the defaults; missing colour keys fall
+    back to a translucent blue (faces) or grey (edges).
+    """
+
+    def __init__(
+        self,
+        width: int | None = None,
+        height: int | None = None,
+        line_width: float | str = 'auto',
+        vertex_radius: float | None = None,
+        scale: float | str = 'auto',
+        face_inset: float | None = None,
+        path: str = 'output.svg',
+        position_key: str = 'pos',
+        curve_position_key: str = 'curve_pos',
+    ) -> None:
+        """Create a renderer writing to *path* (an SVG file).
+
+        Args:
+            width: Output width in pixels (defaults to *height*, or 512).
+            height: Output height in pixels (defaults to *width*, or 512).
+            line_width: Stroke width in graph units; ``'auto'`` derives it
+                from the median edge length, ``'NN%'`` is a fraction of that.
+            vertex_radius: Marker radius for vertices (defaults to *line_width*).
+            scale: Drawing scale; ``'auto'`` computes a fit from the bounding box.
+            face_inset: Distance to inset face fills from the edges (defaults
+                to *line_width*).
+            path: Output SVG path.  A matching PNG is produced by callers.
+            position_key: Vertex attribute holding the 2D position.
+            curve_position_key: Half-edge attribute holding curved-fold polylines
+                (overrides the straight ``orig -> dest`` line).
+        """
         if width is None and height is None:
             width, height = 512, 512
         self.width = width if width is not None else height
@@ -182,7 +226,8 @@ class CairoRenderer:
         dc.paint()
         self.dc = dc
 
-    def render_face(self, face, color_key='color_key'):
+    def render_face(self, face, color_key: str = 'color_key'):
+        """Draw a single face's filled polygon, honouring ``face[color_key]``."""
         dc = self.dc
         points = []
         for h in face.halfedge_iter():
@@ -212,7 +257,8 @@ class CairoRenderer:
         dc.stroke()
         return self.surface
 
-    def set_source_color(self, color):
+    def set_source_color(self, color) -> None:
+        """Set the current cairo source colour, accepting RGB/RGBA tuples or any hashable seed."""
         if not is_color(color):
             color = random_color(color)
         if len(color) == 3:
@@ -220,7 +266,14 @@ class CairoRenderer:
         else:
             self.dc.set_source_rgba(*color)
 
-    def render_edge(self, edge, color_key='color_key', last_pos=None, tol=1e-6):
+    def render_edge(self, edge, color_key: str = 'color_key', last_pos=None, tol: float = 1e-6):
+        """Draw a single half-edge as a line or a tapered ribbon.
+
+        If both endpoints carry a ``line_width`` attribute, the edge is drawn
+        as a filled ribbon of varying width (used for stylised wireframes);
+        otherwise it is a stroked polyline.  The ``curve_pos`` attribute, if
+        present, replaces the straight segment with a polyline.
+        """
         dc = self.dc
 
         if 'line_width' in edge.orig.attributes and 'line_width' in edge.dest.attributes:
@@ -269,7 +322,8 @@ class CairoRenderer:
                 #dc.stroke()
         return self.surface if last_pos is None else (self.surface, edge.dest[self.position_key])
 
-    def render_vertex(self, vertex, color_key='color_key'):
+    def render_vertex(self, vertex, color_key: str = 'color_key') -> None:
+        """Draw a vertex as a small disc, picking colour from ``vertex[color_key]`` or attribute flags."""
         dc = self.dc
         dc.set_line_width(0)
         dc.arc(*vertex[self.position_key], self.vertex_radius, 0, 2*np.pi)
@@ -287,6 +341,7 @@ class CairoRenderer:
         dc.set_line_width(self.line_width)
 
     def autoscale(self, graph):
+        """Pick an isotropic scale to fit *graph* in the surface (origin-centred)."""
         positions = np.array([v[self.position_key] for v in graph.vertices])
         max_abs_pos = np.max(np.abs(positions), axis=0)
         scale = np.min(np.array([self.width, self.height]) / max_abs_pos) / 2.2
@@ -294,6 +349,7 @@ class CairoRenderer:
         return self
 
     def autocenterscale(self, graph):
+        """Pick scale and translation to fit *graph* in the surface, centred on its bounding box."""
         positions = np.array([v[self.position_key] for v in graph.vertices])
         offset = (np.max(positions, axis=0) + np.min(positions, axis=0)) / 2
         max_abs_pos = np.max(np.abs(positions - offset[None]), axis=0)
@@ -304,7 +360,8 @@ class CairoRenderer:
         return self
 
     @staticmethod
-    def auto_line_width(graph):
+    def auto_line_width(graph) -> float:
+        """Default line width for *graph*: ``min(min_edge / 2, mean_edge / 10)``."""
         lengths = np.array([
             h['length'] if 'length' in h.attributes
             else float(np.linalg.norm(h.dest['pos'] - h.orig['pos']))
@@ -312,7 +369,18 @@ class CairoRenderer:
         ])
         return min(np.min(lengths) / 2, np.mean(lengths) / 10)
 
-    def render_graph(self, graph, render_vertices=True, render_faces=True, render_edges=True, for_cutting=False):
+    def render_graph(self, graph: "HalfEdgeGraph", render_vertices: bool = True, render_faces: bool = True,
+                     render_edges: bool = True, for_cutting: bool = False) -> None:
+        """Render the whole *graph* (faces, edges, vertices) onto the cairo surface.
+
+        Args:
+            graph: A :class:`~eucare.half.HalfEdgeGraph`.
+            render_vertices: Whether to draw vertex markers.
+            render_faces: Whether to draw face fills.
+            render_edges: Whether to draw edges.
+            for_cutting: Reorder edges to minimise pen-up moves on a plotter.
+                Currently raises :class:`NotImplementedError`.
+        """
         global _seed_offset
         _seed_offset = np.random.randint(2**16)
         if self.scale == 'auto':
@@ -374,8 +442,13 @@ class CairoRenderer:
 
 
 class SvgwriteRenderer:
-    """This is to be used with a cutting plotter"""
-    def __init__(self, position_key='pos', curve_position_key='curve_pos'):
+    """Vector renderer for cutting plotters: minimises pen-up moves between strokes.
+
+    Edges are emitted as a few long polylines rather than many short segments,
+    so a plotter can complete the cut without unnecessary travel.  Faces and
+    vertices are not implemented; only ``for_cutting=True`` is supported.
+    """
+    def __init__(self, position_key: str = 'pos', curve_position_key: str = 'curve_pos') -> None:
         assert svgwrite is not None, 'SvgwriteRenderer requires the svgwrite package. You can install it via pip.'
         self.position_key = position_key
         self.curve_position_key = curve_position_key
@@ -418,7 +491,8 @@ class SvgwriteRenderer:
             pth.push('M', *pts)
             dwg.add(pth)
 
-    def create_drawing(self, filename, pts, height, unit=svgwrite.cm):
+    def create_drawing(self, filename: str, pts: np.ndarray, height: float, unit=svgwrite.cm) -> None:
+        """Initialise the underlying ``svgwrite.Drawing`` based on the bounding box of *pts*."""
         self.bbox = np.array([[f(pts[:, i]) for f in [np.min, np.max]] for i in [0, 1]])
         aspect_ratio = (self.bbox[0, 1] - self.bbox[0, 0]) / (self.bbox[1, 1] - self.bbox[1, 0])
         self.scale = height / (self.bbox[1, 1] - self.bbox[1, 0])
@@ -426,9 +500,17 @@ class SvgwriteRenderer:
         self.height = height
         self.dwg = svgwrite.Drawing(filename, size=(self.width*unit, height*unit), viewBox=f'0 0 {self.width} {height}')
 
-    def render_graph(self, filename, graph, render_vertices=False, render_faces=False, render_edges=True,
-                     for_cutting=True, height=30, unit=svgwrite.cm, render_interior_and_borders=True,
-                     extra_render_keys=('drawing_edge',)):
+    def render_graph(self, filename: str, graph, render_vertices: bool = False, render_faces: bool = False,
+                     render_edges: bool = True, for_cutting: bool = True, height: float = 30, unit=svgwrite.cm,
+                     render_interior_and_borders: bool = True,
+                     extra_render_keys: tuple[str, ...] = ('drawing_edge',)) -> None:
+        """Write a plotter-ready SVG of *graph*'s edges to *filename*.
+
+        Also writes companion files ``<name>_borders.svg`` and
+        ``<name>_interior.svg`` (when *render_interior_and_borders* is True),
+        plus one extra SVG per attribute key in *extra_render_keys* that
+        marks half-edges with a truthy attribute of that key.
+        """
 
         # get bbox of points that will be rendered
         ps, vs = graph.get_position_view()

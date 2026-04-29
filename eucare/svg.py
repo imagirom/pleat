@@ -17,8 +17,26 @@ logger = logging.getLogger(__name__)
 
 
 def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
+    """Load an SVG crease pattern as an :class:`EuclideanPositionHEG`.
 
-    def get_stroke(attrs):
+    Recognises:
+
+    - ORIPA-style colour conventions (red = mountain, blue = valley, gray = ignored).
+    - SVG files where mountain / valley / border are distinguished only by stroke
+      colour: the most common stroke on the border is taken as the border stroke,
+      the remaining two are assigned to mountain / valley by sorted order.
+
+    Vertices closer than ``1e-5`` (in normalised coordinates) are merged.
+
+    Args:
+        filepath: Path to the SVG file.
+
+    Returns:
+        A planar half-edge graph with vertex positions in ``[0, 1] x [0, 1]`` and
+        crease assignments stored on each half-edge under :data:`CREASE_ASSIGNMENT`.
+    """
+    def get_stroke(attrs: dict) -> str | None:
+        """Extract the ``stroke:...;`` colour from an SVG ``style`` attribute string."""
         # hits = re.search('stroke:(#.{6})', attrs['style'])
         hits = re.search('stroke:(.*?);', attrs['style'])
         if hits is not None:

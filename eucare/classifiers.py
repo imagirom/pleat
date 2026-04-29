@@ -17,7 +17,7 @@ import numpy as np
 class Classifier:
     """Classify items by a hashable index, optionally tracking items and indices per class."""
 
-    def __init__(self, save_items=False, save_indices=False):
+    def __init__(self, save_items: bool = False, save_indices: bool = False) -> None:
         super(Classifier, self).__init__()
 
         self.used_indices = set()
@@ -41,6 +41,7 @@ class Classifier:
         raise NotImplementedError
 
     def classify(self, item):
+        """Return the equivalence class index for ``item`` and update saved items/indices."""
         index = self._get_index(item)
         if self.save_items:
             self.saved_items[index] = self.saved_items.get(index, set()).union({item})
@@ -128,6 +129,7 @@ class NestedClassifier(Classifier):
 def lambda_classifier(func):
     """Create a Classifier class that uses the given function as its index."""
     class LambdaClassifier(Classifier):
+        """Classifier whose index is computed by the wrapped function."""
         def _get_index(self, item):
             return func(item)
 
@@ -205,7 +207,8 @@ class PreMapClassifier(Classifier):
         return self.other.classify(self.func(item))
 
 
-def _face_to_array(f):
+def _face_to_array(f) -> np.ndarray:
+    """Represent a face as an (n, 2) array of (length, in_angle) pairs along its boundary."""
     data = []
     for e in f.halfedge_iter():
         data.append((e['length'], e['in_angle']))

@@ -1,4 +1,16 @@
-"""Cut half-edge graphs along halfplane boundaries or polygon regions."""
+"""Cut half-edge graphs along halfplane boundaries or polygon regions.
+
+The main entry point is :func:`cut_out_poly`, which inserts new vertices and
+edges where a polygon crosses an existing graph and (optionally) deletes the
+faces lying outside the polygon.  Class :class:`Halfplane` (and its
+:class:`CuttingRegion` base) is used by :mod:`eucare.overlap` to model
+folded-face stacking constraints.
+
+Low-level numba-accelerated helpers (:func:`pointinpolygon`,
+:func:`parallelpointinpolygon`, :func:`polygon_line_segment_intersections`,
+:func:`get_potential_intersections_2`, :func:`get_ordered_crossings`) sit
+beneath the public API and are reused by other modules.
+"""
 from __future__ import annotations
 
 from collections import defaultdict
@@ -15,11 +27,23 @@ if TYPE_CHECKING:
 from eucare.overlap import group_closeby, intervals_overlapping, line_segment_intersections
 from eucare.rendering import inset_poly
 
-"""Methods to check if point lies in polygon from https://stackoverflow.com/a/48760556"""
+# ---------------------------------------------------------------------------
+# Point-in-polygon helpers (from https://stackoverflow.com/a/48760556)
+# ---------------------------------------------------------------------------
 
 
 @jit(nopython=True)
-def pointinpolygon(x, y, poly):
+def pointinpolygon(x: float, y: float, poly: np.ndarray) -> bool:
+    """Numba-jitted point-in-polygon test (ray casting).
+
+    Args:
+        x: Query x coordinate.
+        y: Query y coordinate.
+        poly: ``(n, 2)`` float64 array of polygon vertices.
+
+    Returns:
+        True iff ``(x, y)`` lies strictly inside *poly*.
+    """
     n = len(poly)
     inside = False
     p2x = 0.0
@@ -41,7 +65,8 @@ def pointinpolygon(x, y, poly):
 
 
 @njit(parallel=True)
-def parallelpointinpolygon(points, polygon):
+def parallelpointinpolygon(points: np.ndarray, polygon: np.ndarray) -> np.ndarray:
+    """Vectorised :func:`pointinpolygon` over a batch of query points."""
     D = np.empty(len(points), dtype=numba.boolean)
     for i in numba.prange(0, len(D)):
         D[i] = pointinpolygon(points[i,0], points[i,1], polygon)
@@ -49,7 +74,8 @@ def parallelpointinpolygon(points, polygon):
 
 
 @numba.jit(nopython=True)
-def polygon_line_segment_intersections(poly, line_segment, eps=1e-12):
+def polygon_line_segment_intersections(poly: np.ndarray, line_segment: np.ndarray, eps: float = 1e-12) -> list:
+    """Return the list of intersections of *line_segment* with each edge of closed polygon *poly*."""
     intersections = []
     p1 = poly[-1]
     for i in range(len(poly)):
@@ -59,8 +85,13 @@ def polygon_line_segment_intersections(poly, line_segment, eps=1e-12):
     return intersections
 
 
-def get_potential_intersections_2(segments1, segments2, epsilon=1e-12):
-    # returns list of start and end points, with index of corresponding segment and flag whether it is a start or an end point.
+def get_potential_intersections_2(segments1: np.ndarray, segments2: np.ndarray, epsilon: float = 1e-12) -> list:
+    """Bounding-box prefilter: return ``(i, j)`` pairs whose AABBs overlap.
+
+    Used as a pre-pass before the expensive exact intersection test.  Sweep-line
+    over x; for each x-active segment in one set, intersect-test against
+    x-active segments in the other set whose y-intervals overlap.
+    """
     if len(segments2) == 0 or len(segments1) == 0:
         return []
     ns1 = len(segments1)
@@ -105,7 +136,22 @@ def get_potential_intersections_2(segments1, segments2, epsilon=1e-12):
     return possibly_intersecting
 
 
-def get_ordered_crossings(segments1, segments2, eps=1e-10):
+def get_ordered_crossings(segments1: np.ndarray, segments2: np.ndarray, eps: float = 1e-10) -> tuple:
+    """Compute exact intersections between two segment sets and group near-duplicates.
+
+    Args:
+        segments1: ``(n1, 2, 2)`` array of polygon-side segments.
+        segments2: ``(n2, 2, 2)`` array of graph-edge segments.
+        eps: Tolerance for clustering near-coincident crossings.
+
+    Returns:
+        A 5-tuple ``(crossings, segments1_to_crossings, segments2_to_crossings,
+        crossings_to_segments1, crossings_to_segments2)``. ``crossings`` is a
+        ``(k, 2)`` array of unique crossing positions; ``segmentsX_to_crossings[i]``
+        is the ordered list of crossing indices along segment ``i`` of set X;
+        ``crossings_to_segmentsX[k]`` is the set of segment indices in set X
+        contributing to crossing ``k``.
+    """
     crossings = []
     # This will be a list mapping the index of a crossing to the pair (i, j) of indices of the corresponding edges.
     crossings_to_edges = []
@@ -165,6 +211,12 @@ def get_ordered_crossings(segments1, segments2, eps=1e-10):
 
 
 def delete_new_outside(G: "HalfEdgeGraph", border_key: str = 'new_border') -> None:
+    """Flood-fill faces reachable from a ``new_border`` half-edge and delete them.
+
+    Args:
+        G: Graph to mutate in place.
+        border_key: Half-edge attribute marking the new boundary; cleared after deletion.
+    """
     # floodfill the outside region and delete it
     hs = [h for h in G.halfedges if border_key in h.attributes]
     to_delete = {h.face for h in hs if h.face}
@@ -184,7 +236,23 @@ def delete_new_outside(G: "HalfEdgeGraph", border_key: str = 'new_border') -> No
         del h[border_key]
 
 
-def cut_out_poly(G: "EuclideanPositionHEG", poly, delete_outside: bool = True, eps: float = 1e-10):
+def cut_out_poly(
+    G: "EuclideanPositionHEG",
+    poly: np.ndarray,
+    delete_outside: bool = True,
+    eps: float = 1e-10,
+) -> "EuclideanPositionHEG":
+    """Insert vertices and edges where *poly* crosses *G*, optionally deleting outside.
+
+    Args:
+        G: Graph to cut, mutated in place.
+        poly: ``(n, 2)`` array of polygon vertices in order.
+        delete_outside: If True, faces outside *poly* are deleted afterwards.
+        eps: Tolerance for crossing clustering.
+
+    Returns:
+        The modified graph (also mutated in place).
+    """
     # numba-jit'd ``line_segment_intersections`` requires a uniform float64
     # dtype across both segment arrays; cast defensively here so that callers
     # that produced positions via float32 paths (e.g. torch optimisers) work.
@@ -345,31 +413,47 @@ def cut_out_poly(G: "EuclideanPositionHEG", poly, delete_outside: bool = True, e
     return G
 
 class CuttingRegion:
-    def inside(self, points):
+    """Abstract closed region used to cut graphs (see :func:`cut_out_poly`).
+
+    Subclasses implement :meth:`inside`, :meth:`intersections`, and optionally
+    :meth:`corners` (any region corners that should be inserted as vertices).
+    """
+
+    def inside(self, points: np.ndarray) -> np.ndarray:
+        """Boolean mask: True where each point lies inside the region."""
         raise NotImplementedError
 
-    def intersections(self, line_segments):
+    def intersections(self, line_segments: np.ndarray) -> np.ndarray:
+        """Compute intersection points of *line_segments* with the region boundary."""
         raise NotImplementedError
 
-    def corners(self):
+    def corners(self) -> list:
+        """Region corners that should be added as new graph vertices (none by default)."""
         return []
 
 
 class Halfplane(CuttingRegion):
-    def __init__(self, p, v):
-        """Halfplane defined by (x - p) * v > 0"""
+    """Open halfplane ``{x : (x - p) . v > 0}``, used as a cutting region."""
+
+    def __init__(self, p: np.ndarray, v: np.ndarray) -> None:
+        """Construct from a point on the boundary and an outward-pointing normal.
+
+        Args:
+            p: Any point on the boundary line.
+            v: Normal vector pointing into the *kept* halfplane (normalised internally).
+        """
         self.p = p
         self.v = v / np.linalg.norm(v)
 
-    def signed_distance(self, points):
+    def signed_distance(self, points: np.ndarray) -> np.ndarray:
+        """Signed distance from *points* to the boundary (negative = inside)."""
         return -((points - self.p) * self.v).sum(-1)
 
-    def intersections(self, line_segments):
-        """
-        Compute intersections of the half-plane boundary and the line_segments.
-        They are assumed to exist.
+    def intersections(self, line_segments: np.ndarray) -> np.ndarray:
+        """Intersections of the boundary line with each segment in *line_segments*.
 
-        The line segments have shape (n_segments, (start, end), (x, y))
+        Args:
+            line_segments: Shape ``(n_segments, 2, 2)``: ``(start, end), (x, y)``.
         """
         mixing_coefficients = np.abs(((line_segments - self.p) * self.v).sum(-1, keepdims=True))
         mixing_coefficients /= mixing_coefficients.sum(1, keepdims=True)

@@ -143,13 +143,16 @@ class HalfEdge(IdObject):
     def __str__(self):
         return f'H{self["id"]}'
 
-    def on_border(self):
+    def on_border(self) -> bool:
+        """Return True if this half-edge has no face on its left side."""
         return self.face is None
 
-    def check_consistency(self):
+    def check_consistency(self) -> None:
+        """Assert that ``self.rev.rev is self``."""
         assert self.rev.rev is self, f'{self}, {self.rev}, {self.rev.rev}'
 
-    def midpoint(self):
+    def midpoint(self) -> np.ndarray:
+        """Return the midpoint of the underlying edge in Euclidean position space."""
         return np.mean([v['pos'] for v in (self.orig, self.dest)], axis=0)
 
 
@@ -167,6 +170,7 @@ class Vertex(IdObject):
         self.any_outgoing = any_outgoing
 
     def outgoing_iter(self):
+        """Yield outgoing half-edges in counter-clockwise order around this vertex."""
         initial = self.any_outgoing
         current = initial
         while True:
@@ -176,6 +180,7 @@ class Vertex(IdObject):
                 break
 
     def reverse_outgoing_iter(self):
+        """Yield outgoing half-edges in clockwise order around this vertex."""
         initial = self.any_outgoing
         current = initial
         while True:
@@ -184,43 +189,52 @@ class Vertex(IdObject):
             if current is initial:
                 break
 
-    def order(self):
+    def order(self) -> int:
+        """Return the number of edges incident to this vertex (its degree)."""
         return len(list(self.outgoing_iter()))
 
     def incoming_iter(self):
+        """Yield incoming half-edges in counter-clockwise order around this vertex."""
         for h in self.outgoing_iter():
             yield h.rev
 
     def face_iter(self):
+        """Yield adjacent faces (including ``None`` for border) in CCW order."""
         for h in self.outgoing_iter():
             yield h.face
 
     def true_face_iter(self):
+        """Yield only the non-``None`` adjacent faces."""
         for f in self.face_iter():
             if f is not None:
                 yield f
 
     def vertex_iter(self):
+        """Yield neighbouring vertices in counter-clockwise order around this vertex."""
         for h in self.outgoing_iter():
             yield h.dest
 
-    def common_faces_iter(self, other):
+    def common_faces_iter(self, other: "Vertex"):
+        """Yield faces incident to both this vertex and ``other``."""
         fs = set(other.face_iter())
         for f in self.face_iter():
             if f in fs and f is not None:
                 yield f
 
-    def on_border(self):
+    def on_border(self) -> bool:
+        """Return True if this vertex has at least one border half-edge."""
         return any(h.on_border() for h in self.outgoing_iter())
 
-    def get_outgoing_border(self):
+    def get_outgoing_border(self) -> HalfEdge:
+        """Return the unique outgoing border half-edge, asserting there is exactly one."""
         # search for borders
         border_edges = [h for h in self.outgoing_iter() if h.face is None]
         assert len(border_edges) > 0, f'Vertex {self} does not lie on a border. {self.order()}'
         assert len(border_edges) < 2, f'Vertex {self} has multiple adjacent border edges. Please specify one.'
         return border_edges[0]
 
-    def combine_with(self, other):
+    def combine_with(self, other: "Vertex") -> "Vertex":
+        """Merge ``other``'s attributes into this vertex (this vertex's values win on conflict)."""
         # This method might be used in subclasses to e.g. average positions when vertices are combined.
         # For now, just use one of them and combine the attributes.
         attrs = copy(other.attributes)
@@ -237,7 +251,8 @@ class Vertex(IdObject):
             assert e.dest is self, f'{self}, {e.dest}, {e}'
         assert self.order() > 0, f'{self}, {self.order()}' # TODO: > 1
 
-    def angle_sum(self):
+    def angle_sum(self) -> float:
+        """Return the sum of interior angles at this vertex (excluding border faces)."""
         return sum(h['in_angle']
                    for h in self.incoming_iter()
                    if h.face is not None)
@@ -256,6 +271,7 @@ class Face(IdObject):
         self.any_side = any_side
 
     def halfedge_iter(self):
+        """Yield boundary half-edges in counter-clockwise order around this face."""
         initial = self.any_side
         current = initial
         while True:
@@ -265,67 +281,82 @@ class Face(IdObject):
                 break
 
     def reverse_halfedge_iter(self): # TODO: this should be the reverse of halfedge_iter, no? (not returning the rev)
+        """Yield the reverse of each boundary half-edge (i.e. those facing outward)."""
         for h in self.halfedge_iter():
             yield h.rev
 
-    def order(self):
+    def order(self) -> int:
+        """Return the number of edges (= sides) of this polygonal face."""
         return len(list(self.halfedge_iter()))
 
     def vertex_iter(self):
+        """Yield boundary vertices in counter-clockwise order around this face."""
         for h in self.halfedge_iter():
             yield h.orig
 
     def face_iter(self):
+        """Yield neighbouring faces (including ``None`` for border) in CCW order."""
         for h in self.halfedge_iter():
             yield h.rev.face
 
     def true_face_iter(self):
+        """Yield only the non-``None`` neighbouring faces."""
         for f in self.face_iter():
             if f is not None:
                 yield f
 
-    def on_border(self):
+    def on_border(self) -> bool:
+        """Return True if any boundary half-edge of this face is adjacent to a border edge."""
         return any(h.rev.on_border() for h in self.halfedge_iter())
 
-    def outgoing_edge_at(self, v):
+    def outgoing_edge_at(self, v: "Vertex") -> HalfEdge:
+        """Return the boundary half-edge of this face originating at vertex ``v``."""
         return next(h for h in self.halfedge_iter() if h.orig is v)
 
-    def incoming_edge_at(self, v):
+    def incoming_edge_at(self, v: "Vertex") -> HalfEdge:
+        """Return the boundary half-edge of this face ending at vertex ``v``."""
         return next(h for h in self.halfedge_iter() if h.dest is v)
 
-    def common_halfedge_iter(self, other):
+    def common_halfedge_iter(self, other: "Face"):
+        """Yield half-edges of this face whose reverse lies on ``other``."""
         assert isinstance(other, Face)
         hs = set(h.rev for h in other.halfedge_iter())
         for h in self.halfedge_iter():
             if h in hs:
                 yield h
 
-    def common_vertex_iter(self, other):
+    def common_vertex_iter(self, other: "Face"):
+        """Yield vertices shared with ``other``."""
         vs = set(other.vertex_iter())
         for v in self.vertex_iter():
             if v in vs:
                 yield v
 
-    def common_face_iter(self, other):
+    def common_face_iter(self, other: "Face"):
+        """Yield faces neighbouring both this face and ``other``."""
         fs = set(other.face_iter())
         for f in self.face_iter():
             if f in fs:
                 yield f
 
-    def midpoint(self):
+    def midpoint(self) -> np.ndarray:
+        """Return the (cached) face midpoint, falling back to the vertex centroid."""
         return self.attributes.get('midpoint', np.mean([v['pos'] for v in self.vertex_iter()], axis=0))
 
-    def pseudo_incenter(self):
+    def pseudo_incenter(self) -> np.ndarray:
+        """Return the pseudo-incenter (true incenter for tangential polygons)."""
         return pseudo_incenter(self)
 
-    def recompute_lengths_and_angles(self, geometry):
+    def recompute_lengths_and_angles(self, geometry) -> None:
+        """Recompute the ``length`` and ``in_angle`` attributes from current vertex positions."""
         points = np.stack([v['pos'] for v in self.vertex_iter()])
         lengths, angles = edge_lengths_and_in_angles(points, geometry)
         for e, length, angle in zip(self.halfedge_iter(), lengths, angles):
             e['length'] = length
             e['in_angle'] = angle
 
-    def area(self):
+    def area(self) -> float:
+        """Return the (signed) Euclidean area of this face from its vertex positions."""
         return signed_area(np.stack([v['pos'] for v in self.vertex_iter()]))
 
     def check_consistency(self):
@@ -356,7 +387,7 @@ class HalfEdgeGraph:
     ``.copy()`` first if you need the original.
     """
 
-    def __init__(self, other=None):
+    def __init__(self, other: "HalfEdgeGraph | None" = None) -> None:
         if other is not None:
             self.halfedges = copy(other.halfedges)
             self.vertices = copy(other.vertices)
@@ -369,7 +400,8 @@ class HalfEdgeGraph:
             self._any_border = None
         self.simply_connected = False
 
-    def add_graph(self, other):
+    def add_graph(self, other: "HalfEdgeGraph") -> None:
+        """Add all elements of ``other`` to this graph (without re-linking topology)."""
         if not isinstance(other, HalfEdgeGraph):
             raise TypeError(f'other must be a HalfEdgeGraph. Got {type(other)}')
         self.add_halfedges(other.halfedges)
@@ -377,39 +409,49 @@ class HalfEdgeGraph:
         self.add_faces(other.faces)
 
     @property
-    def order(self):
+    def order(self) -> int:
+        """Number of vertices."""
         return len(self.vertices)
 
     @property
-    def size(self):
+    def size(self) -> int:
+        """Number of (undirected) edges, i.e. half-edges divided by 2."""
         return len(self.halfedges) // 2
 
-    def add_vertex(self, v):
+    def add_vertex(self, v: Vertex) -> None:
+        """Register vertex ``v`` with this graph."""
         self.vertices.add(v)
 
-    def add_vertices(self, vs):
+    def add_vertices(self, vs) -> None:
+        """Register an iterable of vertices with this graph."""
         self.vertices.update(vs)
 
-    def add_face(self, f):
+    def add_face(self, f: Face) -> None:
+        """Register face ``f`` with this graph."""
         self.faces.add(f)
 
-    def add_faces(self, fs):
+    def add_faces(self, fs) -> None:
+        """Register an iterable of faces with this graph."""
         self.faces.update(fs)
 
-    def add_halfedge(self, h):
+    def add_halfedge(self, h: HalfEdge) -> None:
+        """Register half-edge ``h`` with this graph."""
         self.halfedges.add(h)
 
-    def add_halfedges(self, hs):
+    def add_halfedges(self, hs) -> None:
+        """Register an iterable of half-edges with this graph."""
         self.halfedges.update(hs)
 
-    def delete_face(self, f):
+    def delete_face(self, f: Face) -> None:
+        """Remove a single face (and any newly-orphaned edges/vertices)."""
         self.delete_faces({f})
 
     def fill_holes(self):
         """Fill all 'holes' inside the graph: Add faces to enclosed areas which are not yet a face"""
         raise NotImplementedError
 
-    def delete_faces(self, fs):
+    def delete_faces(self, fs) -> None:
+        """Delete all faces in ``fs`` and any half-edges/vertices they leave dangling."""
         self.faces.difference_update(set(fs))
         # 1. Determine edges that have to be deleted, remove them and their rev's from Graph
         # 2. Determine which still existing edges should be updated.
@@ -450,7 +492,13 @@ class HalfEdgeGraph:
                 if v.any_outgoing not in self.halfedges:  # no outgoing edge is still in graph
                     self.vertices.remove(v)
 
-    def delete_subset(self, *items):
+    def delete_subset(self, *items) -> None:
+        """Delete a mixed collection of faces, half-edges, and vertices, repairing topology.
+
+        Accepts individual ``Face``/``HalfEdge``/``Vertex`` objects or iterables
+        of them as positional arguments. Border structure is updated; new faces
+        may be created when an edge cut splits an existing face.
+        """
         parsed_items = []
         for item in items:
             if isinstance(item, (Face, HalfEdge, Vertex)):
@@ -721,12 +769,14 @@ class HalfEdgeGraph:
         return result
 
 
-    def to_networkx_undirected(self):
+    def to_networkx_undirected(self) -> nx.Graph:
+        """Return a :class:`networkx.Graph` of this graph's underlying undirected topology."""
         result = nx.Graph()
         result.add_edges_from([(h.orig, h.dest) for h in self.halfedges])
         return result
 
-    def get_any_border(self):
+    def get_any_border(self) -> HalfEdge:
+        """Return some border half-edge, caching the result; raise if none exists."""
         if self._any_border is not None and self._any_border.on_border() and self._any_border in self.halfedges:
             return self._any_border
         for h in self.halfedges:
@@ -736,6 +786,7 @@ class HalfEdgeGraph:
         raise LookupError('No border found.')
 
     def border_edge_iter(self):
+        """Yield border half-edges. For simply connected graphs, in cyclic order."""
         if self.simply_connected:
             initial = self.get_any_border()
             current = initial
@@ -749,14 +800,17 @@ class HalfEdgeGraph:
                 if e.on_border():
                     yield e
 
-    def border_edges(self):
+    def border_edges(self) -> list[HalfEdge]:
+        """Return all border half-edges as a list."""
         return list(self.border_edge_iter())
 
     def border_vertex_iter(self):
+        """Yield vertices lying on a border edge."""
         for h in self.border_edge_iter():
             yield h.orig
 
-    def border_vertices(self):
+    def border_vertices(self) -> list[Vertex]:
+        """Return all border vertices as a list."""
         return list(self.border_vertex_iter())
 
     def glue_v2v(self, v1=None, v2=None, v1_out=None, v2_out=None):

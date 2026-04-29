@@ -8,11 +8,29 @@ import yaml
 
 import eucare as ec
 
-from .half import Face, HalfEdge, Vertex
+from .half import Face, HalfEdge, HalfEdgeGraph, Vertex
 
 
-def graph_to_dict(G, attributes_to_save=('pos', 'length', 'in_angle', 'color_key')):
-    # convert Graph to dict
+def graph_to_dict(
+    G: HalfEdgeGraph,
+    attributes_to_save: tuple[str, ...] = ('pos', 'length', 'in_angle', 'color_key'),
+) -> dict:
+    """Serialise a half-edge graph to a JSON/YAML-friendly nested dict.
+
+    Vertices, half-edges, and faces are each given an opaque string label
+    (``v0``, ``h0``, ``f0``, ...).  Cross-references are stored by label.
+    Numpy arrays in attributes are converted to plain Python lists, and numpy
+    scalars to ``float``.
+
+    Args:
+        G: The graph to serialise.
+        attributes_to_save: Attribute keys to copy onto each element.  Other
+            attributes are dropped.
+
+    Returns:
+        ``{'vertices': ..., 'halfedges': ..., 'faces': ...}``, suitable for
+        :func:`yaml.dump`.
+    """
     vertex_labels = {v: f'v{i}' for i, v in enumerate(G.vertices)}
     halfedge_labels = {h: f'h{i}' for i, h in enumerate(G.halfedges)}
     face_labels = {f: f'f{i}' for i, f in enumerate(G.faces)}
@@ -70,7 +88,12 @@ def graph_to_dict(G, attributes_to_save=('pos', 'length', 'in_angle', 'color_key
     return graph_dict
 
 
-def dict_to_graph(graph_dict):
+def dict_to_graph(graph_dict: dict) -> ec.half.EuclideanPositionHEG:
+    """Inverse of :func:`graph_to_dict`: reconstruct a graph from its serialised dict.
+
+    The returned graph is always an :class:`EuclideanPositionHEG` regardless of
+    the source graph's class (TODO: persist the class).
+    """
     def unwrap_attributes(obj_dict):
         result = {}
         for key, value in obj_dict.pop('attributes', {}).items():
@@ -122,8 +145,23 @@ def dict_to_graph(graph_dict):
     return G
 
 
-def save_graph(filename, graph, overwrite=False,
-               extra_attributes_to_save=None, attributes_to_save=('pos', 'length', 'in_angle', 'color_key')):
+def save_graph(
+    filename: str,
+    graph: HalfEdgeGraph,
+    overwrite: bool = False,
+    extra_attributes_to_save: str | tuple[str, ...] | None = None,
+    attributes_to_save: tuple[str, ...] = ('pos', 'length', 'in_angle', 'color_key'),
+) -> None:
+    """Save *graph* to a ``.heg`` (YAML) file.
+
+    Args:
+        filename: Output path; ``.heg`` is appended if missing.
+        graph: The graph to save.
+        overwrite: If False and the file already exists, raise instead of overwriting.
+        extra_attributes_to_save: Convenience: attribute key(s) to save in
+            addition to *attributes_to_save*.
+        attributes_to_save: Attribute keys to persist (see :func:`graph_to_dict`).
+    """
     if not filename.endswith('.heg'):
         filename += '.heg'
     if not overwrite:
@@ -137,7 +175,8 @@ def save_graph(filename, graph, overwrite=False,
         f.write(yaml.dump(graph_dict))
 
 
-def load_graph(filename):
+def load_graph(filename: str) -> ec.half.EuclideanPositionHEG:
+    """Load a graph previously saved by :func:`save_graph`."""
     with open(filename, 'r') as f:
         lines = f.read()
     graph_dict = yaml.load(lines, Loader=yaml.SafeLoader)

@@ -37,15 +37,29 @@ until the legacy notebooks are pruned (see `notebooks/README.md`).
 
 ### P1.3 — Finish type-hint pass · *medium effort*
 
-Conway factories are now annotated. Remaining gaps:
+Significant progress made: type hints + Google-style docstrings added across
+`utils.py`, `search_trees.py`, `svg.py`, `io.py`, `rendering.py`,
+`cutting.py`, `overlap.py` (public API), `image_to_graph.py`,
+`marching_cubes.py`, `classifiers.py` (top-level), and the core
+classes/methods of `half.py` (``HalfEdge``, ``Vertex``, ``Face``, and the
+public navigation/border API of ``HalfEdgeGraph``).
 
-- `eucare/half.py` (~99 public functions, especially `HalfEdgeGraph`,
-  `InAngleHEG`, `GeometricHEG`, `EuclideanPositionHEG` methods).
-- `eucare/geometries/{euclidean,hyperbolic,spherical,base}.py` classmethods
-  returning `np.ndarray`.
-- `eucare/example_tilesets.py`, `eucare/example_graphs.py`,
-  `eucare/io.py`, `eucare/rendering.py`, `eucare/cutting.py`,
-  `eucare/overlap.py` top-level helpers.
+Remaining gaps:
+
+- `eucare/half.py` mid- and lower-tier methods: `delete_edge`, `glue_*`,
+  `subdivide_*`, `recompute_positions`, `show`, `copy`, `check_consistency`,
+  the entire `InAngleHEG` / `GeometricHEG` / `EuclideanPositionHEG` /
+  `CyclicHalfedgeGraph` / `RegularNGon` overrides.
+- `eucare/geometries/{euclidean,hyperbolic,spherical}.py` classmethod
+  overrides (return types). The abstract base is fully documented and the
+  overrides inherit semantics, so adding return types is mechanical.
+- `eucare/classifiers.py` private overrides (`_get_index`,
+  `_compare_representations`, `_represent_item`) — class-level docstrings
+  document the contract; redundant per-method docstrings would be noise.
+- `eucare/instructions.py`, `eucare/prototiles.py` minor helpers
+  (`special_copy`, `complete_vertex_with_rhombus`).
+- `eucare/example_graphs.py`, `eucare/example_tilesets.py` builder return
+  types — currently untyped because of branching factory signatures.
 
 **Acceptance:** `mypy eucare` passes (current strictness); no new untyped
 public API.
@@ -180,3 +194,80 @@ doesn't implement `__len__`. Either teach `LenClassifier` to fall back to
 
 **Acceptance:** `colorize(G, face_corner_count_classifier())` works directly
 on a graph.
+
+---
+
+## Surfaced during the type-hint / docstring sweep (P1.3 follow-ups)
+
+### P2.8 — Split `eucare/half.py` (1366 LOC) · *medium effort*
+
+`half.py` mixes the bare DCEL primitives (``AttributeObject``, ``IdObject``,
+``HalfEdge``, ``Vertex``, ``Face``), the topological graph
+(``HalfEdgeGraph``, ``CyclicHalfedgeGraph``, ``RegularNGon``), and three
+specialisations adding angles / pluggable geometry / Euclidean positions
+(``InAngleHEG``, ``GeometricHEG``, ``EuclideanPositionHEG``). Splitting into
+``eucare/half/{primitives.py,graph.py,geometric.py}`` would make the module
+easier to navigate, easier to type-check incrementally, and would expose a
+clearer mental model in the API docs.
+
+**Acceptance:** `from eucare.half import HalfEdge, HalfEdgeGraph,
+EuclideanPositionHEG` continues to work via re-exports; `half/` package is
+under 700 LOC per module.
+
+### P2.9 — Split `eucare/overlap.py` (837 LOC) · *medium effort*
+
+`overlap.py` interleaves three concerns:
+
+1. Geometric primitives — `line_segment_intersections`,
+   `get_potential_intersections`, `intervals_overlapping`,
+   `fast_group_closeby` / `faster_group_closeby_nx`.
+2. The overlap-graph construction (`overlap_graph`, `remove_duplicates`).
+3. The flat-foldability ILP and pipeline (`find_folded_face_order`,
+   `infer_additional_over_under_pairs`, `fold_wireframe`,
+   `face_order_to_clean_graph`, `color_creases`, `fold_complete`,
+   `save_results`).
+
+Pull (1) into `eucare/geometry_helpers.py` (or back into `eucare/base.py`)
+and (3) into `eucare/folding.py`; keep `overlap.py` focused on graph
+construction.
+
+**Acceptance:** public symbols re-exported from `eucare.overlap` for
+backwards compatibility; per-module LOC under 500.
+
+### P2.10 — Make `Classifier.classify` and friends generic · *low effort*
+
+`eucare/classifiers.py` defines a hierarchy of `Classifier` subclasses with
+a contract spelled out in class docstrings but enforced only at the
+`_get_index` level. Annotating `classify` and the subclass overrides with
+`Generic[T]` (over the input type) and `Hashable` return types would let
+mypy catch misuse and would document the API better than the class
+docstrings alone.
+
+**Acceptance:** `Classifier`, `RepresentationClassifier`,
+`NestedClassifier` are typed `Generic[T]`; existing call sites unchanged.
+
+### P2.11 — Drop `print_attribute_info` or move to a debug module · *trivial*
+
+`eucare/utils.py::print_attribute_info` is a diagnostic helper used in two
+notebooks. It writes to stdout and has no tests. Either drop it or move it
+to a clearly-named `eucare/debug.py`.
+
+**Acceptance:** `eucare/utils.py` no longer contains UI-style helpers.
+
+### P2.12 — `eucare/instructions.py::special_copy_graph` is a stub · *trivial*
+
+`special_copy_graph(graph)` calls `deepcopy` on `graph.vertices` and
+`graph.faces` and discards the result. Either implement it (per the
+`special_copy` pattern) or remove it.
+
+**Acceptance:** no dead-code stubs in `instructions.py`.
+
+### P2.13 — `eucare/image_to_graph.py` `threshold` and `edge_length_cutoff` · *low effort*
+
+`image_to_graph(...)` raises `NotImplementedError` when either parameter is
+left at its default `None`, but the function signature does not signal this.
+Either make them required positional arguments, or implement the two
+auto-estimation paths.
+
+**Acceptance:** calling `image_to_graph(rgb)` without keyword args either
+returns a sensible default or fails at parse time, not at runtime.

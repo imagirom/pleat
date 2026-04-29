@@ -6,7 +6,10 @@ colouring, and stacking-order constraints across a graph.
 """
 from __future__ import annotations
 
-from typing import Callable, Iterable, TypeVar
+from typing import TYPE_CHECKING, Callable, Iterable, TypeVar
+
+if TYPE_CHECKING:
+    from .half import Face, Vertex
 
 T = TypeVar("T")
 
@@ -36,11 +39,11 @@ def bfs_tree(start: T | set[T], neighbor_iter: Callable[[T], Iterable[T]]) -> li
     return edges
 
 
-def face_bfs_tree(start):
+def face_bfs_tree(start: "Face | set[Face]") -> list[tuple["Face", "Face"]]:
     """BFS tree over faces (interior faces only; ``None`` boundary faces are skipped)."""
     return bfs_tree(start, lambda f: (f2 for f2 in f.face_iter() if f2 is not None))
 
 
-def vertex_bfs_tree(start):
+def vertex_bfs_tree(start: "Vertex | set[Vertex]") -> list[tuple["Vertex", "Vertex"]]:
     """BFS tree over vertices, traversing along incident edges."""
     return bfs_tree(start, lambda v: v.vertex_iter())

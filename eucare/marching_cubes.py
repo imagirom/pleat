@@ -52,7 +52,8 @@ class CartesianGrid:
         return (indices + 0.5) * self.cell_size[None]
 
 
-    def _parse_subdivisions(self, subdivisions: int | tuple | np.ndarray):
+    def _parse_subdivisions(self, subdivisions: int | tuple | np.ndarray) -> np.ndarray:
+        """Coerce a subdivision spec into a 1-D ``int`` array of length ``ndim``."""
         if isinstance(subdivisions, Number):
             subdivisions = np.ones(self.ndim, dtype=int) * subdivisions
         else:
@@ -107,6 +108,7 @@ class CartesianGrid:
     def coarsen_block_indices(
             self, indices_per_dim: list[np.ndarray], subdivisions: int | tuple | np.ndarray
     ) -> list[np.ndarray]:
+        """Apply :meth:`coarsen_indices` independently per axis to a block of indices."""
         subdivisions = self._parse_subdivisions(subdivisions)
         assert len(indices_per_dim) == self.ndim, f'{len(indices_per_dim)=} != {self.ndim=}'
         axis_grids = self.get_1d_axis_grids()
@@ -133,7 +135,24 @@ class CartesianGrid:
     # def
 
 
-def oct_tree_marching_cubes(f: callable, step: np.ndarray, bounds: np.ndarray | None = None):
+def oct_tree_marching_cubes(f: callable, step: np.ndarray, bounds: np.ndarray | None = None) -> tuple[np.ndarray, CartesianGrid]:
+    """Locate boundary cells of an SDF using an oct-tree refinement strategy.
+
+    Builds successively coarser grids until the bounding box fits in one
+    cell, then refines top-down, keeping only cells whose distance is within
+    the cell radius. Returns the surviving cell indices and the finest grid.
+
+    Args:
+        f: Signed-distance function mapping ``(n, 3)`` positions to ``(n, 1)``
+            distances.
+        step: Grid spacing per axis (or scalar applied to all).
+        bounds: Axis-aligned bounding box ``((x0, y0, z0), (x1, y1, z1))`` to
+            sample. If ``None``, estimated via :func:`sdf.mesh._estimate_bounds`.
+
+    Returns:
+        ``(indices, grid)`` where ``indices`` is the array of surviving cell
+        indices in the finest grid and ``grid`` is that :class:`CartesianGrid`.
+    """
     ndim = 3
 
     if bounds is None:

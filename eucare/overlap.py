@@ -29,12 +29,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def intervals_overlapping(interval1, interval2):
+def intervals_overlapping(interval1: tuple[float, float], interval2: tuple[float, float]) -> bool:
     """Check if two intervals overlap (inclusive of endpoints)."""
     return not (interval1[0] > interval2[1]) and not (interval1[1] < interval2[0])
 
 
-def get_potential_intersections(segments, epsilon=1e-12):
+def get_potential_intersections(segments: np.ndarray, epsilon: float = 1e-12) -> list[tuple[int, int]]:
     """Return pairs of segment indices that may intersect, using a sweep-line approach on bounding boxes."""
     # list of start and end points, with index of corresponding segment and flag whether it is a start or an end point.
     segments = np.array(segments).copy()
@@ -134,7 +134,7 @@ def line_segment_intersections(s1, s2, eps=1e-12):
     return result
 
 
-def fast_group_closeby(pts, eps):
+def fast_group_closeby(pts: np.ndarray, eps: float) -> np.ndarray:
     """Cluster nearby points using single-linkage clustering on cityblock distance."""
     Z = linkage_vector(pts, method='single', metric='cityblock')
     unsorted = fcluster(Z, eps, criterion='distance')
@@ -149,7 +149,7 @@ def fast_group_closeby(pts, eps):
     return np.array(result, dtype=np.int32)
 
 
-def faster_group_closeby_nx(arr, eps):
+def faster_group_closeby_nx(arr: np.ndarray, eps: float) -> np.ndarray:
     """Cluster nearby points via approximate single-linkage using grid-based connected components.
 
     Points less than eps apart receive the same label. Return an array mapping
@@ -379,7 +379,7 @@ FACES_OF_FOLDS_ON_EDGE = 'original_face_groups'
 LENGTH = 'length'
 SORTED_ORIGINAL_FACES = 'sorted_original_faces'
 
-def find_triplet_overlap_areas(G):
+def find_triplet_overlap_areas(G: "EuclideanPositionHEG") -> dict[frozenset, float]:
     """Compute the total overlap area for each triplet of original faces."""
     result = defaultdict(float)
     bar = tqdm(G.faces, desc='finding triplet overlap areas')
@@ -391,7 +391,7 @@ def find_triplet_overlap_areas(G):
     return result
 
 
-def find_fold_over_facet_lengths(G):
+def find_fold_over_facet_lengths(G: "EuclideanPositionHEG") -> dict[tuple[frozenset, "Face"], float]:
     """Compute total edge length where a fold passes over a facet."""
     result = defaultdict(float)
     for e in tqdm(G.halfedges, desc='finding fold over facet lengths'):
@@ -407,7 +407,7 @@ def find_fold_over_facet_lengths(G):
     return result
 
 
-def find_conincident_fold_lengths(G):
+def find_conincident_fold_lengths(G: "EuclideanPositionHEG") -> dict[frozenset, float]:
     """Compute total edge length where two folds coincide."""
     result = defaultdict(float)
     for e in tqdm(G.halfedges, desc='finding coincident fold lengths'):
@@ -441,7 +441,7 @@ def cache_all(cache=None):
 SOLVER_ORDER = [pulp.CPLEX, pulp.GLPK]
 
 
-def infer_additional_over_under_pairs(over_under_pairs, facet_triplets):
+def infer_additional_over_under_pairs(over_under_pairs: list, facet_triplets: set) -> list:
     """Transitively close over/under relations: if A over B and B over C within a triplet, infer A over C."""
     # over_dict[f] is set of all facets that f lies over.
     over_dict = defaultdict(set)
@@ -466,7 +466,7 @@ def infer_additional_over_under_pairs(over_under_pairs, facet_triplets):
     return [(over, under) for over, under_set in over_dict.items() for under in under_set]
 
 
-def find_folded_face_order(G, over_under_pairs=(), solver=None, double_fold_weight=0, allow_slack=True, problem_file=None):
+def find_folded_face_order(G: "EuclideanPositionHEG", over_under_pairs=(), solver=None, double_fold_weight: float = 0, allow_slack: bool = True, problem_file: str | None = None) -> dict:
     """Determine the stacking order of overlapping faces by solving an ILP.
 
     Assign 'sorted_original_faces' to each face of the overlap graph G and return
@@ -598,7 +598,7 @@ Temporary utility functions - Have to make up mind on how to organize / where to
 """
 
 
-def fold_wireframe(G, initial_face=None):
+def fold_wireframe(G: "EuclideanPositionHEG", initial_face: "Face | None" = None) -> None:
     """Fold a crease pattern in place by mirroring alternating faces about their shared edges."""
     if initial_face is None:
         for f in G.faces:
@@ -618,7 +618,7 @@ def fold_wireframe(G, initial_face=None):
 CREASE_ASSIGNMENT = 'crease_assignment'
 
 
-def get_over_under_pairs_from_creases(G, two_coloring_key='color_key'):
+def get_over_under_pairs_from_creases(G: "EuclideanPositionHEG", two_coloring_key: str = 'color_key') -> list[list["Face"]]:
     """Derive over/under face pairs from mountain/valley crease assignments on a two-colored graph."""
     over_under_pairs = []
     for e in G.halfedges:
@@ -636,7 +636,7 @@ TOP = 'top_side'
 BOTTOM = 'bottom_side'
 
 
-def face_order_to_clean_graph(G, side=TOP, top_color=(0.5, 0.5, 0.9), bottom_color=(0.8, 0.8, 0.8)):
+def face_order_to_clean_graph(G: "EuclideanPositionHEG", side: str = TOP, top_color: tuple = (0.5, 0.5, 0.9), bottom_color: tuple = (0.8, 0.8, 0.8)) -> "EuclideanPositionHEG":
     """Extract a clean renderable graph showing only the top or bottom layer of a folded model."""
     view = G.copy()
 
@@ -681,7 +681,7 @@ def face_order_to_clean_graph(G, side=TOP, top_color=(0.5, 0.5, 0.9), bottom_col
     return view
 
 
-def color_creases(G, colors=None, color_border=False):
+def color_creases(G: "EuclideanPositionHEG", colors: dict | None = None, color_border: bool = False) -> None:
     """Assign edge colors based on crease assignments (mountain=red, valley=blue, flat=black)."""
     if colors is None:
         colors = {
@@ -812,7 +812,7 @@ def save_results(results, path='results', render_settings=None, min_foldable_len
     logger.info(text)
 
 
-def remove_duplicates(G, eps=1e-6, exclude_edges=()):
+def remove_duplicates(G: "EuclideanPositionHEG", eps: float = 1e-6, exclude_edges=()) -> "EuclideanPositionHEG":
     """Merge duplicate vertices and edges within eps distance, returning a clean graph.
     
     The faces of the resulting graph are built from scratch based on the new edges, so this only works 

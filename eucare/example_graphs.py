@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 
 import numpy as np
+from sympy import N, elliptic_f
 
 from .example_tilesets import curved_zip, pgg_2x
 from .half import EuclideanPositionHEG, GeometricHEG, HalfEdgeGraph, InAngleHEG
@@ -119,9 +120,6 @@ def kised_soccer_ball():
     G.delete_subset([v for v in G.vertices if v.on_border() and v.order() < 5])
     G.delete_subset([f for f in G.faces if f.order() > 3])
     return G
-
-
-from sympy import N, elliptic_f  # noqa: E402  # delayed import: sympy is heavy and only used by hyperbolic_square_graph
 
 
 def hyperbolic_square_graph(G=None, min_length=0.05, dual=False):

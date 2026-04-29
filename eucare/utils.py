@@ -62,9 +62,18 @@ class VerboseTimer(IdObject):
         self.last = time()
 
 
-def print_attribute_info(objs):
-    """Print info about the attributes of the AttributeObject(s) objs. Also works on HalfEdgeGraphs."""
+def print_attribute_info(objs: HalfEdgeGraph | Iterable[AttributeObject]) -> None:
+    """Log per-attribute counts for a collection of :class:`AttributeObject` s.
 
+    For each attribute name found on any object in ``objs``, logs the number of
+    objects carrying it and the number of distinct hashable values seen. When
+    given a :class:`HalfEdgeGraph`, recurses into its vertices, half-edges and
+    faces.
+
+    Args:
+        objs: A :class:`HalfEdgeGraph` or any iterable of attribute-bearing
+            objects (vertices, half-edges, faces).
+    """
     if isinstance(objs, HalfEdgeGraph):
         logger.info('Vertices:')
         print_attribute_info(objs.vertices)
