@@ -131,10 +131,9 @@ P2.3.
 ### P3.1 — Coverage of numba-jit code · *low effort*
 
 `overlap.line_segment_intersections` (lines 85–134) is not measurable by
-`coverage.py` due to numba JIT. Two options:
+`coverage.py` due to numba JIT.
 
-- Add `# pragma: no cover` on the jit body so the totals reflect reality.
-- Or run a parallel non-jit shadow function for testing.
+Add `# pragma: no cover` on the jit body so the totals reflect reality.
 
 **Acceptance:** total coverage reported reflects what's actually testable.
 
