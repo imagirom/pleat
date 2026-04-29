@@ -17,9 +17,9 @@ from .factories import (
     kis_graph,
     lace_graph,
     loft_graph,
+    shrink_rotate_graph,
     starify_graph,
     truncate_graph,
-    twist_rotate_graph,
 )
 from .operators import GeometricConwayOperator, TopologicalConwayOperator
 
@@ -38,7 +38,7 @@ __all__ = [
     "kis_graph",
     "lace_graph",
     "loft_graph",
+    "shrink_rotate_graph",
     "starify_graph",
     "truncate_graph",
-    "twist_rotate_graph",
 ]

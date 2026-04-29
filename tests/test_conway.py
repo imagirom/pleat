@@ -166,10 +166,10 @@ class TestExpandLoftLaceChamfer:
         result = chamfer_graph()(G)
         result.check_consistency()
 
-    def test_twist_rotate(self):
-        from eucare.conway import twist_rotate_graph
+    def test_shrink_rotate_graph(self):
+        from eucare.conway import shrink_rotate_graph
         G = _make_tiling(rings=2)
-        result = twist_rotate_graph()(G)
+        result = shrink_rotate_graph()(G)
         result.check_consistency()
 
     def test_flagstone_pvitelli(self):

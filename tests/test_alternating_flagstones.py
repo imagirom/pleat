@@ -27,7 +27,7 @@ from eucare.conway import (
     flagstone_pvitelli_graph,
     lace_graph,
     loft_graph,
-    twist_rotate_graph,
+    shrink_rotate_graph,
 )
 from eucare.example_graphs import from_tiles
 from eucare.example_tilesets import platonic, t_4_6_12
@@ -94,7 +94,7 @@ class TestFlagstoneVariants:
         "op_fn,name",
         [
             (flagstone_pvitelli_graph, "pvitelli"),
-            (twist_rotate_graph, "twist_rotate"),
+            (shrink_rotate_graph, "shrink_rotate"),
             (loft_graph, "loft"),
             (lace_graph, "lace"),
             (expand_graph, "expand"),
@@ -112,7 +112,7 @@ class TestFlagstoneVariants:
     @pytest.mark.parametrize(
         "op_fn",
         [
-            twist_rotate_graph,
+            shrink_rotate_graph,
             loft_graph,
             expand_graph,
         ],

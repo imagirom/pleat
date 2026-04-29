@@ -175,8 +175,16 @@ def alternating_flagstone_graph(t: float = 1/3) -> GeometricConwayOperator:
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
-def twist_rotate_graph(t: float = 1/2) -> GeometricConwayOperator:
-    """Construct the twist-rotate operator with parameter t."""
+def shrink_rotate_graph(t: float = 1/2) -> GeometricConwayOperator:
+    """Construct the shrink-rotate Conway operator with parameter *t*.
+
+    The operator creates new faces for each original vertex, shrinks the original faces and creates a ring of quadrilateral faces between the twists; the central polygon is later
+    rotated and scaled around the reciprocal-figure center to produce a
+    flat-foldable crease pattern (see :mod:`eucare.shrink_rotate`).
+
+    Each twist face is marked with the ``'shrink_rotate'`` attribute so
+    downstream code can identify it.
+    """
     v1 = (0, -1)
     vf = (1, 0)
     v2 = (0, 1)
@@ -192,7 +200,7 @@ def twist_rotate_graph(t: float = 1/2) -> GeometricConwayOperator:
 
     # construct EHEG and ConwayOperator
     heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
-    v_lookup[vf].get_outgoing_border().rev.face['twistrotate'] = True
+    v_lookup[vf].get_outgoing_border().rev.face['shrink_rotate'] = True
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
