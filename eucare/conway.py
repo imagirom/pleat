@@ -239,7 +239,7 @@ class TopologicalConwayOperator:
 
 
 class GeometricConwayOperator(TopologicalConwayOperator):
-    """Conway operator that preserves vertex positions using barycentric coordinate interpolation."""
+    """Conway operator that assigns new vertex positions using barycentric coordinate interpolation."""
 
     def __init__(self, *super_args, **super_kwargs):
         super(GeometricConwayOperator, self).__init__(*super_args, **super_kwargs)

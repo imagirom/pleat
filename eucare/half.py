@@ -113,7 +113,7 @@ class HalfEdge(IdObject):
     """A directed half-edge in the DCEL.
 
     Each undirected edge is represented by a pair of half-edges linked via
-    ``rev``.  Navigation around a face uses ``nex`` / ``pre``; around a vertex use ``orig.outgoing_iter()``, or ``nex.rev``/``pre.rev``.  Border edges have ``face`` set to ``None`` on the half-edge pointing into the graph.
+    ``rev``.  Navigation around a face uses ``nex`` / ``pre``; to traverse around a vertex use ``nex.rev``/``pre.rev``.  Border edges have ``face`` set to ``None`` on the half-edge pointing into the graph.
 
     Attributes:
         rev: The reverse (twin) half-edge.
@@ -260,7 +260,7 @@ class Vertex(IdObject):
             assert e.orig is self, f'{self}, {e.orig}, {e}'
         for e in self.incoming_iter():
             assert e.dest is self, f'{self}, {e.dest}, {e}'
-        assert self.order() > 0, f'{self}, {self.order()}' # TODO: > 1
+        assert self.order() > 0, f'{self}, {self.order()}'
 
     def angle_sum(self) -> float:
         """Return the sum of interior angles at this vertex (excluding border faces)."""
@@ -291,7 +291,7 @@ class Face(IdObject):
             if current is initial:
                 break
 
-    def reverse_halfedge_iter(self): # TODO: this should be the reverse of halfedge_iter, no? (not returning the rev)
+    def reverse_halfedge_iter(self):
         """Yield the reverse of each boundary half-edge (i.e. those facing outward)."""
         for h in self.halfedge_iter():
             yield h.rev
@@ -663,7 +663,6 @@ class HalfEdgeGraph:
 
     def join_order_2_boundary_vertices(self) -> None:
         """Simplify the boundary by joining all degree-2 vertices on the boundary."""
-        # join unnecessary boundary vertices
         to_join = []
         for v in self.vertices:
             if v.on_border() and v.order() == 2:
@@ -1546,8 +1545,7 @@ class GeometricHEG(InAngleHEG):
 class EuclideanPositionHEG(GeometricHEG):
     """GeometricHEG specialized for Euclidean geometry with 2D vertex positions.
 
-    Vertices carry ``pos`` attributes (numpy arrays of shape (2,)).  Provides
-    epsilon-based vertex merging and position-aware graph operations.
+    Vertices carry ``pos`` attributes (numpy arrays of shape (2,)).  Provides epsilon-based vertex merging and position-aware graph operations.
     """
 
     def __init__(self, **super_kwargs: object) -> None:
