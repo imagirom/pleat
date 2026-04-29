@@ -76,6 +76,7 @@ nav:
           - 07 Styling: notebooks/07_Styling.ipynb
           - 08 Modifications: notebooks/08_Modifications.ipynb
           - 09 Interactive SRG: notebooks/09_Interactive_SRG.ipynb
+          - 10 Intersecting Cylinders: notebooks/10_Intersecting_Cylinders.ipynb
       - Reference:
           - Tiling Demo: notebooks/Tiling Demo.ipynb
           - GomJau-Hogg Notation: notebooks/GomJau-Hogg Notation.ipynb
