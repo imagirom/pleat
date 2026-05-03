@@ -379,17 +379,64 @@ class Face(IdObject):
         assert self.order() > 1, f'{self}, {self.order()}'
 
 
-def pseudo_incenter(f: Face) -> np.ndarray:
+def pseudo_incenter(f: Face | np.ndarray) -> np.ndarray:
     """Return a face's pseudo-incenter (true incenter for tangential polygons).
 
     For tangential polygons the result is the actual incenter. Otherwise it
     is the side-length-weighted centroid of the vertices, which is a smooth
     interior point convenient for label placement.
     """
-    ps = np.array([v['pos'] for v in f.vertex_iter()])
+    if isinstance(f, np.ndarray):
+        ps = f
+    else:
+        ps = np.array([v['pos'] for v in f.vertex_iter()])
     lengths = np.linalg.norm(np.roll(ps, 1, axis=0) - np.roll(ps, 2, axis=0), axis=-1)
     incenter = np.sum(lengths[:, None] * ps, axis=0) / np.sum(lengths)
     return incenter
+
+
+def pseudo_circumcenter(ps, return_radius=False):
+    """
+    Compute the point inside the polygon which minimizes the standard deviation of distances to the vertices, i.e. the "best fit" circumcenter.
+
+    Args:
+        ps : array_like, shape (N, 2)
+            Polygon vertices.
+        return_radius : bool
+            If True, also return the circumradius.
+
+    Returns:
+        center : ndarray, shape (2,)
+            Circumcenter of the polygon.
+        radius : float, optional
+            Circumradius, only if return_radius=True.
+    """
+    ps = np.asarray(ps, dtype=float)
+
+    if ps.ndim != 2 or ps.shape[1] != 2:
+        raise ValueError("ps must have shape (N, 2)")
+    if ps.shape[0] < 3:
+        # For 1 or 2 points, just use the mean of the points.
+        center = ps.mean(axis=0)
+    else:
+        p0 = ps[0]
+
+        # From ||c - pi||^2 = ||c - p0||^2:
+        # 2 (pi - p0) · c = ||pi||^2 - ||p0||^2
+        A = 2.0 * (ps[1:] - p0)
+        b = np.sum(ps[1:]**2, axis=1) - np.sum(p0**2)
+
+        if np.linalg.matrix_rank(A) < 2:
+            raise ValueError("Points are collinear or degenerate")
+
+        center, residuals, rank, s = np.linalg.lstsq(A, b, rcond=None)
+
+    dists = np.linalg.norm(ps - center, axis=1)
+    radius = dists.mean()
+
+    if return_radius:
+        return center, radius
+    return center
 
 
 class HalfEdgeGraph:
