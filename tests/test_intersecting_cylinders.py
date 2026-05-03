@@ -142,34 +142,38 @@ class TestMesh3d:
         assert tris.min() >= 0
         assert tris.max() < len(verts)
 
-    def test_to_3d_mesh_z_positive(self):
+    def test_to_3d_mesh_z_nonpositive(self):
         G = _make_graph(p=4, rings=2)
         verts, _ = to_3d_mesh(G, circular_profile(scale=1.0), r=1.0, n_along_edge=4)
-        assert verts[:, 2].min() == pytest.approx(0.0)
-        assert verts[:, 2].max() > 0.0
+        # Incenters and edge tangent points sit at z=0; vertex spikes go down.
+        assert verts[:, 2].max() == pytest.approx(0.0)
+        assert verts[:, 2].min() < 0.0
 
     def test_half_cylinder_apex_height(self):
         # For platonic 4 with circular_profile(scale=1.0) and r=1, every face
-        # should fold into a half-cylinder of radius R = inradius. The apex
-        # height equals R.
+        # folds into a half-cylinder of radius R = inradius. The vertex-spike
+        # depth equals the blue-circle radius r_v, which for the unit square
+        # equals the inradius 0.5.
         G = _make_graph(p=4, rings=2)
         verts, _ = to_3d_mesh(G, circular_profile(scale=1.0), r=1.0, n_along_edge=4)
-        # Inradius of a unit square is 0.5.
-        assert verts[:, 2].max() == pytest.approx(0.5, rel=1e-3)
+        assert verts[:, 2].min() == pytest.approx(-0.5, rel=1e-3)
+        assert verts[:, 2].max() == pytest.approx(0.0)
 
-    def test_r_less_than_one_z_lift(self):
-        # For r < 1 the maximum z equals z_lift = height(expand_t) * R.
-        from eucare.intersecting_cylinders.profiles import circular_profile as cp
-
-        profile = cp(scale=1.0)
+    def test_r_less_than_one_inner_face_at_zero(self):
+        # With the spike geometry, the incenters and the lifted shrunken inner
+        # faces sit at z=0 while vertex spikes go down. Spike depth is
+        # r_v * scale * (1 - apex_perp). For platonic 4 r_v = 0.5; the spike
+        # depth (and therefore the most-negative z) shrinks with apex_perp.
+        profile = circular_profile(scale=1.0)
         sf = profile.shrink_factor
         r = 0.7
-        expand_t = (1 - r) * sf / (1 - (1 - r) * (1 - sf))
-        expected_z_lift = np.sqrt(1 - (1 - expand_t) ** 2) * 0.5
+        apex_perp = (1 - r) * sf / (1 - (1 - r) * (1 - sf))
+        expected_min = -0.5 * 1.0 * (1.0 - apex_perp)
 
         G = _make_graph(p=4, rings=2)
         verts, _ = to_3d_mesh(G, profile, r=r, n_along_edge=4)
-        assert verts[:, 2].max() == pytest.approx(expected_z_lift, rel=2e-3)
+        assert verts[:, 2].max() == pytest.approx(0.0)
+        assert verts[:, 2].min() == pytest.approx(expected_min, rel=2e-3)
 
     def test_to_3d_mesh_invalid_r(self):
         G = _make_graph(p=4, rings=2)

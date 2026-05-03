@@ -39,22 +39,27 @@ def make_intersecting_cylinders(
 ) -> "EuclideanPositionHEG":
     """Construct an intersecting-cylinders crease pattern from a tiling.
 
-    Every face of ``G`` must have a (pseudo-)incenter, and the incenters of
-    adjacent faces should be tangential to each other for the resulting crease
-    pattern to be foldable.
+    Every face of ``G`` must have an incenter, and the incircles of adjacent
+    faces should be tangential to each other (touching at the shared edge) for
+    the resulting crease pattern to be foldable.
 
-    The pattern places curved triangles on the edges of ``G``: each triangle's
-    flat side sits on an edge, and its apex is the incenter of one of the two
-    adjacent faces (shifted in the third dimension when folded).
+    The pattern places a small triangle twist at every face incenter and curved
+    triangles between adjacent twists: each curved triangle's flat side
+    connects the incenters of two adjacent faces, and its apex meets at the
+    original tiling vertex shared by those two edges. With ``r = 1`` the curved
+    triangles meet at the original vertices to form *spikes*; with ``0 < r < 1``
+    a downscaled copy of every face is preserved and a flat polygon (dual to
+    the original vertex) replaces the spike, turning the curved triangles into
+    curved quadrilaterals.
 
     Args:
         G: Input tiling. Mutated in place to record midpoints, then a working
             copy is taken before applying Conway operators.
         profile: Cross-section curve. See
             :func:`~eucare.intersecting_cylinders.profiles.circular_profile`.
-        r: Triangle scaling. ``r=1`` produces curved triangles meeting at face
-            incenters; ``0 < r < 1`` keeps a downscaled copy of the original
-            face and produces curved quadrilaterals instead.
+        r: Triangle scaling. ``r = 1`` produces curved triangles meeting at
+            original vertices (spikes); ``0 < r < 1`` keeps a downscaled copy
+            of the original face and produces curved quadrilaterals instead.
 
     Returns:
         A new ``EuclideanPositionHEG`` whose half-edges carry ``color_key``
@@ -152,11 +157,14 @@ def make_intersecting_cylinders(
 def top_view(G: "EuclideanPositionHEG", r: float = 1.0) -> "EuclideanPositionHEG":
     """Return the flat top-view projection of an intersecting-cylinders model.
 
-    The projection of every curved triangle (``r=1``) or curved quadrilateral
-    (``r<1``) onto the base plane is a flat polygon. For ``r=1`` these are
-    triangles from each edge to the face incenter (the Conway *join* operator).
-    For ``r<1`` they are trapezoids from each edge to the corresponding edge of
-    the down-scaled inner face (the Conway *chamfer* operator with ``t = r``).
+    The projection of every curved triangle (``r = 1``) or curved quadrilateral
+    (``r < 1``) onto the base plane is a flat polygon. For ``r = 1`` these are
+    triangles spanning two adjacent face incenters and the original vertex they
+    share — i.e. the Conway *join* operator (which inserts a vertex at every
+    face incenter and joins it to the incident original vertices). For
+    ``r < 1`` they are trapezoids reaching from each pair of adjacent face
+    incenters down to the corresponding edge of the down-scaled inner face
+    (the Conway *chamfer* operator with ``t = r``).
 
     Args:
         G: Input tiling whose faces have well-defined (pseudo-)incenters.

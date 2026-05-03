@@ -1,11 +1,17 @@
 """Intersecting-cylinders curved origami crease patterns.
 
-This subpackage builds curved-fold crease patterns from a tiling whose faces have
-mutually-tangential incenters. The high-level entry point is
-:func:`make_intersecting_cylinders`; cross-sections are described by
-:class:`Profile` (see :func:`circular_profile`); the flat top-view projection
-is computed by :func:`top_view`; an interactive 3D preview is provided by
-:func:`show_3d`.
+This subpackage builds curved-fold crease patterns from a tiling whose face
+incircles are mutually tangential. The pattern places a small twist at every
+face incenter and curved triangles whose flat sides connect adjacent incenters;
+each curved triangle's apex meets at an original tiling vertex, where (with
+``r = 1``) a *spike* is formed. With ``0 < r < 1`` a flat polygon (dual to the
+original vertex) appears instead of the spike, and the curved triangles become
+curved quadrilaterals reaching down to it.
+
+The high-level entry point is :func:`make_intersecting_cylinders`;
+cross-sections are described by :class:`Profile` (see :func:`circular_profile`);
+the flat top-view projection is computed by :func:`top_view`; an interactive
+3D preview is provided by :func:`show_3d`.
 """
 
 from .mesh3d import show_3d, to_3d_mesh
