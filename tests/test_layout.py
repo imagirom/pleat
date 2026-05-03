@@ -1,4 +1,5 @@
 """Tests for layout helpers."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -42,13 +43,9 @@ def test_optimize_rotation_does_not_increase_height():
 
 def test_rotate_graph_preserves_edge_lengths():
     G = _euclidean(rosette(n=4))
-    lens_before = sorted(
-        np.linalg.norm(h.orig['pos'] - h.dest['pos']) for h in G.halfedges
-    )
+    lens_before = sorted(np.linalg.norm(h.orig["pos"] - h.dest["pos"]) for h in G.halfedges)
     rotate_graph(G, 0.7)
-    lens_after = sorted(
-        np.linalg.norm(h.orig['pos'] - h.dest['pos']) for h in G.halfedges
-    )
+    lens_after = sorted(np.linalg.norm(h.orig["pos"] - h.dest["pos"]) for h in G.halfedges)
     np.testing.assert_allclose(lens_before, lens_after, atol=1e-9)
 
 

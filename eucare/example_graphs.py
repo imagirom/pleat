@@ -1,4 +1,5 @@
 """Example graph constructions: rosettes, tiling growth, and hyperbolic mappings."""
+
 from __future__ import annotations
 
 import logging
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 # TODO https://en.wikipedia.org/wiki/File:Planar_Fractalizing_Truncated_Hexagonal_Tiling_II.png
+
 
 def get_edge_with(graph: HalfEdgeGraph, func: "callable | None" = None, on_border: bool = False) -> HalfEdge:
     """Return the first half-edge satisfying ``func``, optionally restricted to border edges.
@@ -32,7 +34,7 @@ def get_edge_with(graph: HalfEdgeGraph, func: "callable | None" = None, on_borde
     for e in edge_iter:
         if func(e):
             return e
-    raise LookupError('Cannot find edge with requested property')
+    raise LookupError("Cannot find edge with requested property")
 
 
 def get_vertex_with(graph: HalfEdgeGraph, func: "callable | None" = None, on_border: bool = False) -> Vertex:
@@ -52,7 +54,7 @@ def get_vertex_with(graph: HalfEdgeGraph, func: "callable | None" = None, on_bor
     for v in vertex_iter:
         if func(v):
             return v
-    raise LookupError('Cannot find vertex with requested property')
+    raise LookupError("Cannot find vertex with requested property")
 
 
 def rosette(n: int = 8) -> EuclideanPositionHEG:
@@ -77,7 +79,7 @@ def rosette(n: int = 8) -> EuclideanPositionHEG:
 
 def complete_vertex(G: HalfEdgeGraph, v: Vertex) -> None:
     """Attach tiles around a border vertex until it is fully surrounded."""
-    assert v in G.vertices, f'{v} not in the vertices of {G}'
+    assert v in G.vertices, f"{v} not in the vertices of {G}"
     while v.on_border():
         G.execute_edge_instruction(v.get_outgoing_border())
 
@@ -94,9 +96,9 @@ def add_vertex_ring(G: HalfEdgeGraph) -> None:
 def complete_closest_vertices(G: GeometricHEG, eps: float = 1e-6) -> None:
     """Complete border vertices closest to the origin."""
     assert isinstance(G, GeometricHEG)
-    vertex_dists = {e.orig: G.geometry.distance_to_origin(e.orig['pos']) for e in G.border_edge_iter()}
+    vertex_dists = {e.orig: G.geometry.distance_to_origin(e.orig["pos"]) for e in G.border_edge_iter()}
     d_min = np.min(list(vertex_dists.values()))
-    [complete_vertex(G, v) for v, d in vertex_dists.items() if d-d_min < eps and v.on_border()]
+    [complete_vertex(G, v) for v, d in vertex_dists.items() if d - d_min < eps and v.on_border()]
 
 
 def from_tiles(
@@ -126,7 +128,9 @@ def from_tiles(
     if isinstance(base_tile, ProtoTile):
         base_tile = base_tile.make_graph(add_positions=add_positions)[0]
     if add_positions:
-        assert len({tile.geometry for tile in tiles}) == 1, f'Geometries must agree but got {[tile.geometry for tile in tiles]}'
+        assert (
+            len({tile.geometry for tile in tiles}) == 1
+        ), f"Geometries must agree but got {[tile.geometry for tile in tiles]}"
         assert tiles[0].geometry is not None
         G = GeometricHEG(geometry=tiles[0].geometry, other=base_tile)
     else:
@@ -138,7 +142,7 @@ def from_tiles(
         for i in range(rings):
             for h in G.border_edges():
                 if h.on_border() and h in G.halfedges:
-                    if 'instruction' in h.attributes:
+                    if "instruction" in h.attributes:
                         G.execute_edge_instruction(h)
     return G
 
@@ -152,6 +156,7 @@ def pgg_2x_tiling(rings: int = 15) -> HalfEdgeGraph:
 def kised_soccer_ball() -> HalfEdgeGraph:
     """Construct a kised soccer ball (icosahedron variant) on the sphere."""
     from eucare.conway import kis_graph
+
     n, k = (5, 3)
     G = from_tiles(curved_zip(n, k), rings=3)
     G = kis_graph()(G)
@@ -186,7 +191,7 @@ def hyperbolic_square_graph(
 
     def disk_to_square(z, w=1):
         return np.sqrt(1j) * wrapped_elliptic_f(np.arcsin(w * z), -1)
-        #return np.sqrt(2) * wrapped_elliptic_f(np.arcsin(np.sqrt(z+1)), np.sqrt(2)/2)
+        # return np.sqrt(2) * wrapped_elliptic_f(np.arcsin(np.sqrt(z+1)), np.sqrt(2)/2)
 
     def disk_to_halfplane(z):
         return (z + 1j) / (1j * z + 1)
@@ -198,33 +203,32 @@ def hyperbolic_square_graph(
         G_square = G.copy()
         G_square.geometry = ec.geometries.EuclideanGeometry
         for v in G_square.vertices:
-            if 'square_pos' in v:
-                v['pos'] = v['square_pos']
+            if "square_pos" in v:
+                v["pos"] = v["square_pos"]
             else:
-                v['pos'] = complex_to_array(disk_to_square(v['pos'], np.sqrt(1j).conjugate()))
+                v["pos"] = complex_to_array(disk_to_square(v["pos"], np.sqrt(1j).conjugate()))
 
         return G_square
-
 
     nv_before = None
     nv_after = G.order
     while nv_before != nv_after:
         nv_before = nv_after
-        logger.debug('vertices: %d', nv_before)
+        logger.debug("vertices: %d", nv_before)
         for v in G.vertices:
-            if 'square_pos' not in v:
-                v['square_pos'] = complex_to_array(disk_to_square(v['pos'], np.sqrt(1j).conjugate()))
+            if "square_pos" not in v:
+                v["square_pos"] = complex_to_array(disk_to_square(v["pos"], np.sqrt(1j).conjugate()))
                 for e in v.outgoing_iter():
-                    if 'square_pos' not in e.dest:
+                    if "square_pos" not in e.dest:
                         continue
-                    e['square_length'] = e.rev['square_length'] = np.linalg.norm(v['square_pos'] - e.dest['square_pos'])
+                    e["square_length"] = e.rev["square_length"] = np.linalg.norm(v["square_pos"] - e.dest["square_pos"])
 
         queue = {}
         for v in G.vertices:
             if not v.on_border():
                 continue
-            v['square_length'] = np.mean([e['square_length'] for e in v.outgoing_iter() if e.on_border()])
-            queue[v] = np.min(9.27037339e-01-np.abs(v['square_pos'])) #v['square_length']
+            v["square_length"] = np.mean([e["square_length"] for e in v.outgoing_iter() if e.on_border()])
+            queue[v] = np.min(9.27037339e-01 - np.abs(v["square_pos"]))  # v['square_length']
 
         for v, length in reversed(sorted(queue.items(), key=lambda kv: kv[1])):
             if length > min_length:

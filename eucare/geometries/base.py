@@ -10,6 +10,7 @@ A point in the Euclidean and hyperbolic backends is a 2D position; in the
 spherical backend it is a 3D unit vector.  Use :meth:`Geometry.to_euclidean`
 to obtain a 2D image suitable for plotting.
 """
+
 from __future__ import annotations
 
 from collections import Counter
@@ -20,12 +21,14 @@ from scipy.optimize import root_scalar
 
 def root_return(func):
     """Decorator that extracts the root from a root_scalar result or raises on failure."""
+
     def inner(*args, **kwargs):
         result = func(*args, **kwargs)
         if result.converged:
             return result.root
         else:
-            raise ValueError('No root was found')
+            raise ValueError("No root was found")
+
     return inner
 
 
@@ -132,7 +135,7 @@ class Geometry:
     @classmethod
     def regular_poly_side_length(cls, n, r):
         """Compute the side length of a regular n-gon with circumradius r."""
-        return cls.distance(cls.from_polar(r, -np.pi / n), cls.from_polar(r, np.pi/n))
+        return cls.distance(cls.from_polar(r, -np.pi / n), cls.from_polar(r, np.pi / n))
 
     @classmethod
     def platonic_side_length(cls, n, k):
@@ -152,21 +155,29 @@ class Geometry:
         multiplicities = Counter(faces_around_corner)
 
         def length_to_angle_deficit(l):
-            return sum(k * cls.regular_poly_in_angle(n, cls.platonic_side_length_to_radius(n, l))
-                       for n, k in multiplicities.items()) - 2 * np.pi
+            return (
+                sum(
+                    k * cls.regular_poly_in_angle(n, cls.platonic_side_length_to_radius(n, l))
+                    for n, k in multiplicities.items()
+                )
+                - 2 * np.pi
+            )
 
         if not archimedean_side_length_root_kwargs:
             archimedean_side_length_root_kwargs = dict(x0=1, x1=2)
 
-        return root_scalar(lambda l: np.sign(l) * length_to_angle_deficit(abs(l)),
-                           **archimedean_side_length_root_kwargs)
+        return root_scalar(
+            lambda l: np.sign(l) * length_to_angle_deficit(abs(l)), **archimedean_side_length_root_kwargs
+        )
 
     @classmethod
     def archimedean_side_length_and_angles(cls, faces_around_corner):
         """Return the side length and a dict of interior angles for an Archimedean vertex."""
         length = cls.archimedean_side_length(faces_around_corner)
-        return length, {n: cls.regular_poly_in_angle(n, cls.platonic_side_length_to_radius(n, length))
-                        for n in set(faces_around_corner)}
+        return length, {
+            n: cls.regular_poly_in_angle(n, cls.platonic_side_length_to_radius(n, length))
+            for n in set(faces_around_corner)
+        }
 
     @classmethod
     def barycentric_to_euclidean_map(cls, tri):

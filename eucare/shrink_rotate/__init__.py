@@ -25,6 +25,7 @@ driven by the orientation marks set up via the helpers in
 :mod:`eucare.shrink_rotate.crease_orientation`. An interactive widget for
 exploring the parameter space is :class:`ShrinkRotateExplorer`.
 """
+
 from __future__ import annotations
 
 from .crease_orientation import (
@@ -64,5 +65,6 @@ def __getattr__(name: str):
     """Lazily expose :class:`ShrinkRotateExplorer` (avoids importing matplotlib eagerly)."""
     if name == "ShrinkRotateExplorer":
         from .widgets import ShrinkRotateExplorer
+
         return ShrinkRotateExplorer
     raise AttributeError(f"module 'eucare.shrink_rotate' has no attribute {name!r}")

@@ -318,10 +318,7 @@ def optimize_alternating_flagstone(
     # `scale` toward the face midpoint, so `scale=0.4` corresponds to flagstones
     # that are 40% of the original face — independent of the topological `t`
     # passed to ``alternating_flagstone_graph``.
-    face_coords0 = [
-        torch.tensor(np.stack([v0["pos"] for v0 in f0.vertex_iter()])).float()
-        for f0 in original_faces
-    ]
+    face_coords0 = [torch.tensor(np.stack([v0["pos"] for v0 in f0.vertex_iter()])).float() for f0 in original_faces]
     rotation_centers = torch.from_numpy(np.stack([f0.midpoint() for f0 in original_faces])).float()
     initial_star_points = torch.from_numpy(np.stack([v["pos"] for v in star_vertices])).float()
 

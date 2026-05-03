@@ -7,6 +7,7 @@ planar embedding implied by the cyclic angular order of edges around each
 vertex; the unbounded outer face is detected as the unique negatively-
 oriented face and removed.
 """
+
 from __future__ import annotations
 
 import logging
@@ -59,7 +60,7 @@ def EHEG_from_nx(
     assert isinstance(positions, dict)
     n_dangling = _delete_dangling_edges_nx(nxg)
     if n_dangling > 0:
-        logger.warning('Deleted %d dangling edges in conversion to EHG', n_dangling)
+        logger.warning("Deleted %d dangling edges in conversion to EHG", n_dangling)
     result = EuclideanPositionHEG()
     v_lookup = dict()
     for n, attrs in nxg.nodes().data():
@@ -67,7 +68,7 @@ def EHEG_from_nx(
         # assign node attributes
         for key, value in attrs.items():
             v[key] = value
-        v['pos'] = positions[n]
+        v["pos"] = positions[n]
         v_lookup[n] = v
     result.add_vertices(v_lookup.values())
     h_lookup = dict()
@@ -91,7 +92,7 @@ def EHEG_from_nx(
     # nex, pre
     for v in h_lookup:
         outgoing_halfedges = list(h_lookup[v].values())
-        dirs = np.array([v['pos'] - h.dest['pos'] for h in outgoing_halfedges])
+        dirs = np.array([v["pos"] - h.dest["pos"] for h in outgoing_halfedges])
         angles = angle_to_axis(dirs) % (2 * np.pi)
         order = np.argsort(angles)
         outgoing_halfedges = [outgoing_halfedges[i] for i in order]
@@ -108,7 +109,7 @@ def EHEG_from_nx(
         for k in f.halfedge_iter():
             k.face = f
             unassigned_edges.remove(k)
-        #print(f.area())
+        # print(f.area())
 
     result.check_consistency()
 
@@ -122,7 +123,7 @@ def EHEG_from_nx(
         if area < current_min_area:
             current_min_area = area
             outside_face = f
-    assert outside_face is not None, 'Could not find an outside face to delete. Are all areas 0?'
+    assert outside_face is not None, "Could not find an outside face to delete. Are all areas 0?"
     result.delete_face(outside_face)
 
     if not return_v_lookup:

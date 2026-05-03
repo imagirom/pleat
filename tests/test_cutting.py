@@ -1,4 +1,5 @@
 """Tests for the cutting helpers and ``cut_out_poly`` pipeline."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -12,7 +13,6 @@ from eucare.cutting import (
 from eucare.example_graphs import from_tiles
 from eucare.example_tilesets import platonic
 from eucare.half import EuclideanPositionHEG
-
 
 SQUARE = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])
 

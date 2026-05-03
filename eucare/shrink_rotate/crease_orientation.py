@@ -47,6 +47,7 @@ Strategies
 * :func:`assign_this_way_by_face_area` — larger-area faces lie on top by
   default.
 """
+
 from __future__ import annotations
 
 from collections import deque
@@ -58,7 +59,7 @@ from .. import base
 from ..half import Face, HalfEdgeGraph
 from ..search_trees import face_bfs_tree
 
-THIS_WAY = 'this_way'
+THIS_WAY = "this_way"
 """Halfedge attribute name marking the *lower* side of an interior edge."""
 
 
@@ -82,7 +83,7 @@ def clear_this_way(G: HalfEdgeGraph) -> None:
             del e[THIS_WAY]
 
 
-def assign_this_way_by_face_z_order(G: HalfEdgeGraph, key: str = 'z_order') -> None:
+def assign_this_way_by_face_z_order(G: HalfEdgeGraph, key: str = "z_order") -> None:
     """Use a numeric face attribute ``key`` to orient each interior edge.
 
     The halfedge whose face has the *larger* value of ``key`` is left
@@ -107,7 +108,7 @@ def assign_this_way_by_face_z_order(G: HalfEdgeGraph, key: str = 'z_order') -> N
                 e.rev[THIS_WAY] = True
 
 
-def assign_this_way_by_vertex_z_order(G: HalfEdgeGraph, key: str = 'z_order') -> None:
+def assign_this_way_by_vertex_z_order(G: HalfEdgeGraph, key: str = "z_order") -> None:
     """Like :func:`assign_this_way_by_face_z_order` but keyed on endpoint vertices.
 
     Skips edges that already have THIS_WAY assigned on either side.
@@ -170,7 +171,7 @@ def assign_this_way_by_face_bfs(G: HalfEdgeGraph, source: Face) -> None:
 
 def _graph_centroid(G: HalfEdgeGraph) -> np.ndarray:
     """Return the centroid of all vertex positions of *G*."""
-    return np.mean(np.array([v['pos'] for v in G.vertices]), axis=0)
+    return np.mean(np.array([v["pos"] for v in G.vertices]), axis=0)
 
 
 def _face_nearest_to(G: HalfEdgeGraph, point: np.ndarray) -> Face:
@@ -232,7 +233,7 @@ def assign_this_way_by_face_degree(G: HalfEdgeGraph, larger_on_top: bool = True)
 
 
 def _signed_area(face: Face) -> float:
-    pts = np.array([v['pos'] for v in face.vertex_iter()])
+    pts = np.array([v["pos"] for v in face.vertex_iter()])
     return abs(base.signed_area(pts))
 
 

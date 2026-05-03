@@ -4,6 +4,7 @@ All functions take and return ``numpy.ndarray`` of shape ``(..., 2)`` for points
 and angles in radians.  The convention is right-handed: positive rotation is
 counter-clockwise; :func:`signed_area` is positive for CCW polygons.
 """
+
 from __future__ import annotations
 
 from typing import Callable
@@ -60,10 +61,12 @@ def edge_lengths_and_in_angles(points: NDArray, geometry) -> tuple[list[float], 
     :mod:`eucare.geometries`).
     """
     edge_lengths = [geometry.distance(p1, p2) for p1, p2 in zip(points, np.concatenate([points[1:], points[:1]]))]
-    in_angles = [geometry.angle(p1, p2, p3)
-                 for p1, p2, p3 in zip(points,
-                                       np.concatenate([points[1:], points[:1]]),
-                                       np.concatenate([points[2:], points[:2]]))]
+    in_angles = [
+        geometry.angle(p1, p2, p3)
+        for p1, p2, p3 in zip(
+            points, np.concatenate([points[1:], points[:1]]), np.concatenate([points[2:], points[:2]])
+        )
+    ]
     return edge_lengths, in_angles
 
 
@@ -180,6 +183,7 @@ def euclidean_to_barycentric_map(tri: NDArray) -> Callable[[NDArray], NDArray]:
 
 def barycentric_to_euclidean_map(tri: NDArray) -> Callable[[NDArray], NDArray]:
     """Return a function converting barycentric coords back to 2D points w.r.t. *tri*."""
+
     def inner(barycentric_coords):
         return tri.T @ barycentric_coords
 
@@ -203,7 +207,7 @@ def line_intersection(line1: NDArray, line2: NDArray) -> NDArray:
 
     div = np.linalg.det(diff)
     if div == 0:
-        raise ValueError('lines do not intersect (parallel or coincident)')
+        raise ValueError("lines do not intersect (parallel or coincident)")
 
     d = np.array([np.linalg.det(line) for line in (line1, line2)])
     return np.array([np.linalg.det(np.stack([d, dif])) for dif in diff.T]) / div

@@ -1,4 +1,5 @@
 """Tests for eucare.io: round-trip save/load of half-edge graphs in the .heg format."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -35,8 +36,8 @@ def test_save_load_preserves_positions(tmp_path):
     save_graph(filename, G)
     G2 = load_graph(filename)
     # Positions are preserved up to floating-point round-trip.
-    pos_in = sorted(tuple(np.round(v['pos'], 8)) for v in G.vertices)
-    pos_out = sorted(tuple(np.round(v['pos'], 8)) for v in G2.vertices)
+    pos_in = sorted(tuple(np.round(v["pos"], 8)) for v in G.vertices)
+    pos_out = sorted(tuple(np.round(v["pos"], 8)) for v in G2.vertices)
     assert pos_in == pos_out
 
 

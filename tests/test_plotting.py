@@ -1,4 +1,5 @@
 """Smoke tests for plotting helpers (matplotlib backend forced to Agg)."""
+
 from __future__ import annotations
 
 import matplotlib

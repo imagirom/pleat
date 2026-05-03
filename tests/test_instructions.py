@@ -1,4 +1,5 @@
 """Tests for instructions: attatch_tile_instruction."""
+
 from __future__ import annotations
 
 from eucare.instructions import attatch_tile_instruction

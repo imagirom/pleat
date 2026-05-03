@@ -19,7 +19,7 @@ pip install -e ".[dev]"
 
 | Extra | Packages | Purpose |
 |-------|----------|---------|
-| `dev` | pytest, pytest-cov, ruff | Testing and linting |
+| `dev` | pytest, pytest-cov, black | Testing and formatting |
 | `docs` | mkdocs-material, mkdocstrings | Documentation |
 | `notebook` | jupyter, ipywidgets, ipympl | Interactive notebooks |
 | `threed` | meshio | 3D mesh export (STL) |

@@ -9,6 +9,7 @@ The headline use case is :func:`congruency_classifier`, which groups faces
 of a tiling by polygon congruence (matching edge-length and interior-angle
 sequences up to cyclic rotation).  Used by :mod:`eucare.colorization`.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -87,7 +88,9 @@ class RepresentationClassifier(Classifier):
 
     def _get_index(self, item):
         query_rep = self._represent_query_item(item)
-        if not self.represented_first and self.current_count == 1:  # compute representation that was skipped for performance (see below)
+        if (
+            not self.represented_first and self.current_count == 1
+        ):  # compute representation that was skipped for performance (see below)
             self.count_to_repr[0] = self._represent_item(self.count_to_repr[0])
             self.represented_first = True
         for index, rep in self.count_to_repr.items():
@@ -119,17 +122,19 @@ class NestedClassifier(Classifier):
             if current_index not in current_dict:
                 current_dict[current_index] = dict(classifier=cls(), index_mapping=dict())
             current_dict = current_dict[current_index]
-            classifier = current_dict['classifier']
+            classifier = current_dict["classifier"]
             current_index = classifier.classify(item)
             result += (current_index,)
-            current_dict = current_dict['index_mapping']
+            current_dict = current_dict["index_mapping"]
         return result
 
 
 def lambda_classifier(func):
     """Create a Classifier class that uses the given function as its index."""
+
     class LambdaClassifier(Classifier):
         """Classifier whose index is computed by the wrapped function."""
+
         def _get_index(self, item):
             return func(item)
 
@@ -138,6 +143,7 @@ def lambda_classifier(func):
 
 class LenClassifier(Classifier):
     """Classify items by their length."""
+
     def _get_index(self, item):
         return len(item)
 
@@ -147,6 +153,7 @@ tol = 1e-4
 
 class SumClassifier(RepresentationClassifier):
     """Classify items by the sum of their elements (with tolerance)."""
+
     def _compare_representations(self, query_rep, saved_rep):
         return np.all(np.abs(query_rep - saved_rep) < tol)
 
@@ -156,6 +163,7 @@ class SumClassifier(RepresentationClassifier):
 
 class UnorderedClassifier(RepresentationClassifier):
     """Classify items by their sorted elements, ignoring order."""
+
     def _compare_representations(self, query_rep, saved_rep):
         return np.all(query_rep == saved_rep)
 
@@ -177,19 +185,23 @@ class CyclicClassifier(RepresentationClassifier):
         if self.tolerance == 0:
             return np.max(np.min((saved_rep == query_rep).reshape(len(saved_rep), -1), axis=1))
         else:
-            return np.min(np.sum(
-                np.abs(saved_rep - query_rep[None]).reshape(len(saved_rep), -1),
-                axis=1), axis=0) <= self.tolerance
+            return (
+                np.min(np.sum(np.abs(saved_rep - query_rep[None]).reshape(len(saved_rep), -1), axis=1), axis=0)
+                <= self.tolerance
+            )
 
     def _represent_item(self, item):
         pts = self._represent_query_item(item)
         if not self.allow_flip:
             return np.stack([np.roll(pts, i, axis=0) for i in np.arange(len(pts))])
         else:
-            return np.concatenate([
-                np.stack([np.roll(pts, i, axis=0) for i in np.arange(len(pts))]),
-                np.stack([np.roll(pts[::-1], i, axis=0) for i in np.arange(len(pts))])
-            ], axis=0)
+            return np.concatenate(
+                [
+                    np.stack([np.roll(pts, i, axis=0) for i in np.arange(len(pts))]),
+                    np.stack([np.roll(pts[::-1], i, axis=0) for i in np.arange(len(pts))]),
+                ],
+                axis=0,
+            )
 
     def _represent_query_item(self, item):
         return np.array(item)
@@ -211,21 +223,22 @@ def _face_to_array(f) -> np.ndarray:
     """Represent a face as an (n, 2) array of (length, in_angle) pairs along its boundary."""
     data = []
     for e in f.halfedge_iter():
-        data.append((e['length'], e['in_angle']))
-        #data.append(np.array(e.orig['pos'], dtype=np.float32))
+        data.append((e["length"], e["in_angle"]))
+        # data.append(np.array(e.orig['pos'], dtype=np.float32))
     data = np.stack(data)
-    #data -= np.mean(data, axis=0, keepdims=True)
-    #print(data)
+    # data -= np.mean(data, axis=0, keepdims=True)
+    # print(data)
     return data
 
 
 def congruency_classifier(allow_flip=False):
     """Return a classifier that groups faces by polygon congruence (edge lengths and angles)."""
-    return CountingClassifier(PreMapClassifier(
-        NestedClassifier(
-            [LenClassifier, SumClassifier, lambda: CyclicClassifier(allow_flip=allow_flip)]
-        ),
-        _face_to_array))
+    return CountingClassifier(
+        PreMapClassifier(
+            NestedClassifier([LenClassifier, SumClassifier, lambda: CyclicClassifier(allow_flip=allow_flip)]),
+            _face_to_array,
+        )
+    )
 
 
 class AdjacencyClassifier(CyclicClassifier):
@@ -237,4 +250,3 @@ class AdjacencyClassifier(CyclicClassifier):
 
     def _represent_query_item(self, item):
         return np.array([(f[self.key] if f is not None else None, item[self.key]) for f in item.face_iter()])
-

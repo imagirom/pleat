@@ -43,14 +43,14 @@ Tests are organized in `tests/`:
 ## Linting and CI
 
 ```bash
-uv run ruff check eucare tests       # lint
-uv run ruff format eucare tests      # auto-format
-pre-commit install                    # enable pre-commit hooks (ruff + standard hygiene)
+uv run --extra dev black --check eucare tests  # formatting check
+uv run --extra dev black eucare tests          # auto-format
+pre-commit install                    # enable pre-commit hooks (black + standard hygiene)
 ```
 
 GitHub Actions CI runs on every push/PR (see `.github/workflows/ci.yml`):
 - `test` job on Python 3.10/3.11/3.12 with coverage upload
-- `lint` job (`ruff check`)
+- `lint` job (`black --check`)
 - `docs` job (`mkdocs build --strict`)
 
 ## Documentation

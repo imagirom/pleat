@@ -1,4 +1,5 @@
 """Tests for prototile construction."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -18,8 +19,8 @@ def test_regular_euclidean_tile_make_graph(n):
     assert len(edge_dict) == n
     # vertices have positions
     for v in G.vertices:
-        assert 'pos' in v.attributes
-        assert np.asarray(v['pos']).shape == (2,)
+        assert "pos" in v.attributes
+        assert np.asarray(v["pos"]).shape == (2,)
 
 
 def test_regular_euclidean_tile_attach_instruction_returns_callable():

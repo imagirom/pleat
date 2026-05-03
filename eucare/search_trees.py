@@ -4,6 +4,7 @@ Given a starting element (vertex or face) and a neighbour iterator, produce
 the edge list of a BFS spanning tree.  Used to propagate orientation,
 colouring, and stacking-order constraints across a graph.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, Iterable, TypeVar

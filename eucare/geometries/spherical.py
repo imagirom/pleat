@@ -4,6 +4,7 @@ Points are unit vectors in R^3 (shape ``(3,)``); isometries are 3x3
 rotation matrices.  Use :meth:`SphereModel.stereographic_projection` (or
 :meth:`Geometry.to_euclidean`) to obtain a 2D image for plotting.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -12,19 +13,21 @@ from .base import Geometry
 
 
 def _rot_x_mat(a1):
-    return np.array([
-        [1, 0, 0],
-        [0, np.cos(a1), -np.sin(a1)],
-        [0, np.sin(a1), np.cos(a1)]
-    ])
+    return np.array([[1, 0, 0], [0, np.cos(a1), -np.sin(a1)], [0, np.sin(a1), np.cos(a1)]])
 
 
 def _rot_z_mat(a1):
-    return np.array([
-        [np.cos(a1), np.sin(a1), 0, ],
-        [-np.sin(a1), np.cos(a1), 0],
-        [0, 0, 1]
-    ])
+    return np.array(
+        [
+            [
+                np.cos(a1),
+                np.sin(a1),
+                0,
+            ],
+            [-np.sin(a1), np.cos(a1), 0],
+            [0, 0, 1],
+        ]
+    )
 
 
 class SphereModel(Geometry):
@@ -89,7 +92,7 @@ class SphereModel(Geometry):
 
     @classmethod
     def archimedean_side_length(cls, faces_around_corner):
-        return super().archimedean_side_length(faces_around_corner, bracket=[0.1, 2*np.pi/max(faces_around_corner)])
+        return super().archimedean_side_length(faces_around_corner, bracket=[0.1, 2 * np.pi / max(faces_around_corner)])
 
     # --- Methods Specific to this geometry ---
 

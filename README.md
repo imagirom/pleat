@@ -1,8 +1,12 @@
 # Eucare
 
-**Geometric tilings, Conway operators, and origami crease patterns.**
+[![CI](https://github.com/imagirom/eucare/actions/workflows/ci.yml/badge.svg)](https://github.com/imagirom/eucare/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/imagirom/eucare/graph/badge.svg)](https://codecov.io/gh/imagirom/eucare)
 
-Eucare is a Python library for constructing, manipulating, and visualizing geometric tilings across Euclidean, hyperbolic, and spherical geometries. It provides a suite of Conway topological operators and can generate origami crease patterns with computed folded states.
+**Construct geometric tilings, and turn them into origami tesselations.**
+
+Eucare is a Python library for constructing, manipulating, and visualizing geometric tilings across Euclidean, hyperbolic, and spherical geometries.
+It can generate crease patterns for origami tesselations and corrugations using several algorithms which can be exported for printing or plotting, and can preview folded states.
 
 ## Features
 
@@ -44,7 +48,7 @@ G2.show()
 from eucare.example_tilesets import curved_platonic
 
 # Icosahedron (spherical)
-G = from_tiles(curved_platonic(3, 5), rings=10)
+G = from_tiles(curved_platonic(3, 5), rings=3)
 
 # {7,3} tiling (hyperbolic, Poincaré disk)
 G = from_tiles(curved_platonic(7, 3), rings=3)
@@ -114,12 +118,12 @@ mkdocs build                      # build static site to site/
 ## Development
 
 ```bash
-uv run ruff check eucare tests    # lint
+uv run --extra dev black --check eucare tests  # formatting check
 pre-commit install                 # install git hooks
 ```
 
 GitHub Actions CI runs tests, lint, and `mkdocs build --strict` on every push and pull request (`.github/workflows/ci.yml`). Contributor guidance and architecture notes for AI coding agents live in [AGENTS.md](AGENTS.md).
 
-## License
+<!-- ## License: TODO
 
-See [LICENSE](LICENSE) for details.
+See [LICENSE](LICENSE) for details. -->

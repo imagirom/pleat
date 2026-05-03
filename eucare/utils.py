@@ -1,4 +1,5 @@
 """Miscellaneous utility functions and timing helpers."""
+
 from __future__ import annotations
 
 import logging
@@ -49,16 +50,16 @@ class VerboseTimer(IdObject):
 
     def __init__(self) -> None:
         super(VerboseTimer, self).__init__()
-        logger.debug('Starting Timer %s', self["id"])
+        logger.debug("Starting Timer %s", self["id"])
         self.last = time()
         self.rounds: list[float] = []
 
-    def round(self, msg: str = '') -> None:
+    def round(self, msg: str = "") -> None:
         """Record an interval since the last :meth:`round` (or :meth:`__init__`) call."""
         current = time()
         interval = current - self.last
         self.rounds.append(interval)
-        logger.debug('Timer %s, Round %d (%s): %s', self["id"], len(self.rounds), msg, interval)
+        logger.debug("Timer %s, Round %d (%s): %s", self["id"], len(self.rounds), msg, interval)
         self.last = time()
 
 
@@ -75,11 +76,11 @@ def print_attribute_info(objs: HalfEdgeGraph | Iterable[AttributeObject]) -> Non
             objects (vertices, half-edges, faces).
     """
     if isinstance(objs, HalfEdgeGraph):
-        logger.info('Vertices:')
+        logger.info("Vertices:")
         print_attribute_info(objs.vertices)
-        logger.info('Halfedges:')
+        logger.info("Halfedges:")
         print_attribute_info(objs.halfedges)
-        logger.info('Faces:')
+        logger.info("Faces:")
         print_attribute_info(objs.faces)
         return
 
@@ -93,6 +94,6 @@ def print_attribute_info(objs: HalfEdgeGraph | Iterable[AttributeObject]) -> Non
             except TypeError:
                 pass
             counter[key] += 1
-    logger.info('%d Objects', len(objs))
+    logger.info("%d Objects", len(objs))
     for key, count in sorted(counter.items()):
         logger.info("Key '%s': %d objects (%d distinct hashable values)", key, count, len(attribute_dict[key]))

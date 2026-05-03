@@ -10,6 +10,7 @@ code keeps working. The ``make_SRG`` alias has been retired — call
 crease assignment by default; pass ``assign_creases=False`` for the bare
 topology variant).
 """
+
 from __future__ import annotations
 
 from .flat_foldable import kawasaki_sum, max_kawasaki_sum

@@ -5,6 +5,7 @@ transformations represented as 2x2 complex matrices.  Centroids are
 computed by lifting to the hyperboloid model, taking a weighted Euclidean
 mean, and projecting back.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -17,30 +18,31 @@ def apply_mobius(mat, points):
     return (mat[0, 0] * points + mat[0, 1]) / (mat[1, 0] * points + mat[1, 1])
 
 
-class MobiusTransform():
+class MobiusTransform:
     """A Mobius transformation represented as a 2x2 complex matrix."""
 
     def __init__(self, mat):
         if not isinstance(mat, np.ndarray):
             mat = np.array(mat)
-        assert mat.shape == (2, 2), f'{mat.shape}'
+        assert mat.shape == (2, 2), f"{mat.shape}"
         self.mat = mat
 
     def __call__(self, points):
         return apply_mobius(self.mat, points)
 
     def __matmul__(self, other):
-        assert isinstance(other, MobiusTransform), f'{type(other)}'
+        assert isinstance(other, MobiusTransform), f"{type(other)}"
         return MobiusTransform(self.mat @ other.mat)
 
     def __pow__(self, exponent):
         return MobiusTransform(np.linalg.matrix_power(self.mat, exponent))
 
     def __repr__(self):
-        return f'MobiusTransform({self.mat.tolist()})'
+        return f"MobiusTransform({self.mat.tolist()})"
 
 
 # TODO: maybe have another class for the hyperboloid model
+
 
 def complex_to_real(z):
     """Convert complex numbers to real 2D coordinate arrays."""
@@ -56,7 +58,7 @@ def real_to_complex(x):
 def poincare_to_hyperboloid(z):
     """Map Poincare disk coordinates to the hyperboloid model."""
     pts = complex_to_real(z)
-    squared_norm = (pts ** 2).sum(-1, keepdims=True)
+    squared_norm = (pts**2).sum(-1, keepdims=True)
     return np.concatenate([(1 + squared_norm), 2 * pts], axis=-1) / (1 - squared_norm)
 
 

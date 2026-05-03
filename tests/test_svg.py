@@ -1,4 +1,5 @@
 """Test for the SVG crease-pattern loader."""
+
 from __future__ import annotations
 
 from eucare.svg import load_svg

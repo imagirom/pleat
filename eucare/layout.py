@@ -4,6 +4,7 @@ Provides helpers to find the rotation angle that minimizes the bounding-box
 height of a graph (useful before rendering elongated tilings) and a
 ``min_edge_length`` query used to set tolerances elsewhere.
 """
+
 from __future__ import annotations
 
 from copy import copy
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
 
 def angle_to_height(G: "GeometricHEG", angle: float) -> float:
     """Return the height of the axis-aligned bounding box of *G*'s border after rotating by *angle*."""
-    border_positions = np.array([v['pos'] for v in G.border_vertex_iter()])
+    border_positions = np.array([v["pos"] for v in G.border_vertex_iter()])
     rot_border_positions = border_positions @ np.array([[np.cos(angle)], [-np.sin(angle)]])
     return np.max(rot_border_positions) - np.min(rot_border_positions)
 
@@ -30,7 +31,7 @@ def optimal_rotation(G: "GeometricHEG", angle_offset: float = 0, steps: int = 10
         angle_offset: Added to the optimal angle (e.g. ``pi/2`` to optimise width instead).
         steps: Number of equally-spaced angles in ``[0, pi)`` to test.
     """
-    border_positions = np.array([v['pos'] for v in G.border_vertex_iter()])
+    border_positions = np.array([v["pos"] for v in G.border_vertex_iter()])
 
     def _angle_to_height(angle: float) -> float:
         rot_border_positions = border_positions @ np.array([[np.cos(angle)], [-np.sin(angle)]])
@@ -69,5 +70,5 @@ def min_edge_length(G: "GeometricHEG", include_border: bool = True) -> float:
         edges.remove(e.rev)
         if not include_border and (e.on_border() or e.rev.on_border()):
             continue
-        min_length = min(((e.orig['pos'] - e.dest['pos']) ** 2).sum(), min_length)
+        min_length = min(((e.orig["pos"] - e.dest["pos"]) ** 2).sum(), min_length)
     return np.sqrt(min_length)

@@ -4,6 +4,7 @@ Provides :class:`CairoRenderer` (raster/vector output via pycairo) and
 :class:`SvgwriteRenderer` (vector output via svgwrite), plus small polygon
 helpers (:func:`inset_corner`, :func:`inset_poly`) and color utilities.
 """
+
 from __future__ import annotations
 
 import logging
@@ -38,13 +39,13 @@ CREASE_PATTERN_PRESET: dict = dict(
 )
 
 #: Standard mountain-fold color (red).
-MOUNTAIN_COLOR: str = '#cc2222'
+MOUNTAIN_COLOR: str = "#cc2222"
 #: Standard valley-fold color (blue).
-VALLEY_COLOR: str = '#2266cc'
+VALLEY_COLOR: str = "#2266cc"
 #: Standard non-creased / flat edge color (gray).
-FLAT_COLOR: str = '#888888'
+FLAT_COLOR: str = "#888888"
 #: Standard border edge color (black).
-BORDER_COLOR: str = '#000000'
+BORDER_COLOR: str = "#000000"
 
 
 def inset_corner(a: np.ndarray, b: np.ndarray, c: np.ndarray, dist: float, eps: float = 1e-10) -> np.ndarray:
@@ -81,7 +82,7 @@ def random_color(seed: object = None) -> np.ndarray:
 def is_color(obj: object) -> bool:
     """Return True if *obj* looks like an RGB(A) tuple/list of numbers or a #RRGGBB string."""
     if isinstance(obj, str):
-        if obj.startswith('#') and len(obj) == 7:
+        if obj.startswith("#") and len(obj) == 7:
             try:
                 int(obj[1:], 16)
                 return True
@@ -134,7 +135,7 @@ def multi_show(
         figsize = (cell_size * ncols, cell_size * nrows)
 
     # Default to 512px PNGs unless the caller overrode it.
-    show_kwargs.setdefault('height', 512)
+    show_kwargs.setdefault("height", 512)
 
     fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
     if nrows == 1 and ncols == 1:
@@ -148,17 +149,18 @@ def multi_show(
         for i, (G, title) in enumerate(zip(graphs, titles)):
             r, c = divmod(i, ncols)
             ax = axes[r][c]
-            base = os.path.join(tmpdir, f'multi_show_{i}')
+            base = os.path.join(tmpdir, f"multi_show_{i}")
             # Suppress the inline IPython display from G.show(); we want a
             # single combined figure, not n+1 outputs.
             from IPython import display as _ipy_display
+
             real_display = _ipy_display.display
             _ipy_display.display = lambda *a, **kw: None
             try:
                 G.show(filename=base, **show_kwargs)
             finally:
                 _ipy_display.display = real_display
-            img = mpimg.imread(base + '.png')
+            img = mpimg.imread(base + ".png")
             ax.imshow(img)
             ax.set_axis_off()
             if title is not None:
@@ -187,13 +189,13 @@ class CairoRenderer:
         self,
         width: int | None = None,
         height: int | None = None,
-        line_width: float | str = 'auto',
+        line_width: float | str = "auto",
         vertex_radius: float | None = None,
-        scale: float | str = 'auto',
+        scale: float | str = "auto",
         face_inset: float | None = None,
-        path: str = 'output.svg',
-        position_key: str = 'pos',
-        curve_position_key: str = 'curve_pos',
+        path: str = "output.svg",
+        position_key: str = "pos",
+        curve_position_key: str = "curve_pos",
     ) -> None:
         """Create a renderer writing to *path* (an SVG file).
 
@@ -222,11 +224,9 @@ class CairoRenderer:
         self.position_key = position_key
         self.curve_position_key = curve_position_key
 
-        #self.surface = cairo.ImageSurface(
+        # self.surface = cairo.ImageSurface(
         #    cairo.FORMAT_RGB24, self.width, self.height)
-        self.surface = cairo.SVGSurface(
-            path, self.width, self.height
-        )
+        self.surface = cairo.SVGSurface(path, self.width, self.height)
         dc = cairo.Context(self.surface)
         dc.set_line_cap(cairo.LINE_CAP_ROUND)
         dc.set_line_join(cairo.LINE_JOIN_ROUND)
@@ -236,7 +236,7 @@ class CairoRenderer:
         dc.paint()
         self.dc = dc
 
-    def render_face(self, face, color_key: str = 'color_key'):
+    def render_face(self, face, color_key: str = "color_key"):
         """Draw a single face's filled polygon, honouring ``face[color_key]``."""
         dc = self.dc
         points = []
@@ -272,35 +272,35 @@ class CairoRenderer:
         if not is_color(color):
             color = random_color(color)
         if isinstance(color, str):
-            color = np.array([int(color[i:i+2], 16) / 255 for i in (1, 3, 5)])
+            color = np.array([int(color[i : i + 2], 16) / 255 for i in (1, 3, 5)])
         if len(color) == 3:
             self.dc.set_source_rgb(*color)
         else:
             self.dc.set_source_rgba(*color)
 
-    def render_edge(self, edge, color_key: str = 'color_key', last_pos=None, tol: float = 1e-6):
+    def render_edge(self, edge, color_key: str = "color_key", last_pos=None, tol: float = 1e-6):
         """Draw a single half-edge as a line or a tapered ribbon.
 
         If both endpoints carry a ``line_width`` attribute, the edge is drawn
         as a filled ribbon of varying width; otherwise it is a stroked polyline.
-        
+
         The ``curve_pos`` attribute, if present, replaces the straight segment with a polyline.
         """
         dc = self.dc
 
-        if 'line_width' in edge.orig.attributes and 'line_width' in edge.dest.attributes:
-            lw_orig = edge.orig['line_width']
-            lw_dest = edge.dest['line_width']
-            direction = edge.dest['pos'] - edge.orig['pos']
+        if "line_width" in edge.orig.attributes and "line_width" in edge.dest.attributes:
+            lw_orig = edge.orig["line_width"]
+            lw_dest = edge.dest["line_width"]
+            direction = edge.dest["pos"] - edge.orig["pos"]
             direction /= np.linalg.norm(direction)
             dc.set_line_width(0)
             points = [
-                inset_corner(edge.pre.orig['pos'], edge.orig['pos'], edge.dest['pos'], lw_orig),
-                edge.orig['pos'] - direction * lw_orig / 2,
-                inset_corner(edge.dest['pos'], edge.orig['pos'], edge.rev.nex.dest['pos'], lw_orig),
-                inset_corner(edge.rev.pre.orig['pos'], edge.dest['pos'], edge.orig['pos'], lw_dest),
-                edge.dest['pos'] + direction * lw_dest / 2,
-                inset_corner(edge.orig['pos'], edge.dest['pos'], edge.nex.dest['pos'], lw_dest),
+                inset_corner(edge.pre.orig["pos"], edge.orig["pos"], edge.dest["pos"], lw_orig),
+                edge.orig["pos"] - direction * lw_orig / 2,
+                inset_corner(edge.dest["pos"], edge.orig["pos"], edge.rev.nex.dest["pos"], lw_orig),
+                inset_corner(edge.rev.pre.orig["pos"], edge.dest["pos"], edge.orig["pos"], lw_dest),
+                edge.dest["pos"] + direction * lw_dest / 2,
+                inset_corner(edge.orig["pos"], edge.dest["pos"], edge.nex.dest["pos"], lw_dest),
             ]
             dc.move_to(*points[-1])
             for point in points:
@@ -309,44 +309,44 @@ class CairoRenderer:
             dc.fill_preserve()
         else:
 
-            dc.set_line_width(edge.attributes.get('line_width', self.line_width))
+            dc.set_line_width(edge.attributes.get("line_width", self.line_width))
             if self.curve_position_key not in edge.attributes:
                 dc.move_to(*edge.orig[self.position_key])
                 dc.line_to(*edge.dest[self.position_key])
             else:
-                curve = edge['curve_pos']
+                curve = edge["curve_pos"]
                 dc.move_to(*curve[0])
                 for pos in curve[1:]:
                     dc.line_to(*pos)
-            #dc.set_source_rgb(0.0, 0.0, 0.0)
+            # dc.set_source_rgb(0.0, 0.0, 0.0)
             # set color. TODO: this interacts weirdly with delayed dc.stroke..
             if color_key in edge.attributes:
                 self.set_source_color(edge.attributes.get(color_key, None))
             else:
                 self.set_source_color((0.5, 0.5, 1.0))
 
-            if edge.attributes.get('delete', False):
-                dc.set_dash([self.line_width*2, self.line_width*3])
+            if edge.attributes.get("delete", False):
+                dc.set_dash([self.line_width * 2, self.line_width * 3])
                 dc.stroke()
                 dc.set_dash([])
             else:
                 pass
-                #dc.stroke()
+                # dc.stroke()
         return self.surface if last_pos is None else (self.surface, edge.dest[self.position_key])
 
-    def render_vertex(self, vertex, color_key: str = 'color_key') -> None:
+    def render_vertex(self, vertex, color_key: str = "color_key") -> None:
         """Draw a vertex as a small disc, picking colour from ``vertex[color_key]`` or attribute flags."""
         dc = self.dc
         dc.set_line_width(0)
-        radius = vertex.get('vertex_radius', self.vertex_radius)
+        radius = vertex.get("vertex_radius", self.vertex_radius)
         if radius == 0:
             return
-        dc.arc(*vertex[self.position_key], vertex.get('vertex_radius', self.vertex_radius), 0, 2*np.pi)
+        dc.arc(*vertex[self.position_key], vertex.get("vertex_radius", self.vertex_radius), 0, 2 * np.pi)
         if color_key in vertex.attributes:
             self.set_source_color(vertex[color_key])
-        elif vertex.attributes.get('join', False):
+        elif vertex.attributes.get("join", False):
             dc.set_source_rgb(0.0, 1.0, 0.0)
-        elif vertex.attributes.get('delete', False):
+        elif vertex.attributes.get("delete", False):
             dc.set_source_rgb(1.0, 0.0, 0.0)
         else:
             dc.set_source_rgba(0.0, 0.0, 0.0, 0.5)
@@ -377,15 +377,22 @@ class CairoRenderer:
     @staticmethod
     def auto_line_width(graph) -> float:
         """Default line width for *graph*: ``min(min_edge / 2, mean_edge / 10)``."""
-        lengths = np.array([
-            h['length'] if 'length' in h.attributes
-            else float(np.linalg.norm(h.dest['pos'] - h.orig['pos']))
-            for h in graph.halfedges
-        ])
+        lengths = np.array(
+            [
+                h["length"] if "length" in h.attributes else float(np.linalg.norm(h.dest["pos"] - h.orig["pos"]))
+                for h in graph.halfedges
+            ]
+        )
         return min(np.min(lengths) / 2, np.mean(lengths) / 10)
 
-    def render_graph(self, graph: "HalfEdgeGraph", render_vertices: bool = True, render_faces: bool = True,
-                     render_edges: bool = True, for_cutting: bool = False) -> None:
+    def render_graph(
+        self,
+        graph: "HalfEdgeGraph",
+        render_vertices: bool = True,
+        render_faces: bool = True,
+        render_edges: bool = True,
+        for_cutting: bool = False,
+    ) -> None:
         """Render the whole *graph* (faces, edges, vertices) onto the cairo surface.
 
         Args:
@@ -398,15 +405,15 @@ class CairoRenderer:
         """
         global _seed_offset
         _seed_offset = np.random.randint(2**16)
-        if self.scale == 'auto':
+        if self.scale == "auto":
             self.autocenterscale(graph)
         else:
             self.dc.scale(self.scale, self.scale)
-        #self.dc.set_font_size(18.0 / self.scale)
+        # self.dc.set_font_size(18.0 / self.scale)
 
-        if self.line_width == 'auto':
+        if self.line_width == "auto":
             self.line_width = self.auto_line_width(graph)
-        elif isinstance(self.line_width, str) and self.line_width.endswith('%'):
+        elif isinstance(self.line_width, str) and self.line_width.endswith("%"):
             self.line_width = float(self.line_width[:-1]) / 100 * self.auto_line_width(graph)
         self.vertex_radius = self.vertex_radius if self.vertex_radius is not None else self.line_width
         self.face_inset = self.face_inset if self.face_inset is not None else self.line_width
@@ -463,13 +470,14 @@ class SvgwriteRenderer:
     so a plotter can complete the cut without unnecessary travel.  Faces and
     vertices are not implemented; only ``for_cutting=True`` is supported.
     """
-    def __init__(self, position_key: str = 'pos', curve_position_key: str = 'curve_pos') -> None:
-        assert svgwrite is not None, 'SvgwriteRenderer requires the svgwrite package. You can install it via pip.'
+
+    def __init__(self, position_key: str = "pos", curve_position_key: str = "curve_pos") -> None:
+        assert svgwrite is not None, "SvgwriteRenderer requires the svgwrite package. You can install it via pip."
         self.position_key = position_key
         self.curve_position_key = curve_position_key
 
     def _render_halfedges(self, halfedges, dwg, bbox, scale):
-        #TODO: adapt this to get an even better path: https://stackoverflow.com/a/44080908
+        # TODO: adapt this to get an even better path: https://stackoverflow.com/a/44080908
         edges = list(halfedges)
         edge_to_index = {e: i for i, e in enumerate(edges)}
         n_edges = len(edges)
@@ -502,8 +510,8 @@ class SvgwriteRenderer:
             pts = np.array(pts)
             pts -= bbox[:, 0][None]
             pts *= scale
-            pth = dwg.path(fill_opacity=0, stroke_width='0.05', stroke='black')
-            pth.push('M', *pts)
+            pth = dwg.path(fill_opacity=0, stroke_width="0.05", stroke="black")
+            pth.push("M", *pts)
             dwg.add(pth)
 
     def create_drawing(self, filename: str, pts: np.ndarray, height: float, unit=svgwrite.cm) -> None:
@@ -513,12 +521,23 @@ class SvgwriteRenderer:
         self.scale = height / (self.bbox[1, 1] - self.bbox[1, 0])
         self.width = height * aspect_ratio
         self.height = height
-        self.dwg = svgwrite.Drawing(filename, size=(self.width*unit, height*unit), viewBox=f'0 0 {self.width} {height}')
+        self.dwg = svgwrite.Drawing(
+            filename, size=(self.width * unit, height * unit), viewBox=f"0 0 {self.width} {height}"
+        )
 
-    def render_graph(self, filename: str, graph, render_vertices: bool = False, render_faces: bool = False,
-                     render_edges: bool = True, for_cutting: bool = True, height: float = 30, unit=svgwrite.cm,
-                     render_interior_and_borders: bool = True,
-                     extra_render_keys: tuple[str, ...] = ('drawing_edge',)) -> None:
+    def render_graph(
+        self,
+        filename: str,
+        graph,
+        render_vertices: bool = False,
+        render_faces: bool = False,
+        render_edges: bool = True,
+        for_cutting: bool = True,
+        height: float = 30,
+        unit=svgwrite.cm,
+        render_interior_and_borders: bool = True,
+        extra_render_keys: tuple[str, ...] = ("drawing_edge",),
+    ) -> None:
         """Write a plotter-ready SVG of *graph*'s edges to *filename*.
 
         Also writes companion files ``<name>_borders.svg`` and
@@ -543,18 +562,20 @@ class SvgwriteRenderer:
                 self.dwg.save()
 
                 if render_interior_and_borders:
-                    assert filename.endswith('.svg')
-                    filename_border = '.'.join(filename.split('.')[:-1]) + '_borders.svg'
-                    dwg_border = svgwrite.Drawing(filename_border, size=(self.width*unit, height*unit),
-                                                  viewBox=f'0 0 {self.width} {height}')
+                    assert filename.endswith(".svg")
+                    filename_border = ".".join(filename.split(".")[:-1]) + "_borders.svg"
+                    dwg_border = svgwrite.Drawing(
+                        filename_border, size=(self.width * unit, height * unit), viewBox=f"0 0 {self.width} {height}"
+                    )
                     border_edges = {h for h in halfedges if h.on_border() or h.rev.on_border()}
                     self._render_halfedges(border_edges, dwg_border, self.bbox, self.scale)
                     dwg_border.save()
 
-                    filename_interior = '.'.join(filename.split('.')[:-1]) + '_interior.svg'
+                    filename_interior = ".".join(filename.split(".")[:-1]) + "_interior.svg"
                     interior_edges = halfedges.difference(border_edges)
-                    dwg_interior = svgwrite.Drawing(filename_interior, size=(self.width*unit, height*unit),
-                                                    viewBox=f'0 0 {self.width} {height}')
+                    dwg_interior = svgwrite.Drawing(
+                        filename_interior, size=(self.width * unit, height * unit), viewBox=f"0 0 {self.width} {height}"
+                    )
                     self._render_halfedges(interior_edges, dwg_interior, self.bbox, self.scale)
                     dwg_interior.save()
 
@@ -562,12 +583,13 @@ class SvgwriteRenderer:
                     for key in extra_render_keys:
                         key_edges = [h for h in halfedges if h.attributes.get(key)]
                         if not key_edges:
-                            logger.info('skipping rendering of %s as no edges are present', key)
+                            logger.info("skipping rendering of %s as no edges are present", key)
                             continue
-                        assert filename.endswith('.svg')
-                        key_filename = '.'.join(filename.split('.')[:-1]) + f'{key}.svg'
-                        dwg_key = svgwrite.Drawing(key_filename, size=(self.width*unit, height*unit),
-                                                      viewBox=f'0 0 {self.width} {height}')
+                        assert filename.endswith(".svg")
+                        key_filename = ".".join(filename.split(".")[:-1]) + f"{key}.svg"
+                        dwg_key = svgwrite.Drawing(
+                            key_filename, size=(self.width * unit, height * unit), viewBox=f"0 0 {self.width} {height}"
+                        )
                         self._render_halfedges(key_edges, dwg_key, self.bbox, self.scale)
                         dwg_key.save()
 

@@ -1,4 +1,5 @@
 """Tests for the core half-edge data structure."""
+
 import numpy as np
 import pytest
 
@@ -164,15 +165,17 @@ class TestHEGAdditionalOperations:
 
     def test_twocolor_faces(self):
         from eucare.example_graphs import rosette
+
         G = rosette(n=4)
         if not G.twocolorable():
             pytest.skip("rosette(4) not twocolorable")
         G.twocolor_faces()
         for f in G.faces:
-            assert 'color_key' in f.attributes
+            assert "color_key" in f.attributes
 
     def test_delete_subset_vertices(self):
         from eucare.example_graphs import rosette
+
         G = rosette(n=4)
         v = next(iter(v for v in G.vertices if v.on_border()))
         n_before = len(G.vertices)
@@ -186,28 +189,30 @@ class TestRegularNGonProperties:
         G = RegularNGon(6)
         f = next(iter(G.faces))
         for h in f.halfedge_iter():
-            assert 'in_angle' in h.attributes
+            assert "in_angle" in h.attributes
         # All in-angles for a regular hexagon should be equal.
-        angles = [h['in_angle'] for h in f.halfedge_iter()]
+        angles = [h["in_angle"] for h in f.halfedge_iter()]
         assert all(abs(a - angles[0]) < 1e-9 for a in angles)
 
     def test_lengths_equal(self):
         # Regular n-gon does not auto-set 'length'; instead verify equal in_angles
         G = RegularNGon(5)
         f = next(iter(G.faces))
-        angles = [h['in_angle'] for h in f.halfedge_iter()]
+        angles = [h["in_angle"] for h in f.halfedge_iter()]
         assert all(abs(a - angles[0]) < 1e-9 for a in angles)
 
 
 class TestEuclideanPositionHEG:
     def test_construction_from_rosette(self):
         from eucare.example_graphs import rosette
+
         G = EuclideanPositionHEG(other=rosette(n=4))
         for v in G.vertices:
-            assert 'pos' in v.attributes
+            assert "pos" in v.attributes
 
     def test_make_polygon_graph(self):
         from eucare.half import make_polygon_graph
+
         positions = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])
         G = make_polygon_graph(positions)
         assert len(G.vertices) == 4
@@ -218,66 +223,70 @@ class TestEuclideanPositionHEG:
 class TestRecomputePositions:
     def test_recompute_positions_smoke(self):
         from eucare.example_graphs import rosette
+
         G = rosette(n=4)
         # corrupt a position then recompute
         v = next(iter(G.vertices))
-        original = v['pos'].copy()
-        v['pos'] = np.array([100.0, 100.0])
+        original = v["pos"].copy()
+        v["pos"] = np.array([100.0, 100.0])
         G.recompute_positions()
         # v should be recomputed back to something close to original
         # (this is rotation/translation up to gauge -- just check it's finite)
-        assert np.all(np.isfinite(v['pos']))
+        assert np.all(np.isfinite(v["pos"]))
 
 
 class TestHelpers:
     def test_rotate_by_int(self):
         from eucare.half import rotate_by
+
         out = rotate_by([1, 2, 3, 4], 1)
         assert out == [2, 3, 4, 1]
 
     def test_any_element(self):
         from eucare.half import any_element
+
         assert any_element({"a"}) == "a"
 
 
 class TestAttributeObjectMethods:
     def test_dict_like_access(self):
         v = Vertex()
-        v['key'] = 1
-        assert v['key'] == 1
-        assert 'key' in v
+        v["key"] = 1
+        assert v["key"] == 1
+        assert "key" in v
         assert v.has_attributes()
-        assert v.get('missing', 42) == 42
-        assert list(v.keys()) == ['id', 'key']
+        assert v.get("missing", 42) == 42
+        assert list(v.keys()) == ["id", "key"]
         assert 1 in list(v.values())
-        del v['key']
-        assert 'key' not in v
+        del v["key"]
+        assert "key" not in v
 
     def test_iter_yields_keys(self):
         v = Vertex()
-        v['a'] = 1
-        v['b'] = 2
+        v["a"] = 1
+        v["b"] = 2
         keys = list(iter(v))
-        assert 'a' in keys and 'b' in keys
+        assert "a" in keys and "b" in keys
 
 
 class TestIdObjectReset:
     def test_reset_per_class(self):
         from eucare.half import IdObject
+
         IdObject.reset_ids()
         v1 = Vertex()
         h1 = HalfEdge()
         IdObject.reset_ids()
         v2 = Vertex()
         # After reset, ids restart from 1.
-        assert v2['id'] == 1
+        assert v2["id"] == 1
 
 
 class TestHalfEdgeMidpoint:
     def test_midpoint(self):
         v1, v2 = Vertex(), Vertex()
-        v1['pos'] = np.array([0.0, 0.0])
-        v2['pos'] = np.array([2.0, 0.0])
+        v1["pos"] = np.array([0.0, 0.0])
+        v2["pos"] = np.array([2.0, 0.0])
         h = HalfEdge(orig=v1, dest=v2)
         np.testing.assert_allclose(h.midpoint(), [1.0, 0.0])
 
@@ -285,10 +294,12 @@ class TestHalfEdgeMidpoint:
 class TestCheckCyclicIteratorConsistency:
     def test_passes(self):
         from eucare.half import check_cyclic_iterator_consistency
+
         check_cyclic_iterator_consistency(iter([1, 2, 3]))
 
     def test_raises_on_duplicate(self):
         from eucare.half import check_cyclic_iterator_consistency
+
         with pytest.raises(AssertionError):
             check_cyclic_iterator_consistency(iter([1, 2, 1]))
 
@@ -296,6 +307,7 @@ class TestCheckCyclicIteratorConsistency:
 class TestRotateByOffsets:
     def test_tuple_of_offsets(self):
         from eucare.half import rotate_by
+
         out = list(rotate_by([1, 2, 3, 4], (0, 1)))
         # Returns zip of two rotations.
         assert out == [(1, 2), (2, 3), (3, 4), (4, 1)]
@@ -304,6 +316,7 @@ class TestRotateByOffsets:
 class TestFaceIterators2:
     def test_face_iter_outgoing_incoming(self):
         from eucare.example_graphs import rosette
+
         G = rosette(n=4)
         f = next(iter(G.faces))
         v = next(iter(f.vertex_iter()))
@@ -314,6 +327,7 @@ class TestFaceIterators2:
 
     def test_common_iters_sharing_face(self):
         from eucare.example_graphs import rosette
+
         G = rosette(n=4)
         # find two adjacent faces.
         h = next(iter(G.halfedges))
@@ -332,12 +346,14 @@ class TestFaceIterators2:
 
     def test_face_on_border(self):
         from eucare.half import RegularNGon
+
         G = RegularNGon(4)
         f = next(iter(G.faces))
         assert f.on_border()
 
     def test_face_midpoint(self):
         from eucare.example_graphs import rosette
+
         G = rosette(n=5)
         f = next(iter(G.faces))
         m = f.midpoint()
@@ -347,49 +363,54 @@ class TestFaceIterators2:
 class TestRecomputeLengthsAngles:
     def test_recompute_lengths_and_angles(self):
         from eucare.example_graphs import rosette
+
         G = rosette(n=4)
         G.recompute_lengths_and_angles()
         # All non-border halfedges have 'length'.
         for h in G.halfedges:
             if not h.on_border():
-                assert 'length' in h.attributes
+                assert "length" in h.attributes
 
 
 class TestNormalizePositions:
     def test_normalize_positions(self):
         from eucare.example_graphs import rosette
+
         G = rosette(n=4)
         G.recompute_lengths_and_angles()  # required by normalize
         G.normalize_positions()
-        ps = np.stack([v['pos'] for v in G.vertices])
+        ps = np.stack([v["pos"] for v in G.vertices])
         assert np.max(np.abs(ps)) <= 1.0 + 1e-9
 
 
 class TestScalePositions:
     def test_scale_positions_multiplies_positions(self):
         from eucare.example_graphs import rosette
+
         G = rosette(n=4)
         G.recompute_lengths_and_angles()
-        before = np.stack([v['pos'] for v in G.vertices]).copy()
+        before = np.stack([v["pos"] for v in G.vertices]).copy()
         verts = list(G.vertices)
         G.scale_positions(2.5)
-        after = np.stack([v['pos'] for v in verts])
+        after = np.stack([v["pos"] for v in verts])
         np.testing.assert_allclose(after, 2.5 * before)
 
     def test_scale_positions_recomputes_lengths(self):
         from eucare.example_graphs import rosette
+
         G = rosette(n=4)
         G.recompute_lengths_and_angles()
-        len_before = next(iter(G.halfedges))['length']
+        len_before = next(iter(G.halfedges))["length"]
         G.scale_positions(3.0)
         # at least one halfedge with a length attribute → must scale by 3.
-        scaled = next(h['length'] for h in G.halfedges if 'length' in h.attributes)
+        scaled = next(h["length"] for h in G.halfedges if "length" in h.attributes)
         np.testing.assert_allclose(scaled, 3.0 * len_before)
 
     def test_scale_positions_rejects_non_euclidean(self):
         import pytest
         from eucare.example_graphs import from_tiles
         from eucare.example_tilesets import curved_platonic
+
         G = from_tiles(curved_platonic(7, 3), rings=1)
         with pytest.raises(NotImplementedError):
             G.scale_positions(2.0)
@@ -398,44 +419,49 @@ class TestScalePositions:
 class TestNormalizeEdgeLengths:
     def test_geometric_mean_default(self):
         from eucare.example_graphs import rosette
+
         G = rosette(n=4)
         G.recompute_lengths_and_angles()
         G.normalize_edge_lengths(factor=1.0)
-        lengths = np.array([h['length'] for h in G.halfedges if 'length' in h.attributes])
+        lengths = np.array([h["length"] for h in G.halfedges if "length" in h.attributes])
         # geometric mean ≈ exp(mean(log(lengths)))
         gmean = np.exp(np.mean(np.log(lengths)))
         np.testing.assert_allclose(gmean, 1.0, atol=1e-9)
 
     def test_arithmetic_mean(self):
         from eucare.example_graphs import rosette
+
         G = rosette(n=5)
         G.recompute_lengths_and_angles()
-        G.normalize_edge_lengths(mode='arithmetic', factor=2.0)
-        lengths = np.array([h['length'] for h in G.halfedges if 'length' in h.attributes])
+        G.normalize_edge_lengths(mode="arithmetic", factor=2.0)
+        lengths = np.array([h["length"] for h in G.halfedges if "length" in h.attributes])
         np.testing.assert_allclose(np.mean(lengths), 2.0, atol=1e-9)
 
     def test_factor_scales_target(self):
         from eucare.example_graphs import rosette
+
         G = rosette(n=4)
         G.recompute_lengths_and_angles()
         G.normalize_edge_lengths(factor=1.0)
         G.normalize_edge_lengths(factor=4.0)
-        lengths = np.array([h['length'] for h in G.halfedges if 'length' in h.attributes])
+        lengths = np.array([h["length"] for h in G.halfedges if "length" in h.attributes])
         gmean = np.exp(np.mean(np.log(lengths)))
         np.testing.assert_allclose(gmean, 4.0, atol=1e-9)
 
     def test_invalid_mode_raises(self):
         import pytest
         from eucare.example_graphs import rosette
+
         G = rosette(n=4)
         G.recompute_lengths_and_angles()
         with pytest.raises(ValueError, match="Invalid mode"):
-            G.normalize_edge_lengths(mode='median')
+            G.normalize_edge_lengths(mode="median")
 
 
 class TestCentralFaceVertex:
     def test_central_face_and_vertex(self):
         from eucare.example_graphs import rosette
+
         G = rosette(n=6)
         f = G.central_face()
         v = G.central_vertex()
@@ -446,17 +472,20 @@ class TestCentralFaceVertex:
 class TestConvertToEuclidean:
     def test_convert_already_euclidean(self):
         from eucare.example_graphs import rosette
+
         G = rosette(n=4)
         G.recompute_lengths_and_angles()
         G.convert_to_euclidean()
         # No error; geometry remains Euclidean.
         from eucare.geometries import EuclideanGeometry
+
         assert G.geometry is EuclideanGeometry
 
 
 def test_check_consistency_error_raises():
     from eucare.half import RegularNGon
     import pytest
+
     G = RegularNGon(3)
     # remove a vertex from the graph but keep references → triggers error path
     v = next(iter(G.vertices))
@@ -467,19 +496,22 @@ def test_check_consistency_error_raises():
 
 def test_show_spring_layout_smoke(monkeypatch):
     import matplotlib
-    matplotlib.use('Agg')
+
+    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from eucare.example_graphs import rosette
+
     G = rosette(n=4)
-    monkeypatch.setattr(plt, 'show', lambda *a, **kw: None)
+    monkeypatch.setattr(plt, "show", lambda *a, **kw: None)
     G.show_spring_layout(figsize=(4, 4))
-    plt.close('all')
+    plt.close("all")
 
 
 def test_inangle_close_vertex_via_glue():
     """exercise InAngleHEG.glue_e2e auto-close path through from_tiles growth."""
     from eucare.example_graphs import from_tiles
     from eucare.example_tilesets import platonic
+
     # platonic(3) is triangles; rings=3 forces many auto-close operations.
     G = from_tiles(platonic(3), rings=3)
     G.check_consistency()

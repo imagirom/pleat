@@ -1,4 +1,5 @@
 """Tests for eucare.base geometry utilities."""
+
 import numpy as np
 import pytest
 

@@ -1,4 +1,5 @@
 """Topology-level tests for example_graphs constructions."""
+
 from __future__ import annotations
 
 import pytest
@@ -63,7 +64,7 @@ def test_euclidean_position_heg_from_rosette():
     G = EuclideanPositionHEG(other=rosette(n=5))
     # All vertices should have positions assigned.
     for v in G.vertices:
-        assert 'pos' in v.attributes
+        assert "pos" in v.attributes
 
 
 def test_complete_vertex_completes_a_border_vertex():
@@ -98,6 +99,7 @@ def test_pgg_2x_tiling_smoke():
 
 def test_kised_soccer_ball_smoke():
     from eucare.example_graphs import kised_soccer_ball
+
     G = kised_soccer_ball()
     G.check_consistency()
     # Soccer ball with kis applied: all faces should be triangles.
@@ -109,19 +111,22 @@ def test_hyperbolic_square_graph_smoke():
     """Exercise hyperbolic_square_graph (Schwarz-Christoffel) on a tiny graph."""
     from eucare.example_graphs import hyperbolic_square_graph, from_tiles
     from eucare.example_tilesets import curved_platonic
+
     G = from_tiles(curved_platonic(7, 3), rings=1)
     # Use a coarse min_length to avoid slow refinement loop.
     G_square = hyperbolic_square_graph(G, min_length=0.5)
     # check the result is a valid Euclidean graph in the unit square.
     G_square.check_consistency()
     import numpy as np
+
     for v in G_square.vertices:
-        assert np.all(np.abs(v['pos']) < 2.0)
+        assert np.all(np.abs(v["pos"]) < 2.0)
 
 
 def test_hyperbolic_square_graph_dual_smoke():
     from eucare.example_graphs import hyperbolic_square_graph, from_tiles
     from eucare.example_tilesets import curved_platonic
+
     G = from_tiles(curved_platonic(7, 3), rings=1)
     G_square = hyperbolic_square_graph(G, min_length=0.5, dual=True)
     G_square.check_consistency()

@@ -11,6 +11,7 @@ Low-level numba-accelerated helpers (:func:`pointinpolygon`,
 :func:`get_potential_intersections_2`, :func:`get_ordered_crossings`) sit
 beneath the public API and are reused by other modules.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -50,13 +51,13 @@ def pointinpolygon(x: float, y: float, poly: np.ndarray) -> bool:
     p2y = 0.0
     xints = 0.0
     p1x, p1y = poly[0]
-    for i in numba.prange(n+1):
+    for i in numba.prange(n + 1):
         p2x, p2y = poly[i % n]
         if y > min(p1y, p2y):
             if y <= max(p1y, p2y):
                 if x <= max(p1x, p2x):
                     if p1y != p2y:
-                        xints = (y-p1y)*(p2x-p1x)/(p2y-p1y)+p1x
+                        xints = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
                     if p1x == p2x or x <= xints:
                         inside = not inside
         p1x, p1y = p2x, p2y
@@ -69,7 +70,7 @@ def parallelpointinpolygon(points: np.ndarray, polygon: np.ndarray) -> np.ndarra
     """Vectorised :func:`pointinpolygon` over a batch of query points."""
     D = np.empty(len(points), dtype=numba.boolean)
     for i in numba.prange(0, len(D)):
-        D[i] = pointinpolygon(points[i,0], points[i,1], polygon)
+        D[i] = pointinpolygon(points[i, 0], points[i, 1], polygon)
     return D
 
 
@@ -101,13 +102,14 @@ def get_potential_intersections_2(segments1: np.ndarray, segments2: np.ndarray, 
     segments.sort(axis=1)
     # move all segments start point by epsilon in x and y, to also register just non-intersections
     segments[:, 0, :] -= epsilon
-    assert len(segments.shape) == 3 and segments.shape[1:] == (2, 2), f'{segments.shape}'
+    assert len(segments.shape) == 3 and segments.shape[1:] == (2, 2), f"{segments.shape}"
     x_coords = segments[:, :, 0]
     x_coords.sort(axis=1)
 
     # create tuples (position, index, is_start)
-    points = [(s[0][0] - epsilon, i, 1) for i, s in enumerate(segments)] + [(s[1][0], i, 0) for i, s in
-                                                                            enumerate(segments)]
+    points = [(s[0][0] - epsilon, i, 1) for i, s in enumerate(segments)] + [
+        (s[1][0], i, 0) for i, s in enumerate(segments)
+    ]
     points = np.array(points, dtype=tuple)
 
     # sort by first coordinate
@@ -166,9 +168,13 @@ def get_ordered_crossings(segments1: np.ndarray, segments2: np.ndarray, eps: flo
             crossings_to_edges.append((i, j))
     crossings = np.array(crossings)
     if len(crossings) == 0:
-        return np.zeros(0, dtype=np.int32), \
-               [], [], \
-               [[] for _ in range(len(segments1))], [[] for _ in range(len(segments2))]
+        return (
+            np.zeros(0, dtype=np.int32),
+            [],
+            [],
+            [[] for _ in range(len(segments1))],
+            [[] for _ in range(len(segments2))],
+        )
 
         # ------ group closeby crossings ------
     clustering = group_closeby(crossings, eps)
@@ -205,12 +211,16 @@ def get_ordered_crossings(segments1: np.ndarray, segments2: np.ndarray, eps: flo
     order_crossings(segments1, segments1_to_crossings)
     order_crossings(segments2, segments2_to_crossings)
 
-    return filtered_crossings, \
-           segments1_to_crossings, segments2_to_crossings, \
-           filtered_crossings_to_segments1, filtered_crossings_to_segments2
+    return (
+        filtered_crossings,
+        segments1_to_crossings,
+        segments2_to_crossings,
+        filtered_crossings_to_segments1,
+        filtered_crossings_to_segments2,
+    )
 
 
-def delete_new_outside(G: "HalfEdgeGraph", border_key: str = 'new_border') -> None:
+def delete_new_outside(G: "HalfEdgeGraph", border_key: str = "new_border") -> None:
     """Flood-fill faces reachable from a ``new_border`` half-edge and delete them.
 
     Args:
@@ -232,7 +242,7 @@ def delete_new_outside(G: "HalfEdgeGraph", border_key: str = 'new_border') -> No
                 border.add(f2)
     G.delete_subset(to_delete)
     for h in hs:
-        assert h.on_border(), f'{h}'
+        assert h.on_border(), f"{h}"
         del h[border_key]
 
 
@@ -258,9 +268,14 @@ def cut_out_poly(
     # that produced positions via float32 paths (e.g. torch optimisers) work.
     poly_segments = np.stack(list(rotate_by(poly, (0, 1)))).astype(np.float64)
     es = list(G.halfedges_representing_edges())
-    edge_segments = np.array([[e.orig['pos'], e.dest['pos']] for e in es], dtype=np.float64)
-    crossing_positions, segments1_to_crossings, segments2_to_crossings, crossings_to_segments1, crossings_to_segments2 = \
-        get_ordered_crossings(poly_segments, edge_segments, eps=eps)
+    edge_segments = np.array([[e.orig["pos"], e.dest["pos"]] for e in es], dtype=np.float64)
+    (
+        crossing_positions,
+        segments1_to_crossings,
+        segments2_to_crossings,
+        crossings_to_segments1,
+        crossings_to_segments2,
+    ) = get_ordered_crossings(poly_segments, edge_segments, eps=eps)
 
     crossing_to_vertices = defaultdict(set)
     vertices_to_connect = set()
@@ -271,17 +286,19 @@ def cut_out_poly(
         for i in reversed(crossing_indices):
             crossing = crossing_positions[i]
 
-            if np.linalg.norm(e.orig['pos'] - crossing) < eps:
+            if np.linalg.norm(e.orig["pos"] - crossing) < eps:
                 v = e.orig
-            elif np.linalg.norm(e.dest['pos'] - crossing) < eps:
+            elif np.linalg.norm(e.dest["pos"] - crossing) < eps:
                 v = e.dest
             else:
                 _, v = G.subdivide_edge(e, pos=crossing)
             crossing_to_vertices[i].add(v)
             # label the vertex
-            v['poly_side'] = {poly_side: np.argwhere(np.array(segments1_to_crossings[poly_side]) == i)[0, 0]
-                              for poly_side in crossings_to_segments1[i]}
-            for poly_side, j in v['poly_side'].items():
+            v["poly_side"] = {
+                poly_side: np.argwhere(np.array(segments1_to_crossings[poly_side]) == i)[0, 0]
+                for poly_side in crossings_to_segments1[i]
+            }
+            for poly_side, j in v["poly_side"].items():
                 crossing_specification_to_vertex[(poly_side, j)].add(v)
             vertices_to_connect.add(v)
 
@@ -290,7 +307,7 @@ def cut_out_poly(
 
     for v in vertices_to_connect:
         # attempt to connect it to the next vertex in line
-        for poly_side, crossing_ind_along_side in v['poly_side'].items():
+        for poly_side, crossing_ind_along_side in v["poly_side"].items():
             corners = []
             start = (poly_side, crossing_ind_along_side)
             # print(start)
@@ -302,7 +319,7 @@ def cut_out_poly(
                     poly_side = (poly_side + 1) % len(poly)
                     crossing_ind_along_side = 0
                     corner = poly[poly_side]
-                    if not np.linalg.norm(corner - v['pos']) < eps:
+                    if not np.linalg.norm(corner - v["pos"]) < eps:
                         corners.append(corner)
                 # print('.', poly_side, crossing_ind_along_side)
                 if (poly_side, crossing_ind_along_side) == start:
@@ -314,38 +331,44 @@ def cut_out_poly(
                         (f, v2)
                         for v2 in crossing_specification_to_vertex[(poly_side, crossing_ind_along_side)]
                         for f in v.common_faces_iter(v2)
-                        if f.area() > 0 and (not corners or np.all(parallelpointinpolygon(
-                            np.array(corners),
-                            np.asarray(inset_poly(np.stack([vf['pos'] for vf in f.vertex_iter()]), -eps))
-                        )))
+                        if f.area() > 0
+                        and (
+                            not corners
+                            or np.all(
+                                parallelpointinpolygon(
+                                    np.array(corners),
+                                    np.asarray(inset_poly(np.stack([vf["pos"] for vf in f.vertex_iter()]), -eps)),
+                                )
+                            )
+                        )
                     )
                     if v2 is v:
                         # print('identical vertex')
                         break
-                    corners_this = [c for c in corners if np.linalg.norm(v2['pos'] - c) > eps]
+                    corners_this = [c for c in corners if np.linalg.norm(v2["pos"] - c) > eps]
                     v_out = next(h for h in f.halfedge_iter() if h.orig is v)
                     if not corners_this and v_out.dest is v2:
                         # print('yep')
-                        v_out['new_border'] = True
+                        v_out["new_border"] = True
                     elif not corners_this and v_out.pre.orig is v2:
                         # print('yep2')
-                        v_out.pre.rev['new_border'] = True
+                        v_out.pre.rev["new_border"] = True
                     else:
                         # print(f'connecting {start} and {(poly_side, crossing_ind_along_side)}, {len(corners_this)}')
                         G.subdivide_face(f, v, v2)
                         # add the corners by subdividing the new edge
                         new_edge = v_out.pre.rev
                         for corner in corners_this:
-                            new_edge['new_border'] = True
+                            new_edge["new_border"] = True
                             G.subdivide_edge(new_edge, pos=corner)
                             new_edge = new_edge.nex
-                        new_edge['new_border'] = True
+                        new_edge["new_border"] = True
 
                     break
                 except StopIteration as e:
                     continue
 
-        for poly_side, crossing_ind_along_side in v['poly_side'].items():
+        for poly_side, crossing_ind_along_side in v["poly_side"].items():
             corners = []
             start = (poly_side, crossing_ind_along_side)
             # try to connect via negative area face:
@@ -356,7 +379,7 @@ def cut_out_poly(
                     corner = poly[poly_side]
                     poly_side = (poly_side - 1) % len(poly)
                     crossing_ind_along_side = len(segments1_to_crossings[poly_side])
-                    if not np.linalg.norm(corner - v['pos']) < eps:
+                    if not np.linalg.norm(corner - v["pos"]) < eps:
                         corners.append(corner)
                 # print('.', poly_side, crossing_ind_along_side)
                 if (poly_side, crossing_ind_along_side) == start:
@@ -368,49 +391,58 @@ def cut_out_poly(
                         (f, v2)
                         for v2 in crossing_specification_to_vertex[(poly_side, crossing_ind_along_side)]
                         for f in v.common_faces_iter(v2)
-                        if f.area() < 0 and (not corners or np.all(parallelpointinpolygon(
-                            np.array(corners),
-                            np.asarray(inset_poly(np.stack([vf['pos'] for vf in reversed(list(f.vertex_iter()))]), -eps))
-                        )))
+                        if f.area() < 0
+                        and (
+                            not corners
+                            or np.all(
+                                parallelpointinpolygon(
+                                    np.array(corners),
+                                    np.asarray(
+                                        inset_poly(
+                                            np.stack([vf["pos"] for vf in reversed(list(f.vertex_iter()))]), -eps
+                                        )
+                                    ),
+                                )
+                            )
+                        )
                     )
                     if v2 is v:
                         # print('identical vertex')
                         break
-                    corners_this = [c for c in corners if np.linalg.norm(v2['pos'] - c) > eps]
+                    corners_this = [c for c in corners if np.linalg.norm(v2["pos"] - c) > eps]
                     v_out = next(h for h in f.halfedge_iter() if h.orig is v)
                     if not corners_this and v_out.dest is v2:
                         # print('yep')
-                        v_out['new_border'] = True
+                        v_out["new_border"] = True
                     elif not corners_this and v_out.pre.orig is v2:
                         # print('yep2')
-                        v_out.pre.rev['new_border'] = True
+                        v_out.pre.rev["new_border"] = True
                     else:
                         # print(f'connecting {start} and {(poly_side, crossing_ind_along_side)}, {len(corners_this)}')
                         G.subdivide_face(f, v, v2)
                         # add the corners by subdividing the new edge
                         new_edge = v_out.pre.rev
                         for corner in corners_this:
-                            new_edge['new_border'] = True
+                            new_edge["new_border"] = True
                             G.subdivide_edge(new_edge, pos=corner)
                             new_edge = new_edge.nex
-                        new_edge['new_border'] = True
+                        new_edge["new_border"] = True
 
                     break
                 except StopIteration:
                     continue
 
-
     if delete_outside:
-        delete_new_outside(G, border_key='new_border')
+        delete_new_outside(G, border_key="new_border")
 
     for v in G.vertices:
-        if 'signed_distance' in v.attributes:
-            del v['signed_distance']
-
+        if "signed_distance" in v.attributes:
+            del v["signed_distance"]
 
     # iterate over vertices that need to be connected
 
     return G
+
 
 class CuttingRegion:
     """Abstract closed region used to cut graphs (see :func:`cut_out_poly`).

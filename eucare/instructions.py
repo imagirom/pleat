@@ -1,4 +1,5 @@
 """Edge instructions that describe how to attach tiles to border edges during tiling growth."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -33,6 +34,7 @@ def attatch_tile_instruction(proto_tile: "ProtoTile", label: object = None) -> "
             # just take any edge
             tile_edge = next(iter(edge_dict.values()))
         graph.glue_graph_e2e(tile, edge, tile_edge)
+
     return instruction
 
 

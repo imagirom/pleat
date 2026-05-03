@@ -11,11 +11,7 @@ repos:
         args: ['--maxkb=1024']
       - id: check-merge-conflict
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
     hooks:
-      - id: ruff
-        args: [--fix]
-      - id: ruff-format
-        # Format-only mode is opt-in; we only run the linter for now.
-        stages: [manual]
+      - id: black

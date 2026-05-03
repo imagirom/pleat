@@ -26,7 +26,7 @@ threed = ["meshio"]
 torch = ["torch", "einops"]
 image = ["scikit-image", "mahotas"]
 intersecting_cylinders = ["rdp", "plotly"]
-dev = ["pytest", "pytest-cov", "ruff", "mypy", "pre-commit", "rdp", "plotly"]
+dev = ["pytest", "pytest-cov", "black", "mypy", "pre-commit", "rdp", "plotly"]
 docs = ["mkdocs-material", "mkdocstrings[python]", "mkdocs-gen-files", "mkdocs-literate-nav", "mkdocs-jupyter", "scikit-image", "mahotas"]
 
 [build-system]
@@ -58,34 +58,17 @@ exclude_lines = [
     "raise NotImplementedError",
 ]
 
-[tool.ruff]
+[tool.black]
 line-length = 120
-target-version = "py310"
-extend-exclude = [
-    "notebooks",
-    "site",
-    "htmlcov",
-    "docs/notebooks",
-]
-
-[tool.ruff.lint]
-# Conservative rule set: pyflakes (F) catches real bugs (undefined names,
-# unused imports), pycodestyle errors (E) only — not style (W). isort (I)
-# keeps imports tidy.  Avoid stylistic rules until docstrings/typing pass.
-select = ["F", "E", "I"]
-ignore = [
-    "E501",  # line-too-long; we set line-length above but math expressions get long
-    "E741",  # ambiguous variable names (l, I, O); used in math contexts
-    "F403",  # star imports — already removed where reasonable
-    "F405",  # may be undefined from star imports — see F403
-]
-
-[tool.ruff.lint.per-file-ignores]
-"tests/*" = ["F401", "F811"]  # fixtures/imports may look unused
-"eucare/__init__.py" = ["F401"]  # re-exports
-
-[tool.ruff.lint.isort]
-known-first-party = ["eucare"]
+target-version = ["py310"]
+extend-exclude = '''
+/(\
+    notebooks
+  | site
+  | htmlcov
+  | docs/notebooks
+)/
+'''
 
 [tool.mypy]
 python_version = "3.10"

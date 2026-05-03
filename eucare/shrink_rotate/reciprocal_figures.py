@@ -10,6 +10,7 @@ space induced by Kirchhoff-style edge cycle conditions, then optimises the
 remaining degrees of freedom so the dual points approximate the primal face
 centroids.
 """
+
 from __future__ import annotations
 
 import logging
@@ -28,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 def reciprocal_figure(
     G: GeometricHEG,
-    reciprocal_pos_key: str = 'reciprocal_pos',
+    reciprocal_pos_key: str = "reciprocal_pos",
     rcond: float = 1e-7,
 ):
     """Compute the reciprocal figure of *G* and return it as a face graph.
@@ -40,12 +41,10 @@ def reciprocal_figure(
     faces.
     """
     # Step 1: Choose direction for every interior edge.
-    directed_edges = random_directed_set([
-        e for e in G.halfedges if not (e.on_border() or e.rev.on_border())
-    ])
+    directed_edges = random_directed_set([e for e in G.halfedges if not (e.on_border() or e.rev.on_border())])
 
     # Step 2: Construct array of all vectors of the directed edges.
-    edge_vectors = np.stack([e.orig['pos'] - e.dest['pos'] for e in directed_edges])
+    edge_vectors = np.stack([e.orig["pos"] - e.dest["pos"] for e in directed_edges])
 
     dual_vectors = edge_vectors @ rotation_matrix(np.pi / 2)
     dual_directions = dual_vectors / np.linalg.norm(dual_vectors, axis=1, keepdims=True)
@@ -66,9 +65,9 @@ def reciprocal_figure(
                 row[edges_to_ids[e.rev]] = 1
         rows.append(row)
     B = np.stack(rows)
-    A = (B[:, None, :] * dual_directions.T[: None]).reshape(-1, n_edges)
+    A = (B[:, None, :] * dual_directions.T[:None]).reshape(-1, n_edges)
     U = sc.linalg.null_space(A, rcond=rcond)
-    assert U.shape[1] > 0, 'G does not have a reciprocal figure!'
+    assert U.shape[1] > 0, "G does not have a reciprocal figure!"
 
     # Step 4: Least-squares fit of the remaining degrees of freedom so dual
     # vertices approximate primal face centroids.
@@ -111,10 +110,10 @@ def reciprocal_figure(
     M = M.reshape(n_faces * 2, -1)
     face_centers = face_centers.reshape(n_faces * 2)
 
-    logger.info('optimizing rotation centers using %d degrees of freedom..', M.shape[-1])
-    sol = sc.optimize.lsq_linear(M, face_centers, lsq_solver='exact')
-    assert sol['success'], f"{sol['message']}"
-    sol = sol['x']
+    logger.info("optimizing rotation centers using %d degrees of freedom..", M.shape[-1])
+    sol = sc.optimize.lsq_linear(M, face_centers, lsq_solver="exact")
+    assert sol["success"], f"{sol['message']}"
+    sol = sol["x"]
 
     dual_vertices = M @ sol
     dual_vertices = dual_vertices.reshape(-1, 2)
@@ -129,17 +128,17 @@ def reciprocal_figure(
 
     D = dual_graph()(D)
     for v in D.vertices:
-        v['pos'] = face2reciprocalpos[v['pre_conway']]
+        v["pos"] = face2reciprocalpos[v["pre_conway"]]
 
     inv_v_map = invert_mapping(f_map)
     for v in D.vertices:
-        v['pre'] = inv_v_map[v['pre_conway']]
+        v["pre"] = inv_v_map[v["pre_conway"]]
     inv_e_map = invert_mapping(e_map)
     for e in D.halfedges:
-        if 'pre_conway' in e.attributes:
-            e['pre'] = inv_e_map[e['pre_conway']]
+        if "pre_conway" in e.attributes:
+            e["pre"] = inv_e_map[e["pre_conway"]]
     inv_f_map = invert_mapping(v_map)
     for f in D.faces:
-        f['pre'] = inv_f_map[f['pre_conway']]
+        f["pre"] = inv_f_map[f["pre_conway"]]
 
     return D

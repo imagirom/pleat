@@ -1,4 +1,5 @@
 """Conway operator classes: topological substitution and geometric variant."""
+
 from __future__ import annotations
 
 from copy import copy
@@ -57,9 +58,9 @@ class TopologicalConwayOperator:
         if h is not None:
             for v in graph.vertices:
                 if not v.on_border():  # todo: also assign 'pre_conway' to border vertices, as a set
-                    v['pre_conway'] = h
+                    v["pre_conway"] = h
         return graph, (v_map[self.v1], v_map[self.vf], v_map[self.v2])
-        #return deepcopy((self.graph, (self.v1, self.vf, self.v2)))
+        # return deepcopy((self.graph, (self.v1, self.vf, self.v2)))
 
     def __call__(
         self,
@@ -92,8 +93,8 @@ class TopologicalConwayOperator:
             obj_map.update(h_map)
             obj_map.update(f_map)
             for obj in obj_map.keys():
-                if obj is not None and 'pre_conway' in obj:
-                    del obj['pre_conway']
+                if obj is not None and "pre_conway" in obj:
+                    del obj["pre_conway"]
 
         # apply the operator to a set of halfedges in a graph
         assert isinstance(graph, HalfEdgeGraph)
@@ -102,7 +103,7 @@ class TopologicalConwayOperator:
         halfedges = [h for f in faces for h in f.halfedge_iter()]
         assert all(isinstance(h, HalfEdge) for h in halfedges)
         affected_faces = {h.face for h in halfedges}
-        assert None not in affected_faces, 'Cannot apply Conway operator to boundary edge'  # Or can we?
+        assert None not in affected_faces, "Cannot apply Conway operator to boundary edge"  # Or can we?
         old_halfedges = frozenset(graph.halfedges)
         v1_out_lookup = dict()
         v2_out_lookup = dict()
@@ -117,10 +118,10 @@ class TopologicalConwayOperator:
 
             # add reference to old face/vertex to new face/vertex
             for new_vertex, old_obj in [(v1, h.dest), (vf, h.face), (v2, h.orig)]:
-                if new_vertex.attributes.get('delete', False):
-                    new_vertex.get_outgoing_border().rev.face['pre_conway'] = old_obj
+                if new_vertex.attributes.get("delete", False):
+                    new_vertex.get_outgoing_border().rev.face["pre_conway"] = old_obj
                 else:
-                    new_vertex['pre_conway'] = old_obj
+                    new_vertex["pre_conway"] = old_obj
 
             # glue v1, v2 to h.dest, h.orig
             graph.add_graph(con_graph)
@@ -177,9 +178,9 @@ class TopologicalConwayOperator:
                 if True:  # not delete_on_border or not h.rev.on_border(): #Fixme
                     for k in h.face.halfedge_iter():
                         if (not delete_inner_border) or h.rev.on_border():
-                            k['delete'] = False
-                            k.rev['delete'] = False
-                        k.rev['border_delete'] = True
+                            k["delete"] = False
+                            k.rev["delete"] = False
+                        k.rev["border_delete"] = True
 
                 if h.rev.on_border():
                     graph.delete_face(h.face)
@@ -187,29 +188,29 @@ class TopologicalConwayOperator:
                     HalfEdgeGraph.delete_edge(graph, h)
                 # TODO: if on border, delete. else, do not delete adjacent. for now: delete in neither case
 
-
         # TODO: keep a record of which edges to delete in the end..
         # and a record of all affected vertices to update angles
 
         to_delete = set()
-        to_process = copy(graph.halfedges) # this is bad for performance: make everything work locally!
+        to_process = copy(graph.halfedges)  # this is bad for performance: make everything work locally!
         to_keep = set()
         while to_process:
             h = to_process.pop()
             to_process.remove(h.rev)
-            if h.attributes.get('delete', False):
+            if h.attributes.get("delete", False):
                 # only delete edges if their reverse also wants to be deleted
-                if h.rev.attributes.get('delete', False):
+                if h.rev.attributes.get("delete", False):
                     to_delete.update({h, h.rev})
                     continue
                 else:
                     pass
-                    #del h.attributes['delete']
+                    # del h.attributes['delete']
             to_keep.update({h, h.rev})
 
         assert not to_keep.intersection(to_delete)
-        assert to_keep.union(to_delete) == graph.halfedges, \
-            f'{graph.halfedges.difference(to_keep.union(to_delete))}, {to_keep.union(to_delete).difference(graph.halfedges)}'
+        assert (
+            to_keep.union(to_delete) == graph.halfedges
+        ), f"{graph.halfedges.difference(to_keep.union(to_delete))}, {to_keep.union(to_delete).difference(graph.halfedges)}"
 
         faces_to_keep = set()
         faces_to_maybe_remove = set()
@@ -239,13 +240,12 @@ class TopologicalConwayOperator:
         graph.halfedges.difference_update(to_delete)
         graph.faces.difference_update(faces_to_maybe_remove.difference(faces_to_keep))
 
-        graph.vertices.difference_update(
-            [v for v in (h.orig for h in to_delete) if v.any_outgoing in to_delete])
+        graph.vertices.difference_update([v for v in (h.orig for h in to_delete) if v.any_outgoing in to_delete])
 
         if delete_on_border:
             for e in list(graph.border_edges()):
                 if e in graph.halfedges:
-                    if e.rev.attributes.get('border_delete', False):
+                    if e.rev.attributes.get("border_delete", False):
                         graph.delete_face(e.rev.face)
             # delete dangling faces
             while True:
@@ -257,10 +257,10 @@ class TopologicalConwayOperator:
                 if not deleted_any:
                     break
         for e in graph.halfedges:
-            if 'border_delete' in e.attributes:
-                del e['border_delete']
+            if "border_delete" in e.attributes:
+                del e["border_delete"]
 
-        to_join = {v for v in graph.vertices if v.attributes.get('join', False)}
+        to_join = {v for v in graph.vertices if v.attributes.get("join", False)}
         for v in to_join:
             if v.order() == 2:  # TODO: check this beforehand
                 HalfEdgeGraph.join_vertex(graph, v)
@@ -268,8 +268,8 @@ class TopologicalConwayOperator:
         if copy_graph:
             for objs in (graph.vertices, graph.halfedges, graph.faces):
                 for obj in objs:
-                    if 'pre_conway' in obj.attributes:
-                        obj['pre_conway'] = obj_map[obj['pre_conway']]
+                    if "pre_conway" in obj.attributes:
+                        obj["pre_conway"] = obj_map[obj["pre_conway"]]
         return graph
 
 
@@ -286,15 +286,17 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         """
         super(GeometricConwayOperator, self).__init__(*super_args, **super_kwargs)
         # convert euclidean to barycentric coordinates
-        to_barycentric = euclidean_to_barycentric_map(np.array([self.v1['pos'], self.vf['pos'], self.v2['pos']]))
+        to_barycentric = euclidean_to_barycentric_map(np.array([self.v1["pos"], self.vf["pos"], self.v2["pos"]]))
         for v in self.graph.vertices:
-            v['pos'] = to_barycentric(v['pos'])
+            v["pos"] = to_barycentric(v["pos"])
         self.geometry = None
 
     def get_tri(self, h: HalfEdge) -> np.ndarray:
         """Return the triangle ``(h.dest, face midpoint, h.orig)`` for half-edge ``h``."""
-        midpoint = h.face.get('midpoint', self.geometry.center_of_mass(np.stack([v['pos'] for v in h.face.vertex_iter()])))
-        return np.array([h.dest['pos'], midpoint, h.orig['pos']])
+        midpoint = h.face.get(
+            "midpoint", self.geometry.center_of_mass(np.stack([v["pos"] for v in h.face.vertex_iter()]))
+        )
+        return np.array([h.dest["pos"], midpoint, h.orig["pos"]])
 
     def generate_graph_and_corners(
         self, tri: np.ndarray, h: HalfEdge | None = None
@@ -305,7 +307,7 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         to_euclidean = self.geometry.barycentric_to_euclidean_map(tri)
         # this could be vectorized
         for v in result.vertices:
-            v['pos'] = to_euclidean(v['pos'])
+            v["pos"] = to_euclidean(v["pos"])
         return result, corners
 
     def __call__(
@@ -347,7 +349,7 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         """Render the fundamental-domain graph, colouring elements by their role.
 
         Vertices and edges flagged as ``delete`` are drawn in *delete_color*
-        (default: red), and edges become dashed via the existing renderer behaviour; 
+        (default: red), and edges become dashed via the existing renderer behaviour;
         vertices flagged as ``join`` are drawn in *join_color* (default: green); everything else uses *keep_color*.
 
         Args:
@@ -365,36 +367,36 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         graph_copy.geometry = EuclideanGeometry
         to_euclidean = EuclideanGeometry.barycentric_to_euclidean_map(self._SHOW_REFERENCE_TRIANGLE)
         for v in graph_copy.vertices:
-            v['pos'] = to_euclidean(v['pos'])
+            v["pos"] = to_euclidean(v["pos"])
 
         # Assign colours based on role.
         for v in graph_copy.vertices:
-            if v.attributes.get('delete', False):
-                v['color_key'] = delete_color
-            elif v.attributes.get('join', False):
-                v['color_key'] = join_color
+            if v.attributes.get("delete", False):
+                v["color_key"] = delete_color
+            elif v.attributes.get("join", False):
+                v["color_key"] = join_color
             else:
-                v['color_key'] = keep_color
+                v["color_key"] = keep_color
         for h in graph_copy.halfedges:
-            if h.attributes.get('delete', False) or h.rev.attributes.get('delete', False):
-                h['color_key'] = delete_color
-            elif 'color_key' not in h.attributes:
-                h['color_key'] = keep_color
+            if h.attributes.get("delete", False) or h.rev.attributes.get("delete", False):
+                h["color_key"] = delete_color
+            elif "color_key" not in h.attributes:
+                h["color_key"] = keep_color
 
         if annotate_barycentric:
             inv = {v_map[u]: u for u in self.graph.vertices}
-            print('Barycentric coordinates relative to (v1, vf, v2):')
+            print("Barycentric coordinates relative to (v1, vf, v2):")
             for v in graph_copy.vertices:
-                bary = inv[v]['pos']
+                bary = inv[v]["pos"]
                 role = (
-                    'delete' if v.attributes.get('delete', False)
-                    else 'join' if v.attributes.get('join', False)
-                    else 'keep'
+                    "delete"
+                    if v.attributes.get("delete", False)
+                    else "join" if v.attributes.get("join", False) else "keep"
                 )
-                print(f'  {role:>6}: ({bary[0]:+.3f}, {bary[1]:+.3f}, {bary[2]:+.3f})')
+                print(f"  {role:>6}: ({bary[0]:+.3f}, {bary[1]:+.3f}, {bary[2]:+.3f})")
 
         kwargs = dict(
-            line_width='50%',
+            line_width="50%",
             face_inset=0,
         )
         kwargs.update(show_kwargs)

@@ -1,4 +1,5 @@
 """Smoke tests for example tilesets (instantiation + minimal growth)."""
+
 from __future__ import annotations
 
 import pytest
@@ -8,8 +9,8 @@ from eucare.example_graphs import from_tiles
 from eucare.geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
 from eucare.prototiles import ProtoTile
 
-
 # ---- TileSet container ----
+
 
 def test_tile_set_expand_to_area_not_implemented():
     t = ts.TileSet(tiles=[], root_tile=None)
@@ -47,6 +48,7 @@ def test_platonic_invalid_n_raises():
 
 
 # ---- Geometry inference ----
+
 
 def test_archimedean_vertex_to_geometry_euclidean():
     # 4.4.4.4 -> Euclidean
@@ -88,6 +90,7 @@ def test_curved_factory_returns_prototiles(name, factory):
 
 
 # ---- Growth via from_tiles ----
+
 
 def test_from_tiles_euclidean_growth():
     G = from_tiles(ts.platonic(4), rings=2)

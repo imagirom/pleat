@@ -11,6 +11,7 @@ Currently implemented:
 
 Future additions (e.g. Maekawa's theorem, big-little-big, etc.) belong here.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -29,7 +30,7 @@ def kawasaki_sum(v: Vertex) -> float:
     Border vertices are not constrained by Kawasaki's theorem; callers should
     filter them out (see :func:`max_kawasaki_sum`).
     """
-    angles = np.abs(np.array([e['in_angle'] for e in v.incoming_iter()]))
+    angles = np.abs(np.array([e["in_angle"] for e in v.incoming_iter()]))
     assert len(angles) % 2 == 0
     return np.sum(((angles + 2 * np.pi) % (2 * np.pi)) * (-1) ** np.arange(len(angles)))
 

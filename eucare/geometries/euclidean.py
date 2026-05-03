@@ -3,6 +3,7 @@
 Flat 2D geometry, used for ordinary tilings of the plane.  Points are 2D
 numpy arrays; rotations are represented as 2x2 matrices.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -12,6 +13,7 @@ from .base import Geometry
 
 class EuclideanGeometry(Geometry):
     """Flat 2D Euclidean geometry with standard vector operations."""
+
     @classmethod
     def origin(cls):
         return np.array([0, 0])
@@ -34,7 +36,7 @@ class EuclideanGeometry(Geometry):
 
     @classmethod
     def center_of_mass(cls, points, masses=None):
-        assert len(points.shape) == 2 and points.shape[-1] == 2, f'{points.shape}'
+        assert len(points.shape) == 2 and points.shape[-1] == 2, f"{points.shape}"
         if masses is not None:
             masses = masses / np.sum(masses) * len(points)
             points = points * masses[..., None]
@@ -62,4 +64,4 @@ class EuclideanGeometry(Geometry):
         if abs(euclidean_vertex_angle - 2 * np.pi) < eps:
             return 1
         else:
-            raise ValueError(f'Vertex {faces_around_corner} is impossible in euclidean geometry.')
+            raise ValueError(f"Vertex {faces_around_corner} is impossible in euclidean geometry.")

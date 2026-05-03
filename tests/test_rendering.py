@@ -1,4 +1,5 @@
 """Smoke tests for the Cairo and svgwrite renderers."""
+
 from __future__ import annotations
 
 import os
@@ -70,9 +71,9 @@ def test_cairo_renderer_color_attributes(tmp_path):
     G = rosette(n=5)
     # Add a color attribute on faces and edges to exercise color paths.
     for f in G.faces:
-        f['color_key'] = (0.2, 0.4, 0.6)
+        f["color_key"] = (0.2, 0.4, 0.6)
     for h in G.halfedges:
-        h['color_key'] = (0.5, 0.5, 0.5, 0.5)
+        h["color_key"] = (0.5, 0.5, 0.5, 0.5)
     r = CairoRenderer(width=64, height=64, path=str(out))
     r.render_graph(G)
     r.surface.finish()
@@ -83,7 +84,7 @@ def test_cairo_renderer_dashed_delete(tmp_path):
     out = tmp_path / "out.svg"
     G = rosette(n=4)
     for h in G.halfedges:
-        h['delete'] = True
+        h["delete"] = True
     r = CairoRenderer(width=64, height=64, path=str(out))
     r.render_graph(G)
     r.surface.finish()
@@ -93,9 +94,9 @@ def test_cairo_renderer_vertex_color_join_delete(tmp_path):
     out = tmp_path / "out.svg"
     G = rosette(n=4)
     vs = list(G.vertices)
-    vs[0]['join'] = True
-    vs[1]['delete'] = True
-    vs[2]['color_key'] = (0.1, 0.2, 0.3)
+    vs[0]["join"] = True
+    vs[1]["delete"] = True
+    vs[2]["color_key"] = (0.1, 0.2, 0.3)
     r = CairoRenderer(width=64, height=64, path=str(out))
     r.render_graph(G)
     r.surface.finish()
@@ -125,8 +126,8 @@ def test_svgwrite_renderer_extra_render_key(tmp_path):
     G = rosette(n=5)
     # Mark each edge and its reverse so the extra-render set is closed under .rev.
     for h in list(G.halfedges):
-        h['drawing_edge'] = True
-        h.rev['drawing_edge'] = True
+        h["drawing_edge"] = True
+        h.rev["drawing_edge"] = True
     r = SvgwriteRenderer()
     r.render_graph(str(out), G, render_interior_and_borders=False)
     assert out.exists()

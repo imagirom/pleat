@@ -3,6 +3,7 @@
 This tests the full workflow:
   graph -> reciprocal figure -> shrink-rotate -> crease assignment -> folding -> overlap
 """
+
 import numpy as np
 import pytest
 
@@ -31,8 +32,10 @@ from eucare.search_trees import face_bfs_tree
 
 def _make_graph(tileset_fn=None, rings=3):
     if tileset_fn is None:
+
         def tileset_fn():
             return platonic(4)
+
     tiles = tileset_fn()
     return from_tiles(tiles, rings=rings)
 
@@ -41,9 +44,9 @@ def _assign_face_z_order(G):
     """Assign z_order to faces and THIS_WAY to halfedges via BFS from central face."""
     fs = list(G.faces)
     central = min(fs, key=lambda f: np.linalg.norm(f.midpoint()))
-    central['z_order'] = 0
+    central["z_order"] = 0
     for orig, dest in face_bfs_tree(central):
-        dest['z_order'] = orig['z_order'] + 1
+        dest["z_order"] = orig["z_order"] + 1
     assign_this_way_by_face_z_order(G)
 
 
@@ -61,14 +64,17 @@ class TestReciprocalFigure:
         G = _make_graph(rings=3)
         _ = reciprocal_figure(G)
         for f in G.faces:
-            assert 'reciprocal_pos' in f
-            assert len(f['reciprocal_pos']) == 2
+            assert "reciprocal_pos" in f
+            assert len(f["reciprocal_pos"]) == 2
 
-    @pytest.mark.parametrize("tileset_fn", [
-        lambda: platonic(3),
-        lambda: platonic(4),
-        lambda: platonic(6),
-    ])
+    @pytest.mark.parametrize(
+        "tileset_fn",
+        [
+            lambda: platonic(3),
+            lambda: platonic(4),
+            lambda: platonic(6),
+        ],
+    )
     def test_reciprocal_different_tilings(self, tileset_fn):
         G = _make_graph(tileset_fn, rings=3)
         D = reciprocal_figure(G)
@@ -108,8 +114,9 @@ class TestCreaseAssignment:
         _assign_face_z_order(G)
         SRG = shrink_rotate_pattern(G)
         # Check that some edges have crease assignments
-        assigned = [e for e in SRG.halfedges
-                    if CREASE_ASSIGNMENT in e.attributes and not (e.on_border() or e.rev.on_border())]
+        assigned = [
+            e for e in SRG.halfedges if CREASE_ASSIGNMENT in e.attributes and not (e.on_border() or e.rev.on_border())
+        ]
         assert len(assigned) > 0
 
     def test_crease_consistency(self):
@@ -135,7 +142,7 @@ class TestFolding:
     def test_two_coloring(self):
         G = _make_graph(rings=3)
         G.twocolor_faces()
-        colors = {f['color_key'] for f in G.faces}
+        colors = {f["color_key"] for f in G.faces}
         assert len(colors) == 2
 
 
@@ -153,7 +160,7 @@ class TestOverlapGraph:
         assert len(OG.faces) > 0
         # Each face in overlap graph should have 'original_faces' attribute
         for f in OG.faces:
-            assert 'original_faces' in f
+            assert "original_faces" in f
 
 
 class TestFoldComplete:
@@ -166,11 +173,11 @@ class TestFoldComplete:
         _assign_face_z_order(G)
         SRG = shrink_rotate_pattern(G)
         results = fold_complete(SRG, overlap_eps=1e-8)
-        assert 'CP' in results
-        assert 'folded_state' in results
-        assert 'folded_view_top' in results
-        assert 'folded_view_bottom' in results
-        results['folded_state'].check_consistency()
+        assert "CP" in results
+        assert "folded_state" in results
+        assert "folded_view_top" in results
+        assert "folded_view_bottom" in results
+        results["folded_state"].check_consistency()
 
     @pytest.mark.slow
     def test_fold_complete_triangular(self):
@@ -178,5 +185,5 @@ class TestFoldComplete:
         _assign_face_z_order(G)
         SRG = shrink_rotate_pattern(G)
         results = fold_complete(SRG, overlap_eps=1e-8)
-        assert 'CP' in results
-        results['folded_state'].check_consistency()
+        assert "CP" in results
+        results["folded_state"].check_consistency()

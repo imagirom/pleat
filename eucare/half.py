@@ -12,6 +12,7 @@ Class hierarchy::
     HalfEdgeGraph → CyclicHalfedgeGraph
     HalfEdgeGraph → InAngleHEG → GeometricHEG → EuclideanPositionHEG
 """
+
 from __future__ import annotations
 
 import heapq
@@ -79,13 +80,14 @@ class IdObject(AttributeObject):
     Call ``IdObject.reset_ids()`` to reset all counters (useful between
     independent test runs).
     """
+
     current_ids: dict = dict()
 
     def __init__(self) -> None:
         super(IdObject, self).__init__()
         cls = type(self)
         IdObject.current_ids[cls] = IdObject.current_ids.get(cls, 0) + 1
-        self['id'] = IdObject.current_ids[cls]
+        self["id"] = IdObject.current_ids[cls]
 
     @classmethod
     def reset_ids(cls) -> None:
@@ -95,7 +97,7 @@ class IdObject(AttributeObject):
         When called on a subclass, resets only that subclass's counter.
         """
         if cls is IdObject:
-            #print('resetting all ids')
+            # print('resetting all ids')
             IdObject.current_ids = dict()
         else:
             IdObject.current_ids[cls] = 0
@@ -105,7 +107,7 @@ def check_cyclic_iterator_consistency(iterator) -> None:
     """Assert that every item yielded by ``iterator`` is unique (no cycles repeat)."""
     items = set()
     for item in iterator:
-        assert item not in items, f'{iterator}, {item}, {items}'
+        assert item not in items, f"{iterator}, {item}, {items}"
         items.add(item)
 
 
@@ -123,7 +125,8 @@ class HalfEdge(IdObject):
         dest: The destination vertex.
         face: The face to the left, or ``None`` for border edges.
     """
-    printname = 'HE'
+
+    printname = "HE"
 
     def __init__(
         self,
@@ -147,7 +150,7 @@ class HalfEdge(IdObject):
         # Face reference
         self.face = face
 
-    #def __repr__(self):
+    # def __repr__(self):
     #    return f'{self}({self.orig},{self.dest})'
 
     def __str__(self):
@@ -159,11 +162,11 @@ class HalfEdge(IdObject):
 
     def check_consistency(self) -> None:
         """Assert that ``self.rev.rev is self``."""
-        assert self.rev.rev is self, f'{self}, {self.rev}, {self.rev.rev}'
+        assert self.rev.rev is self, f"{self}, {self.rev}, {self.rev.rev}"
 
     def midpoint(self) -> np.ndarray:
         """Return the midpoint of the underlying edge in Euclidean position space."""
-        return np.mean([v['pos'] for v in (self.orig, self.dest)], axis=0)
+        return np.mean([v["pos"] for v in (self.orig, self.dest)], axis=0)
 
 
 class Vertex(IdObject):
@@ -173,7 +176,8 @@ class Vertex(IdObject):
     half-edges and faces are reachable via ``outgoing_iter()`` and
     ``face_iter()``.
     """
-    printname = 'V'
+
+    printname = "V"
 
     def __init__(self, any_outgoing: HalfEdge | None = None) -> None:
         super(Vertex, self).__init__()
@@ -239,8 +243,8 @@ class Vertex(IdObject):
         """Return the unique outgoing border half-edge, asserting there is exactly one."""
         # search for borders
         border_edges = [h for h in self.outgoing_iter() if h.face is None]
-        assert len(border_edges) > 0, f'Vertex {self} does not lie on a border. {self.order()}'
-        assert len(border_edges) < 2, f'Vertex {self} has multiple adjacent border edges. Please specify one.'
+        assert len(border_edges) > 0, f"Vertex {self} does not lie on a border. {self.order()}"
+        assert len(border_edges) < 2, f"Vertex {self} has multiple adjacent border edges. Please specify one."
         return border_edges[0]
 
     def combine_with(self, other: "Vertex") -> "Vertex":
@@ -257,16 +261,14 @@ class Vertex(IdObject):
         check_cyclic_iterator_consistency(self.outgoing_iter())
         check_cyclic_iterator_consistency(self.reverse_outgoing_iter())
         for e in self.outgoing_iter():
-            assert e.orig is self, f'{self}, {e.orig}, {e}'
+            assert e.orig is self, f"{self}, {e.orig}, {e}"
         for e in self.incoming_iter():
-            assert e.dest is self, f'{self}, {e.dest}, {e}'
-        assert self.order() > 0, f'{self}, {self.order()}'
+            assert e.dest is self, f"{self}, {e.dest}, {e}"
+        assert self.order() > 0, f"{self}, {self.order()}"
 
     def angle_sum(self) -> float:
         """Return the sum of interior angles at this vertex (excluding border faces)."""
-        return sum(h['in_angle']
-                   for h in self.incoming_iter()
-                   if h.face is not None)
+        return sum(h["in_angle"] for h in self.incoming_iter() if h.face is not None)
 
 
 class Face(IdObject):
@@ -352,7 +354,7 @@ class Face(IdObject):
 
     def midpoint(self) -> np.ndarray:
         """Return the (cached) face midpoint, falling back to the vertex centroid."""
-        return self.attributes.get('midpoint', np.mean([v['pos'] for v in self.vertex_iter()], axis=0))
+        return self.attributes.get("midpoint", np.mean([v["pos"] for v in self.vertex_iter()], axis=0))
 
     def pseudo_incenter(self) -> np.ndarray:
         """Return the pseudo-incenter (true incenter for tangential polygons)."""
@@ -360,23 +362,23 @@ class Face(IdObject):
 
     def recompute_lengths_and_angles(self, geometry) -> None:
         """Recompute the ``length`` and ``in_angle`` attributes from current vertex positions."""
-        points = np.stack([v['pos'] for v in self.vertex_iter()])
+        points = np.stack([v["pos"] for v in self.vertex_iter()])
         lengths, angles = edge_lengths_and_in_angles(points, geometry)
         for e, length, angle in zip(self.halfedge_iter(), lengths, angles):
-            e['length'] = length
-            e['in_angle'] = angle
+            e["length"] = length
+            e["in_angle"] = angle
 
     def area(self) -> float:
         """Return the (signed) Euclidean area of this face from its vertex positions."""
-        return signed_area(np.stack([v['pos'] for v in self.vertex_iter()]))
+        return signed_area(np.stack([v["pos"] for v in self.vertex_iter()]))
 
     def check_consistency(self) -> None:
         """Assert that ``halfedge_iter`` is a finite cycle and every boundary edge points back to this face."""
         check_cyclic_iterator_consistency(self.halfedge_iter())
         check_cyclic_iterator_consistency(self.reverse_halfedge_iter())
         for e in self.halfedge_iter():
-            assert e.face is self, f'{self}, {e.face}, {e}'
-        assert self.order() > 1, f'{self}, {self.order()}'
+            assert e.face is self, f"{self}, {e.face}, {e}"
+        assert self.order() > 1, f"{self}, {self.order()}"
 
 
 def pseudo_incenter(f: Face | np.ndarray) -> np.ndarray:
@@ -389,7 +391,7 @@ def pseudo_incenter(f: Face | np.ndarray) -> np.ndarray:
     if isinstance(f, np.ndarray):
         ps = f
     else:
-        ps = np.array([v['pos'] for v in f.vertex_iter()])
+        ps = np.array([v["pos"] for v in f.vertex_iter()])
     lengths = np.linalg.norm(np.roll(ps, 1, axis=0) - np.roll(ps, 2, axis=0), axis=-1)
     incenter = np.sum(lengths[:, None] * ps, axis=0) / np.sum(lengths)
     return incenter
@@ -424,7 +426,7 @@ def pseudo_circumcenter(ps, return_radius=False):
         # From ||c - pi||^2 = ||c - p0||^2:
         # 2 (pi - p0) · c = ||pi||^2 - ||p0||^2
         A = 2.0 * (ps[1:] - p0)
-        b = np.sum(ps[1:]**2, axis=1) - np.sum(p0**2)
+        b = np.sum(ps[1:] ** 2, axis=1) - np.sum(p0**2)
 
         if np.linalg.matrix_rank(A) < 2:
             raise ValueError("Points are collinear or degenerate")
@@ -464,7 +466,7 @@ class HalfEdgeGraph:
     def add_graph(self, other: "HalfEdgeGraph") -> None:
         """Add all elements of ``other`` to this graph (without re-linking topology)."""
         if not isinstance(other, HalfEdgeGraph):
-            raise TypeError(f'other must be a HalfEdgeGraph. Got {type(other)}')
+            raise TypeError(f"other must be a HalfEdgeGraph. Got {type(other)}")
         self.add_halfedges(other.halfedges)
         self.add_vertices(other.vertices)
         self.add_faces(other.faces)
@@ -566,7 +568,7 @@ class HalfEdgeGraph:
                 parsed_items.append(item)
             else:
                 for i in item:
-                    assert isinstance(i, (Face, HalfEdge, Vertex)), f'{type(i)}, {i}'
+                    assert isinstance(i, (Face, HalfEdge, Vertex)), f"{type(i)}, {i}"
                 parsed_items.extend(item)
         faces = {f for f in parsed_items if isinstance(f, Face)}
         edges = {h for h in parsed_items if isinstance(h, HalfEdge)}
@@ -620,7 +622,7 @@ class HalfEdgeGraph:
                 continue
             h2 = h
             new_face = None
-            while h2.face is not None: #and h2.face not in self.faces:
+            while h2.face is not None:  # and h2.face not in self.faces:
                 h2 = h2.nex
                 new_face = new_face if h2.face not in self.faces else h2.face
                 if h is h2:
@@ -666,8 +668,9 @@ class HalfEdgeGraph:
         if h.on_border():
             raise NotImplementedError
         if h.face is h.rev.face:
-            assert h.orig.order() == 1 or h.dest.order() == 1, \
-                f"removal of {h} might lead to {h.face} not being simply connected."
+            assert (
+                h.orig.order() == 1 or h.dest.order() == 1
+            ), f"removal of {h} might lead to {h.face} not being simply connected."
         else:
             self.faces.remove(h.face)
         self.halfedges.difference_update({h, h.rev})
@@ -691,7 +694,7 @@ class HalfEdgeGraph:
 
     def join_vertex(self, v: Vertex) -> None:
         """Remove a degree-2 vertex by merging its two incident edges into one."""
-        assert v.order() == 2, f'Can only join vertices of order 2, ({v}, {v.order()})'
+        assert v.order() == 2, f"Can only join vertices of order 2, ({v}, {v.order()})"
         v_out = v.any_outgoing
         v_out.rev.nex.rev = v_out
         v_out.rev = v_out.rev.nex
@@ -750,7 +753,9 @@ class HalfEdgeGraph:
 
         return v1
 
-    def subdivide_edge(self, h: HalfEdge, copy_edge_attributes: bool = True, **vertex_attributes: object) -> tuple[HalfEdge, Vertex]:
+    def subdivide_edge(
+        self, h: HalfEdge, copy_edge_attributes: bool = True, **vertex_attributes: object
+    ) -> tuple[HalfEdge, Vertex]:
         """Insert a new vertex on the edge ``h``, splitting it into two.
 
         A new half-edge ``h2`` is created with ``h.nex == h2``. The reverse
@@ -851,7 +856,6 @@ class HalfEdgeGraph:
                 result.add(h)
         return result
 
-
     def to_networkx_undirected(self) -> nx.Graph:
         """Return a :class:`networkx.Graph` of this graph's underlying undirected topology."""
         result = nx.Graph()
@@ -866,7 +870,7 @@ class HalfEdgeGraph:
             if h.on_border():
                 self._any_border = h
                 return h
-        raise LookupError('No border found.')
+        raise LookupError("No border found.")
 
     def border_edge_iter(self):
         """Yield border half-edges. For simply connected graphs, in cyclic order."""
@@ -917,19 +921,19 @@ class HalfEdgeGraph:
         """
         # check if both vertices are suited for gluing
         if v1 is None:
-            assert v1_out is not None, 'v1 or v1_out must be specified.'
+            assert v1_out is not None, "v1 or v1_out must be specified."
             v1 = v1_out.orig
         if v2 is None:
-            assert v2_out is not None, 'v2 or v2_out must be specified.'
+            assert v2_out is not None, "v2 or v2_out must be specified."
             v2 = v2_out.orig
 
         # search for border edges if not specified
         v1_out = v1.get_outgoing_border() if v1_out is None else v1_out
         v2_out = v2.get_outgoing_border() if v2_out is None else v2_out
-        assert (v1_out.orig is v1) and (v2_out.orig is v2), f'({repr(v1_out)}, {v1}), ({repr(v2_out)}, {v2})'
+        assert (v1_out.orig is v1) and (v2_out.orig is v2), f"({repr(v1_out)}, {v1}), ({repr(v2_out)}, {v2})"
         # get incoming border edges
         v1_in, v2_in = v1_out.pre, v2_out.pre
-        #assert v1_out.on_border() and v2_out.on_border() and v1_in.on_border() and v2_in.on_border()
+        # assert v1_out.on_border() and v2_out.on_border() and v1_in.on_border() and v2_in.on_border()
 
         # assign new vertex, remove old
         v = v1.combine_with(v2)
@@ -955,7 +959,7 @@ class HalfEdgeGraph:
         if all(a.orig is not b.dest for a, b in [(e1, e2), (e2, e1)]):
             for e in (e1, e2):
                 if not e.on_border():
-                    raise ValueError(f'Cannot glue: Edge {e} not on border.')
+                    raise ValueError(f"Cannot glue: Edge {e} not on border.")
         else:
             # handle face stuff now
             if e1.face is e2.face is None:
@@ -967,7 +971,7 @@ class HalfEdgeGraph:
             elif e2.nex is e1:
                 e1.face.any_side = e1.nex
             else:
-                raise ValueError(f'Cannot glue: Edges {[e1, e2]} of face {e1.face} are not adjacent.')
+                raise ValueError(f"Cannot glue: Edges {[e1, e2]} of face {e1.face} are not adjacent.")
 
         # glue vertices
         for v1_out, v2_out in ((e1, e2.nex), (e1.nex, e2)):
@@ -978,8 +982,8 @@ class HalfEdgeGraph:
         e1.rev.rev = e2.rev
         e2.rev.rev = e1.rev
 
-        e1.orig.any_outgoing = e2.rev#e1.rev.nex
-        e1.dest.any_outgoing = e1.rev#e1.rev.pre.rev
+        e1.orig.any_outgoing = e2.rev  # e1.rev.nex
+        e1.dest.any_outgoing = e1.rev  # e1.rev.pre.rev
         self.halfedges.difference_update({e1, e2})
 
     def glue_graph_e2e(self, graph: "HalfEdgeGraph", e1: HalfEdge, e2: HalfEdge) -> None:
@@ -998,7 +1002,7 @@ class HalfEdgeGraph:
         """Return True if every interior vertex has even order (necessary for face 2-coloring)."""
         return all([v.order() % 2 == 0 for v in self.vertices if not v.on_border()])
 
-    def twocolor_faces(self, key: str = 'color_key', initial_face: Face | None = None) -> None:
+    def twocolor_faces(self, key: str = "color_key", initial_face: Face | None = None) -> None:
         """Two-color the faces of the graph.
 
         Each face will get the attribute ``key`` set to ``True`` or ``False``;
@@ -1008,7 +1012,7 @@ class HalfEdgeGraph:
             key: Attribute name to write the boolean color into.
             initial_face: Face to start the BFS from. Defaults to an arbitrary face.
         """
-        assert self.twocolorable(), 'Graph is not twocolorable, since it has an inner vertex of odd order!'
+        assert self.twocolorable(), "Graph is not twocolorable, since it has an inner vertex of odd order!"
         if initial_face is None:
             initial_face = next(iter(self.faces))
         yet_to_color = copy(self.faces)
@@ -1021,7 +1025,7 @@ class HalfEdgeGraph:
             face[key] = label
             for f in face.face_iter():
                 frontier.add((f, not label))
-        assert not yet_to_color, 'Graph is not connected!'
+        assert not yet_to_color, "Graph is not connected!"
 
     def execute_edge_instruction(self, h: HalfEdge, instruction=None, key: str | None = None) -> None:
         """Run a tile-gluing or growth ``instruction`` on the border half-edge ``h``.
@@ -1030,10 +1034,10 @@ class HalfEdgeGraph:
         ``'instruction'``).
         """
         if instruction is None:
-            key = 'instruction' if key is None else key
+            key = "instruction" if key is None else key
             instruction = h[key]
         else:
-            assert key is None, 'Please specify not more than one of [key, instruction].'
+            assert key is None, "Please specify not more than one of [key, instruction]."
         instruction(self, h)
 
     def execute_all_edge_instructions(self, instruction=None, key: str | None = None) -> None:
@@ -1054,16 +1058,16 @@ class HalfEdgeGraph:
         G.add_edges_from([(h.orig, h.dest) for h in self.halfedges])
 
         if emph_func is None:
+
             def emph_func(h):
-                return h.attributes.get('delete', False)
-        G.add_edges_from([(h.orig, h.dest) for h in self.halfedges if emph_func(h)],
-                              color='r')
+                return h.attributes.get("delete", False)
+
+        G.add_edges_from([(h.orig, h.dest) for h in self.halfedges if emph_func(h)], color="r")
 
         pos = nx.spring_layout(G.to_undirected())
         plt.figure(figsize=figsize)
 
-
-        colors = [G[u][v].get('color', 'b') for u,v in G.edges]
+        colors = [G[u][v].get("color", "b") for u, v in G.edges]
         nx.draw_networkx_nodes(G, pos, node_size=500)
         nx.draw_networkx_edges(G, pos, edge_color=colors, arrows=True)
 
@@ -1105,38 +1109,51 @@ class HalfEdgeGraph:
         referenced_faces.discard(None)
 
         if (
-                referenced_vertices != self.vertices or
-                referenced_faces != self.faces or
-                referenced_halfedges != self.halfedges
+            referenced_vertices != self.vertices
+            or referenced_faces != self.faces
+            or referenced_halfedges != self.halfedges
         ):
-            logger.error('='*50)
-            logger.error('consistency error')
+            logger.error("=" * 50)
+            logger.error("consistency error")
 
-            logger.error('halfedges: %s, %s', referenced_halfedges.difference(self.halfedges),
-                         self.halfedges.difference(referenced_halfedges))
-            logger.error('vertices: %s, %s', referenced_vertices.difference(self.vertices),
-                         self.vertices.difference(referenced_vertices))
-            logger.error('faces: %s, %s', referenced_faces.difference(self.faces),
-                         self.faces.difference(referenced_faces))
+            logger.error(
+                "halfedges: %s, %s",
+                referenced_halfedges.difference(self.halfedges),
+                self.halfedges.difference(referenced_halfedges),
+            )
+            logger.error(
+                "vertices: %s, %s",
+                referenced_vertices.difference(self.vertices),
+                self.vertices.difference(referenced_vertices),
+            )
+            logger.error(
+                "faces: %s, %s", referenced_faces.difference(self.faces), self.faces.difference(referenced_faces)
+            )
 
-            reference_dict = {obj: set() for obj in
-                              referenced_halfedges.union(referenced_vertices).union(referenced_faces).union([None])}
+            reference_dict = {
+                obj: set()
+                for obj in referenced_halfedges.union(referenced_vertices).union(referenced_faces).union([None])
+            }
             for h in self.halfedges:
-                for attr in ['nex', 'pre', 'rev', 'orig', 'dest', 'face']:
+                for attr in ["nex", "pre", "rev", "orig", "dest", "face"]:
                     reference_dict[getattr(h, attr)].add((h, attr))
             for v in self.vertices:
-                for attr in ['any_outgoing']:
+                for attr in ["any_outgoing"]:
                     reference_dict[getattr(v, attr)].add((v, attr))
             for f in self.faces:
-                for attr in ['any_side']:
+                for attr in ["any_side"]:
                     reference_dict[getattr(f, attr)].add((f, attr))
-            for obj in (referenced_vertices.difference(self.vertices)
-                        .union(referenced_faces.difference(self.faces))
-                        .union(referenced_halfedges.difference(self.halfedges))):
-                logger.error('%s referenced by %s.', obj, reference_dict[obj])
-            raise RuntimeError('Graph consistency check failed. See log for details.')
+            for obj in (
+                referenced_vertices.difference(self.vertices)
+                .union(referenced_faces.difference(self.faces))
+                .union(referenced_halfedges.difference(self.halfedges))
+            ):
+                logger.error("%s referenced by %s.", obj, reference_dict[obj])
+            raise RuntimeError("Graph consistency check failed. See log for details.")
 
-    def copy(self, deepcopy_attributes: bool = False, return_mappings: bool = False) -> "HalfEdgeGraph | tuple[HalfEdgeGraph, tuple[dict, dict, dict]]":
+    def copy(
+        self, deepcopy_attributes: bool = False, return_mappings: bool = False
+    ) -> "HalfEdgeGraph | tuple[HalfEdgeGraph, tuple[dict, dict, dict]]":
         """Return an independent copy of this graph.
 
         Args:
@@ -1148,6 +1165,7 @@ class HalfEdgeGraph:
         Returns:
             The copied graph -- a tuple ``(graph, (v_map, e_map, f_map))`` when ``return_mappings`` is True.
         """
+
         def copy_with_attributes(obj):
             cls = type(obj)
             new = cls.__new__(cls)
@@ -1163,8 +1181,9 @@ class HalfEdgeGraph:
         copy_func = copy_with_attributes_deep if deepcopy_attributes else copy_with_attributes
 
         # init mappings from old to new vertex/halfedge/face objects
-        v_map, e_map, f_map = [{obj: copy_func(obj) for obj in container}
-                               for container in (self.vertices, self.halfedges, self.faces)]
+        v_map, e_map, f_map = [
+            {obj: copy_func(obj) for obj in container} for container in (self.vertices, self.halfedges, self.faces)
+        ]
 
         # copy other potential attributes of graph (e.g. tau for InAngleHEG)
         cls = type(self)
@@ -1194,6 +1213,7 @@ class HalfEdgeGraph:
             return result
         else:
             return result, (v_map, e_map, f_map)
+
 
 # ------------------------------------------------ faces with in-angles ------------------------------------------------
 
@@ -1227,11 +1247,11 @@ class InAngleHEG(HalfEdgeGraph):
             other: Optional graph to copy elements from (forwarded to base).
         """
         super(InAngleHEG, self).__init__(other=other)
-        self.tau = 2*pi
+        self.tau = 2 * pi
         self.eps = 1e-6
         if other is not None:
-            self.tau = other.tau if hasattr(other, 'tau') else self.tau
-            self.eps = other.eps if hasattr(other, 'eps') else self.eps
+            self.tau = other.tau if hasattr(other, "tau") else self.tau
+            self.eps = other.eps if hasattr(other, "eps") else self.eps
         # tau = 2*pi, the sum of angles
         self.tau = angle_sum if angle_sum is not None else self.tau
         # tolerance for deciding weather angles are equal
@@ -1245,7 +1265,7 @@ class InAngleHEG(HalfEdgeGraph):
         """Remove edge ``h`` and merge the two surrounding interior angles."""
         super(InAngleHEG, self).delete_edge(h)
         for k in [h, h.rev]:
-            k.pre['in_angle'] += k.rev['in_angle']
+            k.pre["in_angle"] += k.rev["in_angle"]
 
     def close_vertex(self, v: Vertex, reverse: bool = False) -> Vertex:
         """Glue together the two border edges incident at ``v``.
@@ -1283,8 +1303,8 @@ class InAngleHEG(HalfEdgeGraph):
             if recursive:
                 self.autoclose_vertex(v_next, reverse=reverse, recursive=True)
         elif anglesum > self.tau:
-           raise RuntimeError(f'Vertex {v} has anglesum of {anglesum} > {self.tau}')
-           # assert False, f'Vertex {v} has anglesum of {anglesum} > {self.tau}'
+            raise RuntimeError(f"Vertex {v} has anglesum of {anglesum} > {self.tau}")
+            # assert False, f'Vertex {v} has anglesum of {anglesum} > {self.tau}'
 
     def glue_e2e(
         self,
@@ -1311,8 +1331,10 @@ class InAngleHEG(HalfEdgeGraph):
             # TODO: think about reverse properly...
             self.autoclose_vertex(e1.rev.orig, reverse=False, recursive=auto_close_recursive)
         else:
-            raise RuntimeError('Expected vertex to be on border after glue operation')
-        if e1.rev.dest in self.vertices and e1.rev.dest.on_border():  # this might not be the case, if everything is closed by the previous operation
+            raise RuntimeError("Expected vertex to be on border after glue operation")
+        if (
+            e1.rev.dest in self.vertices and e1.rev.dest.on_border()
+        ):  # this might not be the case, if everything is closed by the previous operation
             self.autoclose_vertex(e1.rev.dest, reverse=True, recursive=auto_close_recursive)
 
 
@@ -1338,7 +1360,7 @@ class GeometricHEG(InAngleHEG):
 
     def positions_coincide(self, p1: np.ndarray, p2: np.ndarray) -> bool:
         """Return True if positions ``p1`` and ``p2`` are within ``eps``."""
-        return np.linalg.norm(p1 -p2) < self.eps
+        return np.linalg.norm(p1 - p2) < self.eps
 
     def lengths_equal(self, l1: float, l2: float) -> bool:
         """Return True if lengths ``l1`` and ``l2`` differ by at most ``eps``."""
@@ -1346,16 +1368,16 @@ class GeometricHEG(InAngleHEG):
 
     def glue_graph_e2e(self, graph: "HalfEdgeGraph", e1: HalfEdge, e2: HalfEdge) -> None:
         """Add ``graph`` to ``self`` and glue ``e1`` to ``e2``, then recompute positions of new vertices."""
-        assert self.lengths_equal(e1.rev['length'], e2.rev['length'])
+        assert self.lengths_equal(e1.rev["length"], e2.rev["length"])
         super().glue_graph_e2e(graph, e1, e2)
         e = (e1 if e1 in graph.halfedges else e2).rev
         self.recompute_positions(edge_to_start=e, faces=graph.faces)
 
     def join_edge(self, h: HalfEdge) -> Vertex:
         """Contract edge ``h`` and place the resulting vertex at the midpoint."""
-        new_pos = (h.orig['pos'] + h.dest['pos']) / 2
+        new_pos = (h.orig["pos"] + h.dest["pos"]) / 2
         v = super().join_edge(h)
-        v['pos'] = new_pos
+        v["pos"] = new_pos
         return v
 
     def recompute_positions(self, edge_to_start: HalfEdge | None = None, faces: "set[Face] | None" = None) -> None:
@@ -1379,17 +1401,18 @@ class GeometricHEG(InAngleHEG):
         if edge_to_start is None:
             # select longest edge
             hs = [h for h in self.halfedges if not h.on_border()]
-            lengths = [h['length'] for h in hs]
+            lengths = [h["length"] for h in hs]
             edge_to_start = hs[np.argmax(lengths)]
         if edge_to_start.on_border():
-            raise ValueError(f'edge_to_start must not be on border, got {edge_to_start}')
+            raise ValueError(f"edge_to_start must not be on border, got {edge_to_start}")
 
         # delete old positions
-        vertices = set.union(set(), *(f.vertex_iter() for f in faces))\
-            .difference({edge_to_start.orig, edge_to_start.dest})
+        vertices = set.union(set(), *(f.vertex_iter() for f in faces)).difference(
+            {edge_to_start.orig, edge_to_start.dest}
+        )
         for v in vertices:
-            if 'pos' in v.attributes:
-                del v['pos']
+            if "pos" in v.attributes:
+                del v["pos"]
 
         # compute positions for new vertices, face by face
         yet_to_process = [(0, 0, (edge_to_start.face, edge_to_start.nex))]  # (error, iteration, (face, edge))
@@ -1404,28 +1427,27 @@ class GeometricHEG(InAngleHEG):
             processed_faces.add(f)
             e = initial
             while True:
-                assert 'pos' in e.orig.attributes, f'{e}'
-                assert 'pos' in e.pre.orig.attributes, f'{e},{e.pre}'
-                if 'pos' in e.dest.attributes:
+                assert "pos" in e.orig.attributes, f"{e}"
+                assert "pos" in e.pre.orig.attributes, f"{e},{e.pre}"
+                if "pos" in e.dest.attributes:
                     # nothing to do here, both positions already determined
                     pass
                 else:
-                    e.dest['pos'] = self.construct_next_point(
-                        a=e.pre.orig['pos'], b=e.orig['pos'],
-                        angle=e.pre['in_angle'], length=e['length']
+                    e.dest["pos"] = self.construct_next_point(
+                        a=e.pre.orig["pos"], b=e.orig["pos"], angle=e.pre["in_angle"], length=e["length"]
                     )
                     err_dict[e.dest] = err_dict[e.orig] + 1
                 opposite_face = e.rev.face
                 if opposite_face in faces and opposite_face not in processed_faces:
                     i += 1
-                    heapq.heappush(yet_to_process, (max(err_dict[e.orig], err_dict[e.dest]), i, (opposite_face, e.rev.nex)))
+                    heapq.heappush(
+                        yet_to_process, (max(err_dict[e.orig], err_dict[e.dest]), i, (opposite_face, e.rev.nex))
+                    )
                 e = e.nex
                 if e is initial:
                     break
 
-    def construct_next_point(
-        self, a: np.ndarray, b: np.ndarray, angle: float, length: float
-    ) -> np.ndarray:
+    def construct_next_point(self, a: np.ndarray, b: np.ndarray, angle: float, length: float) -> np.ndarray:
         """Construct the point ``c`` such that ``angle(a, b, c) == angle`` and ``|bc| == length``."""
         return self.geometry.construct_next_poly_point(a, b, angle, length)
         # next_angle = angle_to_axis(b - a) + np.pi - angle
@@ -1437,13 +1459,13 @@ class GeometricHEG(InAngleHEG):
         for f in self.faces:
             f.recompute_lengths_and_angles(geometry=self.geometry)
         for h in self.border_edges():
-            h['length'] = h.rev['length']
+            h["length"] = h.rev["length"]
 
     def get_position_view(
         self,
         vertices: list[Vertex] | None = None,
         return_vertices: bool = True,
-        position_key: str = 'pos',
+        position_key: str = "pos",
     ) -> "np.ndarray | tuple[np.ndarray, list[Vertex]]":
         """Return a single ``(N, d)`` array view of all vertex (and curve) positions.
 
@@ -1460,15 +1482,15 @@ class GeometricHEG(InAngleHEG):
         """
         vertices = list(self.vertices) if vertices is None else vertices
         positions = np.stack([v[position_key] for v in vertices])
-        curved_hs = [h for h in self.halfedges if 'curve_pos' in h]
+        curved_hs = [h for h in self.halfedges if "curve_pos" in h]
         if len(curved_hs) > 0:
-            curved_pos = np.concatenate([h['curve_pos'] for h in curved_hs])
+            curved_pos = np.concatenate([h["curve_pos"] for h in curved_hs])
             positions = np.concatenate([positions, curved_pos])
             # assign curve positions
             i = len(vertices)
             for h in curved_hs:
-                j = i + len(h['curve_pos'])
-                h['curve_pos'] = positions[i:j]
+                j = i + len(h["curve_pos"])
+                h["curve_pos"] = positions[i:j]
                 i = j
 
         # assign vertex positions
@@ -1494,12 +1516,12 @@ class GeometricHEG(InAngleHEG):
     def scale_positions(self, factor: float) -> None:
         """Multiply every vertex position by ``factor`` (Euclidean geometry only)."""
         if self.geometry is not EuclideanGeometry:
-            raise NotImplementedError('Scaling only implemented for Euclidean geometry.')
+            raise NotImplementedError("Scaling only implemented for Euclidean geometry.")
         for v in self.vertices:
-            v['pos'] = factor * v['pos']
+            v["pos"] = factor * v["pos"]
         self.recompute_lengths_and_angles()
 
-    def normalize_edge_lengths(self, mode: str = 'geometric', factor: float = 1) -> None:
+    def normalize_edge_lengths(self, mode: str = "geometric", factor: float = 1) -> None:
         """Scale the graph so the average edge length equals ``factor``.
 
         Args:
@@ -1508,28 +1530,30 @@ class GeometricHEG(InAngleHEG):
             factor: Desired mean edge length after scaling.
         """
         if self.geometry is not EuclideanGeometry:
-            raise NotImplementedError('Scaling only implemented for Euclidean geometry.')
-        
-        lengths = np.array([h['length'] for h in self.halfedges])
-        if mode == 'geometric':
+            raise NotImplementedError("Scaling only implemented for Euclidean geometry.")
+
+        lengths = np.array([h["length"] for h in self.halfedges])
+        if mode == "geometric":
             mean_length = np.exp(np.mean(np.log(lengths)))
-        elif mode == 'arithmetic':
+        elif mode == "arithmetic":
             mean_length = np.mean(lengths)
-        elif mode == 'harmonic':
+        elif mode == "harmonic":
             mean_length = len(lengths) / np.sum(1 / lengths)
-        elif mode == 'min':
+        elif mode == "min":
             mean_length = np.min(lengths)
-        elif mode == 'max':
+        elif mode == "max":
             mean_length = np.max(lengths)
         else:
-            raise ValueError(f"Invalid mode '{mode}'. Expected one of 'geometric', 'arithmetic', 'harmonic', 'min', 'max'.")
+            raise ValueError(
+                f"Invalid mode '{mode}'. Expected one of 'geometric', 'arithmetic', 'harmonic', 'min', 'max'."
+            )
         factor = factor / mean_length
         self.scale_positions(factor)
 
     def convert_to_euclidean(self) -> None:
         """Project all positions to the Euclidean plane and switch the geometry backend."""
         for v in self.vertices:
-            v['pos'] = self.geometry.to_euclidean(v['pos'])
+            v["pos"] = self.geometry.to_euclidean(v["pos"])
         self.geometry = EuclideanGeometry
         self.recompute_lengths_and_angles()
 
@@ -1541,7 +1565,7 @@ class GeometricHEG(InAngleHEG):
         block: bool = True,
         figsize: tuple[float, float] | None = None,
         for_cutting: bool = False,
-        filename: str = 'output',
+        filename: str = "output",
         **kwargs,
     ) -> None:
         """Render the graph with Cairo and display it inline (Jupyter) or via Matplotlib.
@@ -1552,16 +1576,23 @@ class GeometricHEG(InAngleHEG):
         import matplotlib.image as mpimg
 
         from .rendering import CairoRenderer
-        render_position_key = 'euclidean_pos'
+
+        render_position_key = "euclidean_pos"
         for v in self.vertices:
-            v[render_position_key] = self.geometry.to_euclidean(v['pos'])
-        renderer = CairoRenderer(path=filename+'.svg', position_key=render_position_key, **kwargs)
-        surface = renderer.render_graph(self, render_faces=render_faces, render_edges=render_edges,
-                                        render_vertices=render_vertices, for_cutting=for_cutting)
-        filename = filename + '.png'
+            v[render_position_key] = self.geometry.to_euclidean(v["pos"])
+        renderer = CairoRenderer(path=filename + ".svg", position_key=render_position_key, **kwargs)
+        surface = renderer.render_graph(
+            self,
+            render_faces=render_faces,
+            render_edges=render_edges,
+            render_vertices=render_vertices,
+            for_cutting=for_cutting,
+        )
+        filename = filename + ".png"
         surface.write_to_png(filename)
 
         from IPython.display import Image, display
+
         display(Image(filename))
         return
 
@@ -1570,7 +1601,7 @@ class GeometricHEG(InAngleHEG):
         if figsize is not None:
             plt.figure(figsize=figsize)
         plt.imshow(img)
-        plt.axis('off')
+        plt.axis("off")
         plt.tight_layout()
         plt.show(block=block)
 
@@ -1586,7 +1617,7 @@ class GeometricHEG(InAngleHEG):
         if self.geometry is not EuclideanGeometry:
             raise NotImplementedError
         vs = list(self.vertices)
-        return vs[np.argmin([np.linalg.norm(v['pos']) for v in vs])]
+        return vs[np.argmin([np.linalg.norm(v["pos"]) for v in vs])]
 
 
 class EuclideanPositionHEG(GeometricHEG):
@@ -1599,7 +1630,9 @@ class EuclideanPositionHEG(GeometricHEG):
         """Create a Euclidean-geometry half-edge graph."""
         super().__init__(geometry=EuclideanGeometry, **super_kwargs)
 
+
 # ------------------------------------------------ cyclic graph example ------------------------------------------------
+
 
 def rotate_by(list_like: "list | tuple", offset: "int | tuple[int, ...]") -> "list | zip":
     """Cyclically rotate ``list_like`` by ``offset`` positions.
@@ -1705,16 +1738,17 @@ def make_polygon_graph(positions: np.ndarray) -> "EuclideanPositionHEG":
     vs = [Vertex() for _ in range(len(positions))]
     G = CyclicHalfedgeGraph(vs)
     for v, p in zip(vs, positions):
-        v['pos'] = p
+        v["pos"] = p
     G = EuclideanPositionHEG(other=G)
     return G
 
 
 class RegularNGon(CyclicHalfedgeGraph, InAngleHEG):
     """A regular *n*-gon as a half-edge graph with positions and angles."""
+
     def __init__(self, n: int, *super_args: object, **super_kwargs: object) -> None:
         """Construct a regular ``n``-gon with interior angle ``(n-2)/n * pi``."""
         super(RegularNGon, self).__init__(vs=[Vertex() for _ in range(n)], *super_args, **super_kwargs)
         f = any_element(self.faces)
         for e in f.halfedge_iter():
-            e['in_angle'] = (n-2) / n * pi
+            e["in_angle"] = (n - 2) / n * pi

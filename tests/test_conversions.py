@@ -1,4 +1,5 @@
 """Tests for NetworkX <-> EuclideanPositionHEG conversion."""
+
 from __future__ import annotations
 
 import networkx as nx
@@ -37,7 +38,7 @@ def test_quadrilateral_with_v_lookup():
     G, v_lookup = EHEG_from_nx(G_nx, return_v_lookup=True)
     assert set(v_lookup.keys()) == set(pts)
     for nx_node, v in v_lookup.items():
-        np.testing.assert_allclose(v['pos'], np.array(nx_node))
+        np.testing.assert_allclose(v["pos"], np.array(nx_node))
 
 
 def test_dangling_edges_pruned():

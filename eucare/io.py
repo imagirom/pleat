@@ -1,4 +1,5 @@
 """File I/O for the `.heg` half-edge graph format (YAML-based)."""
+
 from __future__ import annotations
 
 import os
@@ -13,7 +14,7 @@ from .half import Face, HalfEdge, HalfEdgeGraph, Vertex
 
 def graph_to_dict(
     G: HalfEdgeGraph,
-    attributes_to_save: tuple[str, ...] = ('pos', 'length', 'in_angle', 'color_key'),
+    attributes_to_save: tuple[str, ...] = ("pos", "length", "in_angle", "color_key"),
 ) -> dict:
     """Serialise a half-edge graph to a JSON/YAML-friendly nested dict.
 
@@ -31,9 +32,9 @@ def graph_to_dict(
         ``{'vertices': ..., 'halfedges': ..., 'faces': ...}``, suitable for
         :func:`yaml.dump`.
     """
-    vertex_labels = {v: f'v{i}' for i, v in enumerate(G.vertices)}
-    halfedge_labels = {h: f'h{i}' for i, h in enumerate(G.halfedges)}
-    face_labels = {f: f'f{i}' for i, f in enumerate(G.faces)}
+    vertex_labels = {v: f"v{i}" for i, v in enumerate(G.vertices)}
+    halfedge_labels = {h: f"h{i}" for i, h in enumerate(G.halfedges)}
+    face_labels = {f: f"f{i}" for i, f in enumerate(G.faces)}
 
     labels = {None: None}
     labels.update(vertex_labels)
@@ -57,8 +58,9 @@ def graph_to_dict(
             result = func(obj)
             attrs = represent_attributes(obj)
             if attrs:
-                result['attributes'] = attrs
+                result["attributes"] = attrs
             return result
+
         return wrapped
 
     @add_attributes
@@ -73,7 +75,7 @@ def graph_to_dict(
             rev=labels[h.rev],
             nex=labels[h.nex],
             pre=labels[h.pre],
-            face=labels[h.face]
+            face=labels[h.face],
         )
 
     @add_attributes
@@ -94,9 +96,10 @@ def dict_to_graph(graph_dict: dict) -> ec.half.EuclideanPositionHEG:
     The returned graph is always an :class:`EuclideanPositionHEG` regardless of
     the source graph's class (TODO: persist the class).
     """
+
     def unwrap_attributes(obj_dict):
         result = {}
-        for key, value in obj_dict.pop('attributes', {}).items():
+        for key, value in obj_dict.pop("attributes", {}).items():
             if isinstance(value, list):
                 try:
                     value = np.array(value, dtype=np.float64)
@@ -107,32 +110,32 @@ def dict_to_graph(graph_dict: dict) -> ec.half.EuclideanPositionHEG:
 
     lookup = {None: None}
     # create the halfedges
-    for label in graph_dict['halfedges']:
+    for label in graph_dict["halfedges"]:
         lookup[label] = HalfEdge()
 
     vs = set()
-    for label, v_dict in graph_dict['vertices'].items():
+    for label, v_dict in graph_dict["vertices"].items():
         attrs = unwrap_attributes(v_dict)
-        v_dict['any_outgoing'] = lookup[v_dict['any_outgoing']]
+        v_dict["any_outgoing"] = lookup[v_dict["any_outgoing"]]
         v = Vertex(**v_dict)
         v.attributes = attrs
         lookup[label] = v
         vs.add(v)
 
     fs = set()
-    for label, f_dict in graph_dict['faces'].items():
+    for label, f_dict in graph_dict["faces"].items():
         attrs = unwrap_attributes(f_dict)
-        f_dict['any_side'] = lookup[f_dict['any_side']]
+        f_dict["any_side"] = lookup[f_dict["any_side"]]
         f = Face(**f_dict)
         f.attributes = attrs
         lookup[label] = f
         fs.add(f)
 
     hs = set()
-    for label, h_dict in graph_dict['halfedges'].items():
+    for label, h_dict in graph_dict["halfedges"].items():
         attrs = unwrap_attributes(h_dict)
         h = lookup[label]
-        for key in ['orig', 'dest', 'rev', 'nex', 'pre', 'face']:
+        for key in ["orig", "dest", "rev", "nex", "pre", "face"]:
             setattr(h, key, lookup[h_dict.pop(key, None)])
         h.attributes = attrs
         hs.add(h)
@@ -150,7 +153,7 @@ def save_graph(
     graph: HalfEdgeGraph,
     overwrite: bool = False,
     extra_attributes_to_save: str | tuple[str, ...] | None = None,
-    attributes_to_save: tuple[str, ...] = ('pos', 'length', 'in_angle', 'color_key'),
+    attributes_to_save: tuple[str, ...] = ("pos", "length", "in_angle", "color_key"),
 ) -> None:
     """Save *graph* to a ``.heg`` (YAML) file.
 
@@ -162,22 +165,22 @@ def save_graph(
             addition to *attributes_to_save*.
         attributes_to_save: Attribute keys to persist (see :func:`graph_to_dict`).
     """
-    if not filename.endswith('.heg'):
-        filename += '.heg'
+    if not filename.endswith(".heg"):
+        filename += ".heg"
     if not overwrite:
-        assert not os.path.exists(filename), f'File exists: {filename}. Set overwrite=True to overwrite.'
+        assert not os.path.exists(filename), f"File exists: {filename}. Set overwrite=True to overwrite."
     if extra_attributes_to_save is not None:
         if isinstance(extra_attributes_to_save, str):
             extra_attributes_to_save = (extra_attributes_to_save,)
         attributes_to_save = tuple(extra_attributes_to_save) + tuple(attributes_to_save)
     graph_dict = graph_to_dict(graph, attributes_to_save=attributes_to_save)
-    with open(filename, 'w') as f:
+    with open(filename, "w") as f:
         f.write(yaml.dump(graph_dict))
 
 
 def load_graph(filename: str) -> ec.half.EuclideanPositionHEG:
     """Load a graph previously saved by :func:`save_graph`."""
-    with open(filename, 'r') as f:
+    with open(filename, "r") as f:
         lines = f.read()
     graph_dict = yaml.load(lines, Loader=yaml.SafeLoader)
     return dict_to_graph(graph_dict)

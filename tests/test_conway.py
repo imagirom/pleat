@@ -1,4 +1,5 @@
 """Tests for Conway operators."""
+
 import numpy as np
 import pytest
 
@@ -19,8 +20,10 @@ from eucare.half import EuclideanPositionHEG, IdObject
 
 def _make_tiling(tileset_fn=None, rings=3):
     if tileset_fn is None:
+
         def tileset_fn():
             return platonic(4)
+
     tiles = tileset_fn()
     return from_tiles(tiles, rings=rings)
 
@@ -28,15 +31,18 @@ def _make_tiling(tileset_fn=None, rings=3):
 class TestConwayOperators:
     """Test that each Conway operator produces valid graphs."""
 
-    @pytest.mark.parametrize("op_fn,name", [
-        (dual_graph, "dual"),
-        (kis_graph, "kis"),
-        (ambo_graph, "ambo"),
-        (truncate_graph, "truncate"),
-        (join_graph, "join"),
-        (gyro_graph, "gyro"),
-        (starify_graph, "starify"),
-    ])
+    @pytest.mark.parametrize(
+        "op_fn,name",
+        [
+            (dual_graph, "dual"),
+            (kis_graph, "kis"),
+            (ambo_graph, "ambo"),
+            (truncate_graph, "truncate"),
+            (join_graph, "join"),
+            (gyro_graph, "gyro"),
+            (starify_graph, "starify"),
+        ],
+    )
     def test_operator_consistency(self, op_fn, name):
         G = _make_tiling()
         op = op_fn()
@@ -46,9 +52,15 @@ class TestConwayOperators:
         assert len(G2.faces) > 0
         assert len(G2.vertices) > 0
 
-    @pytest.mark.parametrize("op_fn", [
-        dual_graph, ambo_graph, kis_graph, truncate_graph,
-    ])
+    @pytest.mark.parametrize(
+        "op_fn",
+        [
+            dual_graph,
+            ambo_graph,
+            kis_graph,
+            truncate_graph,
+        ],
+    )
     def test_operator_increases_complexity(self, op_fn):
         G = _make_tiling(rings=2)
         op = op_fn()
@@ -71,22 +83,28 @@ class TestConwayOperators:
 class TestConwayOnDifferentTilings:
     """Test operators on non-square tilings."""
 
-    @pytest.mark.parametrize("tileset_fn", [
-        lambda: platonic(3),
-        lambda: platonic(6),
-        t_4_6_12,
-        t_3_3_4_3_4,
-    ])
+    @pytest.mark.parametrize(
+        "tileset_fn",
+        [
+            lambda: platonic(3),
+            lambda: platonic(6),
+            t_4_6_12,
+            t_3_3_4_3_4,
+        ],
+    )
     def test_ambo_on_different_tilings(self, tileset_fn):
         G = _make_tiling(tileset_fn, rings=2)
         G2 = ambo_graph()(G, delete_on_border=True)
         G2.recompute_lengths_and_angles()
         G2.check_consistency()
 
-    @pytest.mark.parametrize("tileset_fn", [
-        lambda: platonic(3),
-        lambda: platonic(6),
-    ])
+    @pytest.mark.parametrize(
+        "tileset_fn",
+        [
+            lambda: platonic(3),
+            lambda: platonic(6),
+        ],
+    )
     def test_gyro_on_different_tilings(self, tileset_fn):
         G = _make_tiling(tileset_fn, rings=2)
         G2 = gyro_graph()(G, delete_on_border=True)
@@ -137,6 +155,7 @@ class TestConwayCopyGraphPath:
 class TestGoldberg2:
     def test_goldberg2_smoke(self):
         from eucare.conway import goldberg2_graph
+
         op = goldberg2_graph()
         assert op.graph is not None
 
@@ -144,36 +163,42 @@ class TestGoldberg2:
 class TestExpandLoftLaceChamfer:
     def test_expand(self):
         from eucare.conway import expand_graph
+
         G = _make_tiling(rings=2)
         result = expand_graph()(G)
         result.check_consistency()
 
     def test_loft(self):
         from eucare.conway import loft_graph
+
         G = _make_tiling(rings=2)
         result = loft_graph()(G)
         result.check_consistency()
 
     def test_lace(self):
         from eucare.conway import lace_graph
+
         G = _make_tiling(rings=2)
         result = lace_graph()(G)
         result.check_consistency()
 
     def test_chamfer(self):
         from eucare.conway import chamfer_graph
+
         G = _make_tiling(rings=2)
         result = chamfer_graph()(G)
         result.check_consistency()
 
     def test_shrink_rotate_graph(self):
         from eucare.conway import shrink_rotate_graph
+
         G = _make_tiling(rings=2)
         result = shrink_rotate_graph()(G)
         result.check_consistency()
 
     def test_flagstone_pvitelli(self):
         from eucare.conway import flagstone_pvitelli_graph
+
         G = _make_tiling(rings=2)
         result = flagstone_pvitelli_graph()(G)
         result.check_consistency()
@@ -184,12 +209,12 @@ class TestConwayOperatorInternals:
         # show() opens a renderer and writes a file -- skip if that fails on this system
         op = dual_graph()
         # Not invoking show() (would write to disk); just verify the op has the expected attributes.
-        assert hasattr(op, 'v1') and hasattr(op, 'vf') and hasattr(op, 'v2')
+        assert hasattr(op, "v1") and hasattr(op, "vf") and hasattr(op, "v2")
 
 
 @pytest.mark.parametrize(
-    'factory_name',
-    ['dual_graph', 'kis_graph', 'gyro_graph', 'flagstone_pvitelli_graph'],
+    "factory_name",
+    ["dual_graph", "kis_graph", "gyro_graph", "flagstone_pvitelli_graph"],
 )
 def test_geometric_show_smoke(factory_name, tmp_path, monkeypatch, capsys):
     """``GeometricConwayOperator.show`` runs end-to-end and writes an SVG/PNG."""
@@ -200,12 +225,13 @@ def test_geometric_show_smoke(factory_name, tmp_path, monkeypatch, capsys):
 
     # Suppress IPython display side-effects.
     import IPython.display as ipd
-    monkeypatch.setattr(ipd, 'display', lambda *a, **k: None)
+
+    monkeypatch.setattr(ipd, "display", lambda *a, **k: None)
 
     monkeypatch.chdir(tmp_path)
-    op.show(annotate_barycentric=True, filename='smoke')
+    op.show(annotate_barycentric=True, filename="smoke")
 
-    assert (tmp_path / 'smoke.svg').exists()
-    assert (tmp_path / 'smoke.png').exists()
+    assert (tmp_path / "smoke.svg").exists()
+    assert (tmp_path / "smoke.png").exists()
     captured = capsys.readouterr().out
-    assert 'Barycentric' in captured
+    assert "Barycentric" in captured

@@ -7,6 +7,7 @@ These tests check structural invariants that hold across backends:
 - ``from_polar``/``to_polar`` round-trips, and
 - ``unit_vector`` lies at unit distance from the origin.
 """
+
 from __future__ import annotations
 
 import numpy as np

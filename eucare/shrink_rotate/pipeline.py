@@ -11,6 +11,7 @@ This is the high-level pipeline:
 
 The single public entry point is :func:`shrink_rotate_pattern`.
 """
+
 from __future__ import annotations
 
 import logging
@@ -66,39 +67,39 @@ def shrink_rotate_pattern(
         triggered.
     """
     f0 = next(iter(G.faces))
-    if 'reciprocal_pos' not in f0 or len(reciprocal_figure_kwargs):
-        logger.info('Calculating reciprocal figure..')
+    if "reciprocal_pos" not in f0 or len(reciprocal_figure_kwargs):
+        logger.info("Calculating reciprocal figure..")
         _ = reciprocal_figure(G, **reciprocal_figure_kwargs)
-        logger.info('Done with reciprocal figure.')
+        logger.info("Done with reciprocal figure.")
 
     SRG, (_, _, f_map) = G.copy(return_mappings=True)
     inverse_f_map = invert_mapping(f_map)  # SRG-pre_conway → G
 
     SRG = shrink_rotate_graph()(SRG)
 
-    twistfaces = list(filter(lambda f: 'shrink_rotate' in f.attributes, SRG.faces))
+    twistfaces = list(filter(lambda f: "shrink_rotate" in f.attributes, SRG.faces))
     for f in twistfaces:
-        ps, vs = np.array([[v['pos'], v] for v in f.vertex_iter()], dtype=object).T
+        ps, vs = np.array([[v["pos"], v] for v in f.vertex_iter()], dtype=object).T
         ps = np.stack(ps)
 
         midpoint = np.mean(ps, axis=0, keepdims=True)
         ps = midpoint + (ps - midpoint) * 2
 
         for v, p in zip(vs, ps):
-            v['base_pos'] = p
+            v["base_pos"] = p
 
     for f in twistfaces:
-        ps, vs = np.array([[v['base_pos'], v] for v in f.vertex_iter()], dtype=object).T
+        ps, vs = np.array([[v["base_pos"], v] for v in f.vertex_iter()], dtype=object).T
         ps = np.stack(ps)
-        assert 'pre_conway' in f.attributes
-        f['pre_conway'] = inverse_f_map[f['pre_conway']]
-        rotation_center = f['pre_conway']['reciprocal_pos']
-        f['rotation_center'] = rotation_center
+        assert "pre_conway" in f.attributes
+        f["pre_conway"] = inverse_f_map[f["pre_conway"]]
+        rotation_center = f["pre_conway"]["reciprocal_pos"]
+        f["rotation_center"] = rotation_center
 
         ps = rotation_center + (ps - rotation_center) @ rotation_matrix(alpha) * factor
 
         for v, p in zip(vs, ps):
-            v['pos'] = p
+            v["pos"] = p
 
     SRG.recompute_lengths_and_angles()
 
@@ -111,16 +112,16 @@ def shrink_rotate_pattern(
             VALLEY: VALLEY_COLOR,
         }
         for e in SRG.halfedges:
-            e['color_key'] = colors[e.attributes.get(CREASE_ASSIGNMENT, BORDER)]
+            e["color_key"] = colors[e.attributes.get(CREASE_ASSIGNMENT, BORDER)]
 
         if simplify_boundary:
             G.join_order_2_boundary_vertices()
 
         mks = max_kawasaki_sum(SRG)
         if mks > 1e-12:
-            logger.warning('High max Kawasaki sum: %s', mks)
+            logger.warning("High max Kawasaki sum: %s", mks)
 
-        logger.info('CP has %d edges', len(SRG.halfedges) // 2)
+        logger.info("CP has %d edges", len(SRG.halfedges) // 2)
 
     return SRG
 
@@ -149,15 +150,15 @@ def assign_shrink_rotate_creases(SRG: HalfEdgeGraph) -> None:
     derive it from face/vertex z-order, BFS depth, distance from a point,
     face degree, or face area.
     """
-    twistfaces = [f for f in SRG.faces if 'shrink_rotate' in f.attributes]
+    twistfaces = [f for f in SRG.faces if "shrink_rotate" in f.attributes]
     for f in twistfaces:
         e_twist = f.any_side
         while e_twist.rev.on_border():
             e_twist = e_twist.nex
         # find the original-graph edge corresponding to e_twist.
         e = None
-        for e_orig in f['pre_conway'].halfedge_iter():
-            if e_orig.rev in e_twist.rev.nex.nex.rev.face['pre_conway'].halfedge_iter():
+        for e_orig in f["pre_conway"].halfedge_iter():
+            if e_orig.rev in e_twist.rev.nex.nex.rev.face["pre_conway"].halfedge_iter():
                 e = e_orig
                 break
         assert e is not None
