@@ -879,9 +879,6 @@ docs = [
     { name = "scikit-image", version = "0.25.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scikit-image", version = "0.26.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
-ilp = [
-    { name = "pulp" },
-]
 image = [
     { name = "mahotas" },
     { name = "scikit-image", version = "0.25.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -896,10 +893,6 @@ notebook = [
     { name = "ipywidgets" },
     { name = "jupyter" },
     { name = "widgetsnbextension" },
-]
-rendering = [
-    { name = "pycairo" },
-    { name = "svgwrite" },
 ]
 threed = [
     { name = "meshio" },
@@ -933,9 +926,7 @@ requires-dist = [
     { name = "plotly", marker = "extra == 'intersecting-cylinders'" },
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "pulp" },
-    { name = "pulp", marker = "extra == 'ilp'" },
     { name = "pycairo" },
-    { name = "pycairo", marker = "extra == 'rendering'" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "pyyaml" },
@@ -948,13 +939,12 @@ requires-dist = [
     { name = "scipy" },
     { name = "svgpathtools" },
     { name = "svgwrite" },
-    { name = "svgwrite", marker = "extra == 'rendering'" },
     { name = "sympy" },
     { name = "torch", marker = "extra == 'torch'" },
     { name = "tqdm" },
     { name = "widgetsnbextension", marker = "extra == 'notebook'" },
 ]
-provides-extras = ["ilp", "rendering", "notebook", "threed", "torch", "image", "intersecting-cylinders", "dev", "docs"]
+provides-extras = ["notebook", "threed", "torch", "image", "intersecting-cylinders", "dev", "docs"]
 
 [[package]]
 name = "exceptiongroup"

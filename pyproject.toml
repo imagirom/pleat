@@ -21,8 +21,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-ilp = ["pulp"]
-rendering = ["pycairo", "svgwrite"]
 notebook = ["jupyter", "ipywidgets", "ipympl", "widgetsnbextension"]
 threed = ["meshio"]
 torch = ["torch", "einops"]
