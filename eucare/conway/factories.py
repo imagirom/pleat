@@ -54,6 +54,40 @@ def join_graph() -> GeometricConwayOperator:
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
+def meta_graph() -> GeometricConwayOperator:
+    """Construct the Conway meta operator, which includes all edges from dual and kis."""
+    v1 = (0, -1)
+    vf = (1, 0)
+    v2 = (0, 1)
+    ve = (0, 0)
+    G = nx.Graph()
+    nx.add_cycle(G, [v1, vf, v2, ve])
+    G.add_nodes_from([v1, v2])
+    G.add_nodes_from([ve])
+    G.add_edge(ve, vf)
+
+    # construct EHEG and ConwayOperator
+    heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
+    return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
+
+
+def ortho_graph() -> GeometricConwayOperator:
+    """Construct the Conway ortho operator, which combines the orignal graph and its dual"""
+    v1 = (0, -1)
+    vf = (1, 0)
+    v2 = (0, 1)
+    ve = (0, 0)
+    G = nx.Graph()
+    nx.add_cycle(G, [v1, vf, v2, ve])
+    G.add_edge(ve, vf)
+    G.edges[v1, vf]['delete'] = True
+    G.edges[v2, vf]['delete'] = True
+
+    # construct EHEG and ConwayOperator
+    heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
+    return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
+
+
 def ambo_graph() -> GeometricConwayOperator:
     """Construct the Conway ambo (rectification) operator."""
     # define vertex positions
