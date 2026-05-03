@@ -282,9 +282,9 @@ class CairoRenderer:
         """Draw a single half-edge as a line or a tapered ribbon.
 
         If both endpoints carry a ``line_width`` attribute, the edge is drawn
-        as a filled ribbon of varying width (used for stylised wireframes);
-        otherwise it is a stroked polyline.  The ``curve_pos`` attribute, if
-        present, replaces the straight segment with a polyline.
+        as a filled ribbon of varying width; otherwise it is a stroked polyline.
+        
+        The ``curve_pos`` attribute, if present, replaces the straight segment with a polyline.
         """
         dc = self.dc
 
@@ -338,7 +338,10 @@ class CairoRenderer:
         """Draw a vertex as a small disc, picking colour from ``vertex[color_key]`` or attribute flags."""
         dc = self.dc
         dc.set_line_width(0)
-        dc.arc(*vertex[self.position_key], self.vertex_radius, 0, 2*np.pi)
+        radius = vertex.get('vertex_radius', self.vertex_radius)
+        if radius == 0:
+            return
+        dc.arc(*vertex[self.position_key], vertex.get('vertex_radius', self.vertex_radius), 0, 2*np.pi)
         if color_key in vertex.attributes:
             self.set_source_color(vertex[color_key])
         elif vertex.attributes.get('join', False):
