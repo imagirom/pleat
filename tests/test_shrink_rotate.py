@@ -19,14 +19,13 @@ from eucare.overlap import (
     fold_wireframe,
     overlap_graph,
 )
-from eucare.reciprocal_figures import (
+from eucare.shrink_rotate import (
     assign_shrink_rotate_creases,
     assign_this_way_by_face_z_order,
-    kawasaki_sum,
-    max_kawasaki_sum,
     reciprocal_figure,
     shrink_rotate_pattern,
 )
+from eucare.flat_foldable import kawasaki_sum, max_kawasaki_sum
 from eucare.search_trees import face_bfs_tree
 
 

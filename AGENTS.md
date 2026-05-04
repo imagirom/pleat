@@ -92,7 +92,7 @@ Topological operators that transform tilings. Each operator defines a fundamenta
 
 ### Origami / Crease Patterns
 
-- **Reciprocal Figures** (`reciprocal_figures.py`): Dual crease patterns via rotated edge vectors. `make_SRG(G)` is the main entry point.
+- **Shrink Rotate Tesselations** (`shrink_rotate`): Dual crease patterns via rotated edge vectors. `make_SRG(G)` is the main entry point.
 - **Overlap** (`overlap.py`): Crease assignments (MOUNTAIN/VALLEY), face stacking order via ILP (PuLP), overlap graphs. `fold_complete(SRG)` runs the full pipeline.
 - **Cutting** (`cutting.py`): Cuts graphs along halfplanes for unfolding.
 
