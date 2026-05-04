@@ -99,6 +99,7 @@ def multi_show(
     figsize: tuple[float, float] | None = None,
     suptitle: str | None = None,
     cell_size: float = 4.0,
+    per_subplot_kwargs: list[dict] | None = None,
     **show_kwargs: object,
 ) -> None:
     """Render multiple half-edge graphs side-by-side in a matplotlib grid.
@@ -115,6 +116,8 @@ def multi_show(
         figsize: Matplotlib figure size; defaults to ``(cell_size*ncols, cell_size*nrows)``.
         suptitle: Optional figure-level title.
         cell_size: Per-cell size in matplotlib inches.
+        per_subplot_kwargs: Optional list of per-subplot kwargs dicts (one per graph)
+            that override ``show_kwargs`` for the corresponding subplot.
         **show_kwargs: Forwarded verbatim to each ``G.show(...)`` call
             (e.g. ``face_inset=0.05``, ``render_faces=True``).
     """
@@ -137,6 +140,11 @@ def multi_show(
     # Default to 512px PNGs unless the caller overrode it.
     show_kwargs.setdefault("height", 512)
 
+    if per_subplot_kwargs is None:
+        per_subplot_kwargs = [{} for _ in range(n)]
+    elif len(per_subplot_kwargs) != n:
+        raise ValueError(f"per_subplot_kwargs has length {len(per_subplot_kwargs)} but expected {n} (one per graph).")
+
     fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
     if nrows == 1 and ncols == 1:
         axes = np.array([[axes]])
@@ -157,7 +165,7 @@ def multi_show(
             real_display = _ipy_display.display
             _ipy_display.display = lambda *a, **kw: None
             try:
-                G.show(filename=base, **show_kwargs)
+                G.show(filename=base, **{**show_kwargs, **per_subplot_kwargs[i]})
             finally:
                 _ipy_display.display = real_display
             img = mpimg.imread(base + ".png")

@@ -31,8 +31,8 @@ from __future__ import annotations
 from .crease_orientation import (
     THIS_WAY,
     assign_this_way_by_distance,
+    assign_this_way_by_bfs,
     assign_this_way_by_face_area,
-    assign_this_way_by_face_bfs,
     assign_this_way_by_face_degree,
     assign_this_way_by_face_z_order,
     assign_this_way_by_vertex_z_order,

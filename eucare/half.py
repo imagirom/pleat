@@ -1016,7 +1016,7 @@ class HalfEdgeGraph:
         if initial_face is None:
             initial_face = next(iter(self.faces))
         yet_to_color = copy(self.faces)
-        frontier = {(initial_face, True)}
+        frontier = {(initial_face, False)}
         while frontier:
             face, label = frontier.pop()
             if face not in yet_to_color:
@@ -1594,16 +1594,6 @@ class GeometricHEG(InAngleHEG):
         from IPython.display import Image, display
 
         display(Image(filename))
-        return
-
-        # surface.finish()
-        img = mpimg.imread(filename)
-        if figsize is not None:
-            plt.figure(figsize=figsize)
-        plt.imshow(img)
-        plt.axis("off")
-        plt.tight_layout()
-        plt.show(block=block)
 
     def central_face(self) -> Face:
         """Return the face whose midpoint is closest to the origin (Euclidean only)."""

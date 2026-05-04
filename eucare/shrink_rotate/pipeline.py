@@ -115,7 +115,7 @@ def shrink_rotate_pattern(
             e["color_key"] = colors[e.attributes.get(CREASE_ASSIGNMENT, BORDER)]
 
         if simplify_boundary:
-            G.join_order_2_boundary_vertices()
+            SRG.join_order_2_boundary_vertices()
 
         mks = max_kawasaki_sum(SRG)
         if mks > 1e-12:
@@ -133,7 +133,7 @@ def assign_shrink_rotate_creases(SRG: HalfEdgeGraph) -> None:
     :data:`~eucare.shrink_rotate.crease_orientation.THIS_WAY` halfedge
     marks on the *original* graph (i.e. on the ``'pre_conway'`` faces of
     each twist face): on each interior edge of the original tiling, the
-    side carrying THIS_WAY indicates which neighbouring face lies *below*
+    side carrying THIS_WAY indicates which neighbouring face lies *above*
     in the folded model.
 
     For each twist face this routine walks around its boundary in
@@ -147,8 +147,7 @@ def assign_shrink_rotate_creases(SRG: HalfEdgeGraph) -> None:
 
     The function expects ``THIS_WAY`` to be set externally — see the
     helpers in :mod:`eucare.shrink_rotate.crease_orientation` for ways to
-    derive it from face/vertex z-order, BFS depth, distance from a point,
-    face degree, or face area.
+    derive it from the geometry of the original tiling.
     """
     twistfaces = [f for f in SRG.faces if "shrink_rotate" in f.attributes]
     for f in twistfaces:

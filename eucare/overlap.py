@@ -5,8 +5,10 @@ from __future__ import annotations
 import itertools
 import logging
 import os
+import sys
 import tempfile
 from collections import defaultdict
+from contextlib import contextmanager
 from copy import copy
 from functools import cmp_to_key
 from typing import TYPE_CHECKING
@@ -22,7 +24,7 @@ from tqdm.auto import tqdm
 from .base import orientation
 from .conversions import EHEG_from_nx
 from .layout import angle_to_height, min_edge_length, optimize_rotation, rotate_graph
-from .rendering import CairoRenderer, SvgwriteRenderer
+from .rendering import BORDER_COLOR, MOUNTAIN_COLOR, VALLEY_COLOR, CairoRenderer, SvgwriteRenderer, multi_show
 
 if TYPE_CHECKING:
     from .half import EuclideanPositionHEG, Face
@@ -636,21 +638,19 @@ Temporary utility functions - Have to make up mind on how to organize / where to
 """
 
 
-def fold_wireframe(G: "EuclideanPositionHEG", initial_face: "Face | None" = None) -> None:
-    """Fold a crease pattern in place by mirroring alternating faces about their shared edges."""
+def fold_wireframe(G: "EuclideanPositionHEG", initial_face: "Face | None" = None) -> "Face":
+    """Fold a crease pattern in place by mirroring alternating faces about their shared edges.
+
+    Returns the initial face used for two-coloring, which is guaranteed to be unflipped.
+    """
     if initial_face is None:
-        for f in G.faces:
-            pos = np.array([v["pos"] for v in f.vertex_iter()])
-            if np.all(np.min(pos, axis=0) <= 0) and np.all(np.max(pos, axis=0) > 0):
-                initial_face = f
-                break
-    if initial_face is None:
-        initial_face = next(iter(G.faces))
+        initial_face = G.central_face()
     G.twocolor_faces(initial_face=initial_face)
     for f in filter(lambda f: f["color_key"], G.faces):
         for e in f.halfedge_iter():
             e["in_angle"] *= -1
     G.recompute_positions()
+    return initial_face
 
 
 CREASE_ASSIGNMENT = "crease_assignment"
@@ -690,13 +690,13 @@ def face_order_to_clean_graph(
         False: top_color,
     }
 
-    if side == TOP:
+    if side == BOTTOM:
         layer = 0
     else:
         layer = -1
     for f in view.faces:
         key = f["sorted_original_faces"][layer].attributes["color_key"]
-        if side == BOTTOM:
+        if side == TOP:
             key = not key
         f["color_key"] = color_key_mapping[key]
 
@@ -732,7 +732,7 @@ def face_order_to_clean_graph(
 def color_creases(G: "EuclideanPositionHEG", colors: dict | None = None, color_border: bool = False) -> None:
     """Assign edge colors based on crease assignments (mountain=red, valley=blue, flat=black)."""
     if colors is None:
-        colors = {0: (0, 0, 0), 1: (1, 0, 0), -1: (0, 0, 1)}
+        colors = {0: BORDER_COLOR, 1: MOUNTAIN_COLOR, -1: VALLEY_COLOR}
     for e in G.halfedges:
         if not color_border and (e.on_border() or e.rev.on_border()):
             e["color_key"] = colors[0]
@@ -741,32 +741,211 @@ def color_creases(G: "EuclideanPositionHEG", colors: dict | None = None, color_b
 
 
 def fold_complete(
-    G: "EuclideanPositionHEG", initial_face: "Face | None" = None, overlap_eps: float = 1e-6, area_eps: float = 0
-) -> dict:
+    G: "EuclideanPositionHEG",
+    initial_face: "Face | None" = None,
+    overlap_eps: float = 1e-6,
+    area_eps: float = 0,
+    quiet: bool = False,
+) -> "FoldResult":
     """Fold a crease pattern and compute the full folded state, including overlap and stacking order.
 
-    Return a dict with keys 'CP', 'folded_state', 'folded_view_top', and 'folded_view_bottom'.
+    Args:
+        G: The crease pattern graph (mutated in place).
+        initial_face: Face to keep fixed during folding; auto-picked if ``None``.
+        overlap_eps: Distance tolerance used by :func:`overlap_graph`.
+        area_eps: Reserved; must be 0.
+        quiet: If True, suppress all progress bars and log output produced
+            during the pipeline.
+
+    Returns a :class:`FoldResult` with attributes/keys ``'CP'``,
+    ``'folded_state'``, ``'folded_view_top'``, and ``'folded_view_bottom'``.
     """
-    fold_wireframe(G, initial_face=initial_face)
-    over_under_pairs = get_over_under_pairs_from_creases(G)
-    result = dict()
-    G_over = overlap_graph(G, overlap_eps)
-    assert area_eps == 0, "Not implemented!"
-    crease_assignment = find_folded_face_order(G_over, over_under_pairs)
-    # make CP
-    for e in G.halfedges:
-        e[CREASE_ASSIGNMENT] = crease_assignment.get(e, 0)
-    color_creases(G)
-    fold_wireframe(G, initial_face=initial_face)
-    result["CP"] = G
-    result["folded_state"] = G_over
-    result["folded_view_top"] = face_order_to_clean_graph(G_over, TOP)
-    result["folded_view_bottom"] = face_order_to_clean_graph(G_over, BOTTOM)
-    return result
+    with _quiet_progress(quiet):
+        initial_face = fold_wireframe(G, initial_face=initial_face)
+        over_under_pairs = get_over_under_pairs_from_creases(G)
+        G_over = overlap_graph(G, overlap_eps)
+        assert area_eps == 0, "Not implemented!"
+        crease_assignment = find_folded_face_order(G_over, over_under_pairs)
+        # make CP
+        for e in G.halfedges:
+            e[CREASE_ASSIGNMENT] = crease_assignment.get(e, 0)
+        color_creases(G)
+        fold_wireframe(G, initial_face=initial_face)
+        return FoldResult(
+            CP=G,
+            folded_state=G_over,
+            folded_view_top=face_order_to_clean_graph(G_over, BOTTOM),
+            folded_view_bottom=face_order_to_clean_graph(G_over, TOP),
+        )
+
+
+@contextmanager
+def _quiet_progress(quiet: bool):
+    """Context manager: while ``quiet`` is True, silence this module's tqdm bars and logger."""
+    if not quiet:
+        yield
+        return
+
+    module = sys.modules[__name__]
+    original_tqdm = module.tqdm
+
+    def silent_tqdm(iterable=None, *args, **kwargs):
+        kwargs["disable"] = True
+        return original_tqdm(iterable, *args, **kwargs)
+
+    module.tqdm = silent_tqdm
+    previous_level = logger.level
+    previous_disabled = logger.disabled
+    logger.setLevel(logging.CRITICAL + 1)
+    logger.disabled = True
+    try:
+        yield
+    finally:
+        module.tqdm = original_tqdm
+        logger.setLevel(previous_level)
+        logger.disabled = previous_disabled
+
+
+class FoldResult(dict):
+    """Container for the output of :func:`fold_complete`.
+
+    Behaves like a dict for backwards compatibility (``result['CP']``) and
+    additionally exposes its entries as attributes (``result.CP``).  Any of
+    the slots may be ``None`` / missing.
+    """
+
+    _FIELDS = ("CP", "folded_state", "folded_view_top", "folded_view_bottom", "CP_for_origami_simulator")
+
+    def __init__(
+        self,
+        CP: "EuclideanPositionHEG | None" = None,
+        folded_state: "EuclideanPositionHEG | None" = None,
+        folded_view_top: "EuclideanPositionHEG | None" = None,
+        folded_view_bottom: "EuclideanPositionHEG | None" = None,
+        CP_for_origami_simulator: "EuclideanPositionHEG | None" = None,
+    ) -> None:
+        super().__init__()
+        for name, value in (
+            ("CP", CP),
+            ("folded_state", folded_state),
+            ("folded_view_top", folded_view_top),
+            ("folded_view_bottom", folded_view_bottom),
+            ("CP_for_origami_simulator", CP_for_origami_simulator),
+        ):
+            if value is not None:
+                self[name] = value
+
+    def __getattr__(self, name: str):
+        if name in self._FIELDS:
+            return self.get(name)
+        raise AttributeError(name)
+
+    def __setattr__(self, name: str, value) -> None:
+        if name in self._FIELDS:
+            if value is None:
+                self.pop(name, None)
+            else:
+                self[name] = value
+        else:
+            super().__setattr__(name, value)
+
+    def show(
+        self,
+        render_settings: dict | None = None,
+        opacity: float = 0.15,
+        ncols: int | None = 2,
+        suptitle: str | None = None,
+        cell_size: float = 4.0,
+    ) -> None:
+        """Display the available result graphs side-by-side via :func:`multi_show`.
+
+        Uses the same per-panel render settings as :func:`save_results`:
+        the CP is drawn without face fills, the top/bottom views with
+        half-thickness edges, and the folded state as a back-lit composite
+        with face opacity stacking.
+
+        Args:
+            render_settings: Base ``G.show`` kwargs; defaults to
+                ``dict(face_inset=0, render_vertices=False, render_faces=True, height=512)``.
+            opacity: Per-layer alpha used by the back-lit folded-state panel.
+            ncols: Number of columns in the matplotlib grid.
+            suptitle: Optional figure-level title.
+            cell_size: Per-cell size in matplotlib inches.
+        """
+        if render_settings is None:
+            render_settings = dict(face_inset=0, render_vertices=False, render_faces=True, height=512)
+        render_settings = copy(render_settings)
+
+        # Establish a consistent line width across the panels so the halved
+        # value used for top/bottom views matches save_results.
+        if render_settings.get("line_width", "auto") == "auto" and self.CP is not None:
+            render_settings["line_width"] = CairoRenderer.auto_line_width(self.CP)
+
+        graphs: list = []
+        titles: list[str] = []
+        per_subplot: list[dict] = []
+
+        if self.CP is not None:
+            graphs.append(self.CP)
+            titles.append("CP")
+            per_subplot.append(dict(render_faces=False))
+
+        if self.folded_state is not None:
+            # Back-lit composite: faces only, with stacking-derived opacity.
+            for f in self.folded_state.faces:
+                if "original_faces" in f:
+                    f["color_key"] = [0, 0, 0, 1 - (1 - opacity) ** (len(f["original_faces"]))]
+                else:
+                    f["color_key"] = [0, 0, 0, opacity]
+            graphs.append(self.folded_state)
+            titles.append("folded (backlit)")
+            per_subplot.append(dict(render_edges=False, render_faces=True, line_width=0))
+
+        if self.folded_view_top is not None:
+            graphs.append(self.folded_view_top)
+            titles.append("folded (top)")
+            per_subplot.append(dict(line_width=render_settings.get("line_width", "auto")))
+            if isinstance(per_subplot[-1]["line_width"], (int, float)):
+                per_subplot[-1]["line_width"] = per_subplot[-1]["line_width"] / 2
+
+        if self.folded_view_bottom is not None:
+            graphs.append(self.folded_view_bottom)
+            titles.append("folded (bottom)")
+            per_subplot.append(dict(line_width=render_settings.get("line_width", "auto")))
+            if isinstance(per_subplot[-1]["line_width"], (int, float)):
+                per_subplot[-1]["line_width"] = per_subplot[-1]["line_width"] / 2
+
+        if self.CP_for_origami_simulator is not None:
+            graphs.append(self.CP_for_origami_simulator)
+            titles.append("CP (origami simulator)")
+            per_subplot.append(dict(render_faces=False))
+
+        if not graphs:
+            return
+
+        multi_show(
+            graphs,
+            titles=titles,
+            ncols=ncols,
+            suptitle=suptitle,
+            cell_size=cell_size,
+            per_subplot_kwargs=per_subplot,
+            **render_settings,
+        )
+
+    def save(self, path: str, **save_results_kwargs):
+        """Convenience wrapper around :func:`save_results`."""
+        save_results(self, path=path, **save_results_kwargs)
 
 
 def save_results(
-    results, path="results", render_settings=None, min_foldable_length=None, bbox=None, extra_info=None, opacity=0.15
+    results,
+    path: str = "results",
+    render_settings: dict | None = None,
+    min_foldable_length: float | None = None,
+    bbox: tuple[float, float] | None = None,
+    extra_info: str = None,
+    opacity: float = 0.15,
 ):
     """Save rendered crease pattern, folded views, and a plotter-ready SVG to a directory.
 
@@ -865,8 +1044,7 @@ def save_results(
 def remove_duplicates(G: "EuclideanPositionHEG", eps: float = 1e-6, exclude_edges=()) -> "EuclideanPositionHEG":
     """Merge duplicate vertices and edges within eps distance, returning a clean graph.
 
-    The faces of the resulting graph are built from scratch based on the new edges, so this only works
-    for planar graphs.
+    The faces of the resulting graph are built from scratch based on the new edges, so this only works for planar graphs.
     """
     vs = list(G.vertices)
     pos = np.stack([v["pos"] for v in vs])

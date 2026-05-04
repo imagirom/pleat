@@ -13,37 +13,37 @@ topology variant).
 
 from __future__ import annotations
 
-from .flat_foldable import kawasaki_sum, max_kawasaki_sum
-from .shrink_rotate import (
-    THIS_WAY,
-    assign_shrink_rotate_creases,
-    assign_this_way_by_distance,
-    assign_this_way_by_face_area,
-    assign_this_way_by_face_bfs,
-    assign_this_way_by_face_degree,
-    assign_this_way_by_face_z_order,
-    assign_this_way_by_vertex_z_order,
-    assign_this_way_from_center,
-    clear_this_way,
-    reciprocal_figure,
-    shrink_rotate_pattern,
-)
-from .utils import random_directed_set
+# from .flat_foldable import kawasaki_sum, max_kawasaki_sum
+# from .shrink_rotate import (
+#     THIS_WAY,
+#     assign_shrink_rotate_creases,
+#     assign_this_way_by_distance,
+#     assign_this_way_by_face_area,
+#     assign_this_way_by_face_bfs,
+#     assign_this_way_by_face_degree,
+#     assign_this_way_by_face_z_order,
+#     assign_this_way_by_vertex_z_order,
+#     assign_this_way_from_center,
+#     clear_this_way,
+#     reciprocal_figure,
+#     shrink_rotate_pattern,
+# )
+# from .utils import random_directed_set
 
-__all__ = [
-    "THIS_WAY",
-    "assign_shrink_rotate_creases",
-    "assign_this_way_by_distance",
-    "assign_this_way_by_face_area",
-    "assign_this_way_by_face_bfs",
-    "assign_this_way_by_face_degree",
-    "assign_this_way_by_face_z_order",
-    "assign_this_way_by_vertex_z_order",
-    "assign_this_way_from_center",
-    "clear_this_way",
-    "kawasaki_sum",
-    "max_kawasaki_sum",
-    "random_directed_set",
-    "reciprocal_figure",
-    "shrink_rotate_pattern",
-]
+# __all__ = [
+#     "THIS_WAY",
+#     "assign_shrink_rotate_creases",
+#     "assign_this_way_by_distance",
+#     "assign_this_way_by_face_area",
+#     "assign_this_way_by_face_bfs",
+#     "assign_this_way_by_face_degree",
+#     "assign_this_way_by_face_z_order",
+#     "assign_this_way_by_vertex_z_order",
+#     "assign_this_way_from_center",
+#     "clear_this_way",
+#     "kawasaki_sum",
+#     "max_kawasaki_sum",
+#     "random_directed_set",
+#     "reciprocal_figure",
+#     "shrink_rotate_pattern",
+# ]

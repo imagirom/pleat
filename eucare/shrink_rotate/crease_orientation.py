@@ -1,15 +1,11 @@
 """Halfedge orientation marks for crease pattern stacking order.
 
 Many origami pipelines need to know, for each interior edge, which of the
-two adjacent faces is "above" the other in the folded model. We encode
+two adjacent faces is above the other in the folded model. We encode
 this via a single halfedge attribute, the **THIS_WAY** mark:
 
-    The face whose halfedge carries ``THIS_WAY`` lies *below* the face on
+    The face whose halfedge carries ``THIS_WAY`` lies *above* the face on
     the opposite side, in the folded model.
-
-(The naming is a historical artifact; the mark is consumed by
-:func:`eucare.shrink_rotate.assign_shrink_rotate_creases` to choose
-mountain vs. valley fold assignments for the crease pattern.)
 
 This module provides several strategies for setting THIS_WAY automatically.
 All assigners share two important conventions:
@@ -56,11 +52,11 @@ from typing import Iterable
 import numpy as np
 
 from .. import base
-from ..half import Face, HalfEdgeGraph
-from ..search_trees import face_bfs_tree
+from ..half import Face, HalfEdgeGraph, Vertex
+from ..search_trees import face_bfs_tree, vertex_bfs_tree
 
 THIS_WAY = "this_way"
-"""Halfedge attribute name marking the *lower* side of an interior edge."""
+"""Halfedge attribute name marking the *upper* side of an interior edge (h.face will lie above h.rev.face)."""
 
 
 def _interior_unassigned_halfedges(G: HalfEdgeGraph) -> Iterable:
@@ -88,7 +84,7 @@ def assign_this_way_by_face_z_order(G: HalfEdgeGraph, key: str = "z_order") -> N
 
     The halfedge whose face has the *larger* value of ``key`` is left
     unmarked; the opposite halfedge gets THIS_WAY (i.e. its face lies
-    below). Ties are broken using the mean ``key`` over the faces incident
+    above). Ties are broken using the mean ``key`` over the faces incident
     to each endpoint.
 
     Skips edges that already have THIS_WAY assigned on either side.
@@ -128,25 +124,37 @@ def assign_this_way_by_vertex_z_order(G: HalfEdgeGraph, key: str = "z_order") ->
                 e.rev[THIS_WAY] = True
 
 
-def _bfs_face_depth(G: HalfEdgeGraph, source: Face) -> dict:
+def _bfs_face_depth(source: Face | set[Face]) -> dict:
     """Return BFS depth (#face-adjacencies from *source*) keyed by face id."""
-    depth = {id(source): 0}
-    queue = deque([source])
-    while queue:
-        f = queue.popleft()
-        d = depth[id(f)]
-        for e in f.halfedge_iter():
-            if e.rev.on_border():
-                continue
-            f2 = e.rev.face
-            if id(f2) in depth:
-                continue
-            depth[id(f2)] = d + 1
-            queue.append(f2)
+    depth = {source: 0} if isinstance(source, Face) else {f: 0 for f in source}
+    for orig, dest in face_bfs_tree(source):
+        depth[dest] = depth[orig] + 1
     return depth
 
 
-def assign_this_way_by_face_bfs(G: HalfEdgeGraph, source: Face) -> None:
+def _bfs_vertex_depth(source: Vertex | set[Vertex]) -> dict:
+    """Return BFS depth (#edge-adjacencies from *source*) keyed by vertex id."""
+    depth = {source: 0} if isinstance(source, Vertex) else {v: 0 for v in source}
+    for orig, dest in vertex_bfs_tree(source):
+        depth[dest] = depth[orig] + 1
+    return depth
+
+
+def assign_this_way_by_bfs(G: HalfEdgeGraph, source: Vertex | Face | set[Vertex] | set[Face]) -> None:
+    """Use BFS depth from *source* face: shallower lies on top.
+
+    Skips edges that already have THIS_WAY assigned on either side.
+    """
+    if not isinstance(source, set):
+        source = {source}
+    source_faces = {f for s in source for f in (s.true_face_iter() if isinstance(s, Vertex) else [s])}
+    source_vertices = {v for s in source for v in (s.vertex_iter() if isinstance(s, Face) else [s])}
+
+    assign_this_way_by_face_bfs(G, source_faces)  # primary: face BFS
+    assign_this_way_by_vertex_bfs(G, source_vertices)  # tiebreaker: vertex BFS
+
+
+def assign_this_way_by_face_bfs(G: HalfEdgeGraph, source: Face | set[Face]) -> None:
     """Use BFS depth from *source* face: shallower faces lie on top.
 
     Faces visited later (greater BFS depth) are marked as lying below; the
@@ -156,17 +164,37 @@ def assign_this_way_by_face_bfs(G: HalfEdgeGraph, source: Face) -> None:
     Skips edges that already have THIS_WAY assigned on either side.
     """
     # Reuse the canonical BFS spanner so the traversal matches other helpers.
-    _ = face_bfs_tree(G, source)
-    depth = _bfs_face_depth(G, source)
+    depth = _bfs_face_depth(source)
     for e in _interior_unassigned_halfedges(G):
-        d_here = depth.get(id(e.face))
-        d_other = depth.get(id(e.rev.face))
+        d_here = depth.get(e.face)
+        d_other = depth.get(e.rev.face)
         if d_here is None or d_other is None:
             continue
         if d_here > d_other:
-            e[THIS_WAY] = True
-        elif d_other > d_here:
             e.rev[THIS_WAY] = True
+        elif d_other > d_here:
+            e[THIS_WAY] = True
+
+
+def assign_this_way_by_vertex_bfs(G: HalfEdgeGraph, source: Vertex | set[Vertex]) -> None:
+    """Use BFS depth from *source* vertex: shallower faces lie on top.
+
+    Faces visited later (greater BFS depth) are marked as lying below; the
+    halfedge of the deeper-visited face on each interior edge gets
+    THIS_WAY.
+
+    Skips edges that already have THIS_WAY assigned on either side.
+    """
+    depth = _bfs_vertex_depth(source)
+    for e in _interior_unassigned_halfedges(G):
+        d_here = depth.get(e.orig)
+        d_other = depth.get(e.dest)
+        if d_here is None or d_other is None:
+            continue
+        if d_here > d_other:
+            e.rev[THIS_WAY] = True
+        elif d_other > d_here:
+            e[THIS_WAY] = True
 
 
 def _graph_centroid(G: HalfEdgeGraph) -> np.ndarray:
@@ -206,9 +234,16 @@ def assign_this_way_by_distance(G: HalfEdgeGraph, point=None) -> None:
         d_here = float(np.linalg.norm(np.asarray(e.face.midpoint()) - point))
         d_other = float(np.linalg.norm(np.asarray(e.rev.face.midpoint()) - point))
         if d_here > d_other:
-            e[THIS_WAY] = True
-        elif d_other > d_here:
             e.rev[THIS_WAY] = True
+        elif d_other > d_here:
+            e[THIS_WAY] = True
+        else:  # faces have the same distance; go by distance of endpoints of the edge
+            d_orig = float(np.linalg.norm(np.asarray(e.orig["pos"]) - point))
+            d_dest = float(np.linalg.norm(np.asarray(e.dest["pos"]) - point))
+            if d_orig > d_dest:
+                e.rev[THIS_WAY] = True
+            elif d_dest > d_orig:
+                e[THIS_WAY] = True
 
 
 def assign_this_way_by_face_degree(G: HalfEdgeGraph, larger_on_top: bool = True) -> None:
@@ -225,16 +260,10 @@ def assign_this_way_by_face_degree(G: HalfEdgeGraph, larger_on_top: bool = True)
         if d_here == d_other:
             continue
         higher = (d_here > d_other) == larger_on_top
-        # *higher* faces lie on top, so the *lower* face's halfedge gets THIS_WAY.
         if higher:
-            e.rev[THIS_WAY] = True
-        else:
             e[THIS_WAY] = True
-
-
-def _signed_area(face: Face) -> float:
-    pts = np.array([v["pos"] for v in face.vertex_iter()])
-    return abs(base.signed_area(pts))
+        else:
+            e.rev[THIS_WAY] = True
 
 
 def assign_this_way_by_face_area(G: HalfEdgeGraph, larger_on_top: bool = True) -> None:
@@ -245,14 +274,14 @@ def assign_this_way_by_face_area(G: HalfEdgeGraph, larger_on_top: bool = True) -
 
     Skips already-assigned edges.
     """
-    areas = {id(f): _signed_area(f) for f in G.faces if not f.on_border()}
+    areas = {f: f.area() for f in G.faces if not f.on_border()}
     for e in _interior_unassigned_halfedges(G):
-        a_here = areas.get(id(e.face))
-        a_other = areas.get(id(e.rev.face))
+        a_here = areas.get(e.face)
+        a_other = areas.get(e.rev.face)
         if a_here is None or a_other is None or a_here == a_other:
             continue
         higher = (a_here > a_other) == larger_on_top
         if higher:
-            e.rev[THIS_WAY] = True
-        else:
             e[THIS_WAY] = True
+        else:
+            e.rev[THIS_WAY] = True

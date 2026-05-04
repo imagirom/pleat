@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-def bfs_tree(start: T | set[T], neighbor_iter: Callable[[T], Iterable[T]]) -> list[tuple[T, T]]:
+def bfs_tree(source: T | set[T], neighbor_iter: Callable[[T], Iterable[T]]) -> list[tuple[T, T]]:
     """Compute a BFS spanning-tree edge list starting from a node or set.
 
     Args:
@@ -25,7 +25,7 @@ def bfs_tree(start: T | set[T], neighbor_iter: Callable[[T], Iterable[T]]) -> li
     Returns:
         ``(parent, child)`` pairs in BFS discovery order.
     """
-    boundary = start if isinstance(start, set) else {start}
+    boundary = source if isinstance(source, set) else {source}
     parsed = boundary.copy()
     edges: list[tuple[T, T]] = []
     while boundary:
@@ -40,11 +40,11 @@ def bfs_tree(start: T | set[T], neighbor_iter: Callable[[T], Iterable[T]]) -> li
     return edges
 
 
-def face_bfs_tree(start: "Face | set[Face]") -> list[tuple["Face", "Face"]]:
+def face_bfs_tree(source: "Face | set[Face]") -> list[tuple["Face", "Face"]]:
     """BFS tree over faces (interior faces only; ``None`` boundary faces are skipped)."""
-    return bfs_tree(start, lambda f: (f2 for f2 in f.face_iter() if f2 is not None))
+    return bfs_tree(source, lambda f: (f2 for f2 in f.face_iter() if f2 is not None))
 
 
-def vertex_bfs_tree(start: "Vertex | set[Vertex]") -> list[tuple["Vertex", "Vertex"]]:
+def vertex_bfs_tree(source: "Vertex | set[Vertex]") -> list[tuple["Vertex", "Vertex"]]:
     """BFS tree over vertices, traversing along incident edges."""
-    return bfs_tree(start, lambda v: v.vertex_iter())
+    return bfs_tree(source, lambda v: v.vertex_iter())
