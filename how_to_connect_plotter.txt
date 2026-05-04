@@ -1,4 +1,0 @@
-1. Plug cable into laptop
-2. Plug cable into printer
-The printer should show under /dev/usb/
-The order matters!
