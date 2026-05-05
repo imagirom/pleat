@@ -2,7 +2,8 @@
 
 Thresholds an input image, skeletonises the foreground, and reconstructs a
 planar graph from the skeleton via :mod:`mahotas` and :mod:`networkx`.
-Intended for digitising hand-drawn or scanned crease patterns.
+
+Intended for digitising hand-drawn or otherwise genereated images of line drawings.
 """
 
 from __future__ import annotations
