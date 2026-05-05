@@ -45,7 +45,7 @@ Tests are organized in `tests/`:
 ```bash
 uv run --extra dev black --check eucare tests  # formatting check
 uv run --extra dev black eucare tests          # auto-format
-pre-commit install                    # enable pre-commit hooks (black + standard hygiene)
+pre-commit install                    # enable pre-commit hooks (black + notebook stripping)
 ```
 
 GitHub Actions CI runs on every push/PR (see `.github/workflows/ci.yml`):
@@ -61,7 +61,7 @@ DISABLE_MKDOCS_2_WARNING=true mkdocs serve    # dev server at http://127.0.0.1:8
 DISABLE_MKDOCS_2_WARNING=true mkdocs build    # static site to site/
 ```
 
-API docs are auto-generated from docstrings via mkdocstrings. Notebooks in `docs/notebooks/` are rendered via mkdocs-jupyter (execute: false — outputs must be pre-saved in the notebook). The `DISABLE_MKDOCS_2_WARNING=true` flag suppresses a spurious deprecation warning injected by the `properdocs` transitive dependency.
+API docs are auto-generated from docstrings via mkdocstrings. Notebooks in `docs/notebooks/` are rendered via mkdocs-jupyter and executed during the docs build. The `DISABLE_MKDOCS_2_WARNING=true` flag suppresses a spurious deprecation warning injected by the `properdocs` transitive dependency.
 
 ## Architecture
 

@@ -904,9 +904,53 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+all = [
+    { name = "black" },
+    { name = "einops" },
+    { name = "fastcluster" },
+    { name = "ipympl" },
+    { name = "ipywidgets" },
+    { name = "jupyter" },
+    { name = "mahotas" },
+    { name = "matplotlib" },
+    { name = "meshio" },
+    { name = "mkdocs-gen-files" },
+    { name = "mkdocs-jupyter" },
+    { name = "mkdocs-literate-nav" },
+    { name = "mkdocs-material" },
+    { name = "mkdocstrings", extra = ["python"] },
+    { name = "mypy" },
+    { name = "nbstripout" },
+    { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "networkx", version = "3.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "numba" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "plotly" },
+    { name = "pre-commit" },
+    { name = "pulp" },
+    { name = "pycairo" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pyyaml" },
+    { name = "rdp" },
+    { name = "scikit-image", version = "0.25.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scikit-image", version = "0.26.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scikit-learn", version = "1.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "svgpathtools" },
+    { name = "svgwrite" },
+    { name = "sympy" },
+    { name = "torch" },
+    { name = "tqdm" },
+    { name = "widgetsnbextension" },
+]
 dev = [
     { name = "black" },
     { name = "mypy" },
+    { name = "nbstripout" },
     { name = "plotly" },
     { name = "pre-commit" },
     { name = "pytest" },
@@ -914,14 +958,20 @@ dev = [
     { name = "rdp" },
 ]
 docs = [
+    { name = "ipympl" },
+    { name = "ipywidgets" },
+    { name = "jupyter" },
     { name = "mahotas" },
     { name = "mkdocs-gen-files" },
     { name = "mkdocs-jupyter" },
     { name = "mkdocs-literate-nav" },
     { name = "mkdocs-material" },
     { name = "mkdocstrings", extra = ["python"] },
+    { name = "plotly" },
+    { name = "rdp" },
     { name = "scikit-image", version = "0.25.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scikit-image", version = "0.26.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "widgetsnbextension" },
 ]
 image = [
     { name = "mahotas" },
@@ -948,47 +998,90 @@ torch = [
 
 [package.metadata]
 requires-dist = [
+    { name = "black", marker = "extra == 'all'" },
     { name = "black", marker = "extra == 'dev'" },
+    { name = "einops", marker = "extra == 'all'" },
     { name = "einops", marker = "extra == 'torch'" },
     { name = "fastcluster" },
+    { name = "fastcluster", marker = "extra == 'all'" },
+    { name = "ipympl", marker = "extra == 'all'" },
+    { name = "ipympl", marker = "extra == 'docs'" },
     { name = "ipympl", marker = "extra == 'notebook'" },
+    { name = "ipywidgets", marker = "extra == 'all'" },
+    { name = "ipywidgets", marker = "extra == 'docs'" },
     { name = "ipywidgets", marker = "extra == 'notebook'" },
+    { name = "jupyter", marker = "extra == 'all'" },
+    { name = "jupyter", marker = "extra == 'docs'" },
     { name = "jupyter", marker = "extra == 'notebook'" },
+    { name = "mahotas", marker = "extra == 'all'" },
     { name = "mahotas", marker = "extra == 'docs'" },
     { name = "mahotas", marker = "extra == 'image'" },
     { name = "matplotlib" },
+    { name = "matplotlib", marker = "extra == 'all'" },
+    { name = "meshio", marker = "extra == 'all'" },
     { name = "meshio", marker = "extra == 'threed'" },
+    { name = "mkdocs-gen-files", marker = "extra == 'all'" },
     { name = "mkdocs-gen-files", marker = "extra == 'docs'" },
+    { name = "mkdocs-jupyter", marker = "extra == 'all'" },
     { name = "mkdocs-jupyter", marker = "extra == 'docs'" },
+    { name = "mkdocs-literate-nav", marker = "extra == 'all'" },
     { name = "mkdocs-literate-nav", marker = "extra == 'docs'" },
+    { name = "mkdocs-material", marker = "extra == 'all'" },
     { name = "mkdocs-material", marker = "extra == 'docs'" },
+    { name = "mkdocstrings", extras = ["python"], marker = "extra == 'all'" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'" },
+    { name = "mypy", marker = "extra == 'all'" },
     { name = "mypy", marker = "extra == 'dev'" },
+    { name = "nbstripout", marker = "extra == 'all'" },
+    { name = "nbstripout", marker = "extra == 'dev'" },
     { name = "networkx" },
+    { name = "networkx", marker = "extra == 'all'" },
     { name = "numba" },
+    { name = "numba", marker = "extra == 'all'" },
     { name = "numpy" },
+    { name = "numpy", marker = "extra == 'all'" },
+    { name = "plotly", marker = "extra == 'all'" },
     { name = "plotly", marker = "extra == 'dev'" },
+    { name = "plotly", marker = "extra == 'docs'" },
     { name = "plotly", marker = "extra == 'intersecting-cylinders'" },
+    { name = "pre-commit", marker = "extra == 'all'" },
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "pulp" },
+    { name = "pulp", marker = "extra == 'all'" },
     { name = "pycairo" },
+    { name = "pycairo", marker = "extra == 'all'" },
+    { name = "pytest", marker = "extra == 'all'" },
     { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-cov", marker = "extra == 'all'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "pyyaml" },
+    { name = "pyyaml", marker = "extra == 'all'" },
+    { name = "rdp", marker = "extra == 'all'" },
     { name = "rdp", marker = "extra == 'dev'" },
+    { name = "rdp", marker = "extra == 'docs'" },
     { name = "rdp", marker = "extra == 'intersecting-cylinders'" },
+    { name = "scikit-image", marker = "extra == 'all'" },
     { name = "scikit-image", marker = "extra == 'docs'" },
     { name = "scikit-image", marker = "extra == 'image'" },
     { name = "scikit-learn" },
+    { name = "scikit-learn", marker = "extra == 'all'" },
     { name = "scipy" },
+    { name = "scipy", marker = "extra == 'all'" },
     { name = "svgpathtools" },
+    { name = "svgpathtools", marker = "extra == 'all'" },
     { name = "svgwrite" },
+    { name = "svgwrite", marker = "extra == 'all'" },
     { name = "sympy" },
+    { name = "sympy", marker = "extra == 'all'" },
+    { name = "torch", marker = "extra == 'all'" },
     { name = "torch", marker = "extra == 'torch'" },
     { name = "tqdm" },
+    { name = "tqdm", marker = "extra == 'all'" },
+    { name = "widgetsnbextension", marker = "extra == 'all'" },
+    { name = "widgetsnbextension", marker = "extra == 'docs'" },
     { name = "widgetsnbextension", marker = "extra == 'notebook'" },
 ]
-provides-extras = ["notebook", "threed", "torch", "image", "intersecting-cylinders", "dev", "docs"]
+provides-extras = ["notebook", "threed", "torch", "image", "intersecting-cylinders", "dev", "docs", "all"]
 
 [[package]]
 name = "exceptiongroup"
@@ -2526,6 +2619,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/6d/fd/91545e604bc3dad7dca9ed03284086039b294c6b3d75c0d2fa45f9e9caf3/nbformat-5.10.4.tar.gz", hash = "sha256:322168b14f937a5d11362988ecac2a4952d3d8e3a2cbeb2319584631226d5b3a", size = 142749, upload-time = "2024-04-04T11:20:37.371Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a9/82/0340caa499416c78e5d8f5f05947ae4bc3cba53c9f038ab6e9ed964e22f1/nbformat-5.10.4-py3-none-any.whl", hash = "sha256:3b48d6c8fbca4b299bf3982ea7db1af21580e4fec269ad087b9e81588891200b", size = 78454, upload-time = "2024-04-04T11:20:34.895Z" },
+]
+
+[[package]]
+name = "nbstripout"
+version = "0.9.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nbformat" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f9/6f/b52c4da26babeb521078c08c78c3187a59197098ffc7a70b0fe76851813a/nbstripout-0.9.1.tar.gz", hash = "sha256:313bbb4217c8e38998567e5d790b6bd6c3a17a8c39073b205b84dadfc5d756dc", size = 32356, upload-time = "2026-02-21T16:19:55.975Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/20/16/e777eadfa0c0305878c36fae1d5e6db474fbb15dae202b9ec378809dfb4d/nbstripout-0.9.1-py3-none-any.whl", hash = "sha256:ca027ee45742ee77e4f8e9080254f9a707f1161ba11367b82fdf4a29892c759e", size = 19136, upload-time = "2026-02-21T16:19:54.868Z" },
 ]
 
 [[package]]

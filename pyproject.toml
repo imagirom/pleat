@@ -26,8 +26,46 @@ threed = ["meshio"]
 torch = ["torch", "einops"]
 image = ["scikit-image", "mahotas"]
 intersecting_cylinders = ["rdp", "plotly"]
-dev = ["pytest", "pytest-cov", "black", "mypy", "pre-commit", "rdp", "plotly"]
-docs = ["mkdocs-material", "mkdocstrings[python]", "mkdocs-gen-files", "mkdocs-literate-nav", "mkdocs-jupyter", "scikit-image", "mahotas"]
+dev = ["pytest", "pytest-cov", "black", "mypy", "pre-commit", "nbstripout", "rdp", "plotly"]
+docs = [
+    "mkdocs-material",
+    "mkdocstrings[python]",
+    "mkdocs-gen-files",
+    "mkdocs-literate-nav",
+    "mkdocs-jupyter",
+    "jupyter",
+    "ipywidgets",
+    "ipympl",
+    "widgetsnbextension",
+    "scikit-image",
+    "mahotas",
+    "rdp",
+    "plotly",
+]
+all = [
+    "jupyter",
+    "ipywidgets",
+    "ipympl",
+    "widgetsnbextension",
+    "meshio",
+    "torch",
+    "einops",
+    "scikit-image",
+    "mahotas",
+    "rdp",
+    "plotly",
+    "pytest",
+    "pytest-cov",
+    "black",
+    "mypy",
+    "pre-commit",
+    "nbstripout",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+    "mkdocs-gen-files",
+    "mkdocs-literate-nav",
+    "mkdocs-jupyter",
+]
 
 [build-system]
 requires = ["hatchling"]

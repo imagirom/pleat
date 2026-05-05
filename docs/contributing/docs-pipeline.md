@@ -18,7 +18,9 @@ The `docs` extra installs:
 | `mkdocstrings[python]` | Auto-generates API pages from docstrings |
 | `mkdocs-gen-files` | Runs `docs/gen_ref_pages.py` at build time to create `reference/*.md` |
 | `mkdocs-literate-nav` | Reads the generated `reference/SUMMARY.md` to populate the API nav |
-| `mkdocs-jupyter` | Renders Jupyter notebooks (with pre-saved outputs) as docs pages |
+| `mkdocs-jupyter` | Renders and executes Jupyter notebooks as docs pages |
+| `jupyter`, `ipywidgets`, `ipympl` | Runtime needed for the published notebook examples |
+| `scikit-image`, `mahotas`, `rdp`, `plotly` | Optional stacks required by notebooks currently published in the docs |
 
 ## Build and Preview
 
@@ -32,6 +34,8 @@ DISABLE_MKDOCS_2_WARNING=true mkdocs build
 
 The `DISABLE_MKDOCS_2_WARNING=true` flag suppresses a spurious deprecation warning
 injected by `properdocs`, a transitive dependency that is a fork of MkDocs.
+
+Notebook pages are executed during the build, so the published docs do not rely on committed cell outputs.
 
 ## How API Reference Pages Are Generated
 
@@ -50,20 +54,15 @@ Docstrings use **Google style**. mkdocstrings extracts them and renders sections
 
 ## Adding Example Notebooks
 
-1. Develop and save the notebook in `notebooks/` with all cell outputs present
-   (mkdocs-jupyter renders saved outputs; it does **not** re-execute cells).
-2. Create a symlink in `docs/notebooks/`:
-   ```bash
-   cd docs/notebooks
-   ln -s "../../notebooks/My New Notebook.ipynb" "My New Notebook.ipynb"
-   ```
-3. Add an entry to the **Notebooks** section in `mkdocs.yml`:
+1. Add or move the notebook into `docs/notebooks/`.
+2. Add an entry to the **Notebooks** section in `mkdocs.yml`:
    ```yaml
    - Notebooks:
        - My New Notebook: notebooks/My New Notebook.ipynb
    ```
+3. Run `DISABLE_MKDOCS_2_WARNING=true mkdocs build` and fix any missing runtime dependencies before committing.
 
-Using symlinks (rather than copies) means the docs always reflect the live notebook.
+The docs build executes notebooks from source, so committed outputs in `docs/notebooks/` are optional. The pre-commit configuration deliberately skips output stripping for `docs/notebooks/`, while stripping outputs from notebooks elsewhere in the repository.
 
 ### Interactive widgets (ipywidgets)
 
@@ -72,7 +71,17 @@ widget rendering. However, **interactive widgets** (sliders, dropdowns) require 
 Python kernel and will not be functional on the static site — they fall back to their
 `text/plain` representation. To show a meaningful static output, save a plain matplotlib
 figure alongside the widget cell, or replace the widget with a static figure before
-committing the notebook to `notebooks/`.
+committing the notebook to `docs/notebooks/`.
+
+## Notebook Outputs And Commits
+
+Install the hooks once per clone:
+
+```bash
+pre-commit install
+```
+
+The repository uses `nbstripout` in pre-commit to remove cell outputs from notebooks on commit, except for notebooks under `docs/notebooks/`. That keeps exploratory notebooks lightweight while leaving the published docs notebooks free to carry checked-in outputs when that is useful.
 
 ### Notebook headings
 

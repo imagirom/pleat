@@ -9,6 +9,12 @@ uv venv --python 3.10
 uv pip install -e ".[dev]"
 ```
 
+For a full local setup with docs, notebooks, and optional feature stacks, install:
+
+```bash
+uv pip install -e ".[all]"
+```
+
 ## With pip
 
 ```bash
@@ -19,17 +25,22 @@ pip install -e ".[dev]"
 
 | Extra | Packages | Purpose |
 |-------|----------|---------|
-| `dev` | pytest, pytest-cov, black | Testing and formatting |
-| `docs` | mkdocs-material, mkdocstrings | Documentation |
-| `notebook` | jupyter, ipywidgets, ipympl | Interactive notebooks |
+| `dev` | pytest, pytest-cov, black, mypy, pre-commit, nbstripout | Testing, formatting, and commit hooks |
+| `docs` | mkdocs-material, mkdocstrings, mkdocs-jupyter, notebook runtime, image + intersecting-cylinders deps | Documentation, including executing the published notebooks during `mkdocs build` |
+| `notebook` | jupyter, ipywidgets, ipympl, widgetsnbextension | Interactive notebooks |
 | `threed` | meshio | 3D mesh export (STL) |
 | `torch` | torch, einops | Optimization (e.g. flagstone fitting) |
+| `image` | scikit-image, mahotas | Image-to-graph pipeline |
+| `intersecting_cylinders` | rdp, plotly | Intersecting-cylinders module |
+| `all` | Union of all optional extras | Convenience install for local development |
 
 Install multiple extras at once:
 
 ```bash
 uv pip install -e ".[dev,docs,notebook]"
 ```
+
+Keeping focused extras is normal practice: it keeps installs smaller and makes feature-specific requirements explicit. The `all` extra is the convenience path when you do want everything available in one environment.
 
 ## External dependencies
 
