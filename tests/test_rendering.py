@@ -202,3 +202,23 @@ def test_rendering_show_headless_is_noop(monkeypatch):
     r = _dummy_rendering()
     assert r.show() is None
     assert called == []  # headless (Agg) backend -> early return, no display attempted
+
+
+def test_geometric_render_returns_rendering():
+    G = rosette(n=6)
+    rendering = G.render(width=64, height=64)
+    assert rendering.svg_bytes and rendering.png_bytes
+
+
+def test_geometric_save_writes_both(tmp_path):
+    G = rosette(n=6)
+    G.save(str(tmp_path / "g"), width=64, height=64)
+    assert (tmp_path / "g.svg").exists()
+    assert (tmp_path / "g.png").exists()
+
+
+def test_geometric_show_headless_no_files(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    G = rosette(n=6)
+    assert G.show(width=64, height=64) is None
+    assert list(tmp_path.iterdir()) == []
