@@ -480,7 +480,7 @@ class CairoRenderer:
         render_faces: bool = True,
         render_edges: bool = True,
         for_cutting: bool = False,
-    ) -> None:
+    ) -> "Rendering":
         """Render the whole *graph* (faces, edges, vertices) onto the cairo surface.
 
         Args:
@@ -490,6 +490,9 @@ class CairoRenderer:
             render_edges: Whether to draw edges.
             for_cutting: Reorder edges to minimise pen-up moves on a plotter.
                 Currently raises :class:`NotImplementedError`.
+
+        Returns:
+            A :class:`Rendering` holding the SVG and PNG bytes.
         """
         svg_buf = BytesIO()
         self.surface = cairo.SVGSurface(svg_buf, self.width, self.height)
