@@ -38,6 +38,18 @@ def _in_jupyter() -> bool:
     return shell is not None and shell.__class__.__name__ == "ZMQInteractiveShell"
 
 
+# matplotlib backends that have no GUI window — calling plt.show() on them is a
+# no-op that only emits a warning, so we skip it for graceful headless behaviour.
+_NON_INTERACTIVE_BACKENDS = {"agg", "cairo", "pdf", "pgf", "ps", "svg", "template"}
+
+
+def _headless() -> bool:
+    """True if the active matplotlib backend cannot open a display window."""
+    import matplotlib
+
+    return matplotlib.get_backend().lower() in _NON_INTERACTIVE_BACKENDS
+
+
 class Rendering:
     """An in-memory rendered picture of a graph: display it, save it, or read its bytes.
 
@@ -102,11 +114,9 @@ class Rendering:
 
             display(self)
             return
-        import matplotlib
         import matplotlib.pyplot as plt
 
-        backend = matplotlib.get_backend()
-        if backend.lower() in {"agg", "cairo", "pdf", "pgf", "ps", "svg", "template"}:
+        if _headless():
             # Non-interactive / headless backend — nothing to display.
             return
         import matplotlib.image as mpimg
@@ -259,7 +269,8 @@ def multi_show(
     if suptitle is not None:
         fig.suptitle(suptitle)
     fig.tight_layout()
-    plt.show()
+    if not _headless():
+        plt.show()
 
 
 class CairoRenderer:
