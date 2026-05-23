@@ -17,6 +17,7 @@ the flat top-view projection is computed by :func:`top_view`; an interactive
 from .mesh3d import show_3d, to_3d_mesh
 from .pipeline import make_intersecting_cylinders, top_view
 from .profiles import Profile, circular_profile, parabolic_profile
+from .show_circle_packings import build_dual_circle_packings, show_dual_circle_packings
 from .triangle_twist import convert_all_to_triangle_twists, convert_to_triangle_twist
 
 __all__ = [
@@ -27,6 +28,8 @@ __all__ = [
     "top_view",
     "to_3d_mesh",
     "show_3d",
+    "build_dual_circle_packings",
+    "show_dual_circle_packings",
     "convert_to_triangle_twist",
     "convert_all_to_triangle_twists",
 ]

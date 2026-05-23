@@ -11,8 +11,10 @@ from eucare.intersecting_cylinders import (
     circular_profile,
     convert_all_to_triangle_twists,
     convert_to_triangle_twist,
+    build_dual_circle_packings,
     make_intersecting_cylinders,
     show_3d,
+    show_dual_circle_packings,
     to_3d_mesh,
     top_view,
 )
@@ -246,6 +248,74 @@ class TestMesh3d:
         G = _make_graph(p=4, rings=2)
         fig = show_3d(G, circular_profile(scale=1.0), r=1.0, n_across_edge=4)
         assert isinstance(fig, plotly.graph_objects.Figure)
+
+
+class TestDualCirclePackings:
+    def test_does_not_mutate_input(self):
+        G = _make_graph(p=4, rings=2)
+        n_v_before = len(G.vertices)
+        n_f_before = len(G.faces)
+        _ = build_dual_circle_packings(G)
+        assert len(G.vertices) == n_v_before
+        assert len(G.faces) == n_f_before
+
+    def test_returns_consistent_graph(self):
+        G = _make_graph(p=4, rings=2)
+        G_ortho = build_dual_circle_packings(G)
+        G_ortho.check_consistency()
+
+    def test_styling_attributes_present(self):
+        from eucare import half
+
+        G = _make_graph(p=4, rings=2)
+        G_ortho = build_dual_circle_packings(G)
+
+        face_circles = vertex_circles = tangent_points = 0
+        for v in G_ortho.vertices.union(G_ortho.faces):
+            assert "color_key" in v
+            assert "vertex_radius" in v
+            pre = v.get("pre_conway")
+            if isinstance(pre, half.Face):
+                assert v["color_key"] == (1.0, 0.0, 0.0, 0.3)
+                assert v["vertex_radius"] > 0.0
+                face_circles += 1
+            elif isinstance(pre, half.Vertex):
+                assert v["color_key"] == (0.0, 0.0, 1.0, 0.3)
+                assert v["vertex_radius"] > 0.0
+                vertex_circles += 1
+            else:
+                tangent_points += 1
+        assert face_circles > 0
+        assert vertex_circles > 0
+
+        for h in G_ortho.halfedges:
+            assert h["color_key"] == (0.0, 0.0, 0.0)
+
+    def test_face_and_vertex_circles_match_tangent_distance(self):
+        # The radius assigned to each face/vertex circle is the distance from
+        # its centre to *any* adjacent tangent point. By construction all
+        # tangent points on the same circle should be equidistant.
+        from eucare import half
+
+        G = _make_graph(p=4, rings=2)
+        G_ortho = build_dual_circle_packings(G)
+        for v in G_ortho.vertices.union(G_ortho.faces):
+            pre = v.get("pre_conway")
+            if not isinstance(pre, (half.Face, half.Vertex)):
+                continue
+            r = v["vertex_radius"]
+            dists = [float(np.linalg.norm(v["pos"] - h.dest["pos"])) for h in v.outgoing_iter()]
+            assert dists, "expected at least one outgoing halfedge"
+            np.testing.assert_allclose(dists, r, atol=1e-9)
+
+    def test_show_dual_circle_packings_runs(self):
+        # Smoke test only: rendering may pop a matplotlib figure but must not
+        # raise.
+        import matplotlib
+
+        matplotlib.use("Agg")
+        G = _make_graph(p=4, rings=2)
+        show_dual_circle_packings(G)
 
 
 class TestTriangleTwist:
