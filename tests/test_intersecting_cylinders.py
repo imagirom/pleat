@@ -160,17 +160,16 @@ class TestMesh3d:
         assert verts[:, 2].max() == pytest.approx(0.0)
 
     def test_r_less_than_one_flat_tip_at_vertex(self):
-        # For r<1 the spike apex is truncated to a flat polygon centred at
-        # each original tiling vertex. The flat tip sits at the cylinder
-        # cross-section depth corresponding to the truncation point: for a
-        # circular profile of scale 1 and platonic-4 vertices (r_v = 0.5)
-        # this is z = -r_v * (1 - sqrt(1 - curved_extent**2)).
+        # For r<1 the cylinder is rescaled proportionally and capped by a flat
+        # polygon centred at each original tiling vertex. The flat tip sits at
+        # the rescaled cylinder's full depth: for a circular profile of scale 1
+        # and platonic-4 vertices (r_v = 0.5) this is z = -r_v * curved_extent.
         profile = circular_profile(scale=1.0)
         sf = profile.shrink_factor
         r = 0.7
         apex_inset = (1 - r) * sf / (1 - (1 - r) * (1 - sf))
         curved_extent = 1.0 - apex_inset
-        expected_tip = -0.5 * (1.0 - np.sqrt(max(0.0, 1.0 - curved_extent**2)))
+        expected_tip = -0.5 * curved_extent
 
         G = _make_graph(p=4, rings=2)
         verts, _ = to_3d_mesh(G, profile, r=r, n_across_edge=4)

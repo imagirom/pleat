@@ -25,16 +25,20 @@ The vertex-circle radius ``r_v = |v - t|`` controls the depth of the spike at
 lifted using the profile's cross-section.
 
 For ``r = 1`` the half-triangle becomes one curved patch with a sharp apex at
-``v`` (depth ``-r_v * scale``). For ``r < 1`` the apex is *truncated*: the
-spike is cut off at perpendicular fraction ``curved_extent = 1 - apex_inset``
-along the ``v-c`` direction, leaving:
+``v`` (depth ``-r_v * scale``). For ``r < 1`` the cylinder cross-section stays
+*self-similar* but is rescaled: the curved patch occupies only the outer
+fraction ``curved_extent = 1 - apex_inset`` of the ``v-c`` direction, and the
+spike depth shrinks proportionally to ``-r_v * scale * curved_extent``. The
+missing apex is replaced by a flat cap at the original vertex:
 
 * a **curved trapezoid** ``{c, c_near_v, t_near_v, t}`` filling the outer
   portion of the half-triangle, with ``c, t`` at ``z = 0`` and
-  ``c_near_v, t_near_v`` at the flat-tip depth, and
+  ``c_near_v, t_near_v`` at the flat-tip depth ``-r_v * scale * curved_extent``,
+  and
 * a **flat tip triangle** ``{v, c_near_v, t_near_v}`` at the same depth.
   Combined across all half-triangles incident to ``v``, these triangles form
-  the closed flat polygon that caps the truncated cylinder at the vertex.
+  the closed flat polygon that caps the (proportionally smaller) cylinder at
+  the vertex.
 
 Here ``c_near_v = v + apex_inset * (c - v)`` and ``t_near_v = v + apex_inset *
 (t - v)`` -- both close to ``v``. ``apex_inset = (1 - r) * sf / (1 - (1 - r) *
@@ -114,17 +118,17 @@ def _spike_depth_from_profile(
 def _curved_patch_samples(
     spike_bary: NDArray[np.float64],
     spike_depth: NDArray[np.float64],
-    curved_extent: float,
     max_samples: int,
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """Pick the sample positions along the curved direction of one patch.
 
     Uses the profile's own (RDP-simplified) sample points -- they already
-    concentrate where the profile is steep, which is exactly where the 3D
-    mesh needs more resolution. Only samples with ``spike_bary <=
-    curved_extent`` are kept (the apex is truncated when ``r < 1``); the
-    endpoints ``0`` and ``curved_extent`` are guaranteed to be present so the
-    curved patch lines up with the flat tip exactly.
+    concentrate where the curve is steep, which is exactly where the 3D
+    mesh needs more resolution. ``u_samples`` cover the full curve from
+    base (``u=0``) to apex (``u=1``); the curved patch is then mapped onto
+    its (possibly shrunken) perpendicular extent ``c -> c_near_v`` by linear
+    interpolation. The endpoints ``0`` and ``1`` are guaranteed to be
+    present.
 
     If the resulting sample list has more than ``max_samples`` entries it is
     uniformly subsampled in index space, always preserving the first and last
@@ -134,38 +138,30 @@ def _curved_patch_samples(
         spike_bary: Profile barycentric positions (``0`` = c-t base, ``1`` =
             spike apex).
         spike_depth: Matching depth fractions (``0`` at base, ``1`` at apex).
-        curved_extent: Fraction of the v-c axis covered by the curved patch
-            (``1.0`` for ``r = 1``, smaller when the apex is truncated).
         max_samples: Cap on the number of returned samples (``>= 2``).
 
     Returns:
         ``(u_samples, depth_samples)`` where ``u_samples`` are in ``[0, 1]``
-        (``0`` at the c-t base, ``1`` at the flat tip / spike apex) and
+        (``0`` at the c-side base, ``1`` at the flat tip / spike apex) and
         ``depth_samples`` are the corresponding spike-depth fractions in
-        ``[0, spike_depth(curved_extent)]``.
+        ``[0, 1]``.
     """
     max_samples = max(2, int(max_samples))
-    if curved_extent <= 0.0:
-        return np.array([0.0, 1.0]), np.array([0.0, 0.0])
-
-    mask = spike_bary <= curved_extent + 1e-12
-    bary = spike_bary[mask].astype(float, copy=True)
-    depth = spike_depth[mask].astype(float, copy=True)
+    bary = spike_bary.astype(float, copy=True)
+    depth = spike_depth.astype(float, copy=True)
     if bary.size == 0 or bary[0] > 1e-12:
         bary = np.concatenate([[0.0], bary])
         depth = np.concatenate([[0.0], depth])
-    if bary[-1] < curved_extent - 1e-12:
-        depth_end = float(np.interp(curved_extent, spike_bary, spike_depth))
-        bary = np.concatenate([bary, [curved_extent]])
-        depth = np.concatenate([depth, [depth_end]])
+    if bary[-1] < 1.0 - 1e-12:
+        bary = np.concatenate([bary, [1.0]])
+        depth = np.concatenate([depth, [1.0]])
 
     if bary.size > max_samples:
         idx = np.unique(np.linspace(0, bary.size - 1, max_samples).round().astype(int))
         bary = bary[idx]
         depth = depth[idx]
 
-    u = bary / curved_extent
-    return u, depth
+    return bary, depth
 
 
 def _build_ortho_with_tangent_points(
@@ -308,7 +304,7 @@ def to_3d_mesh(
         apex_inset = (1.0 - r) * sf / (1.0 - (1.0 - r) * (1.0 - sf))
     curved_extent = 1.0 - apex_inset  # fraction of v-c filled by curved patch
 
-    u_samples, depth_samples = _curved_patch_samples(spike_bary, spike_depth, curved_extent, max_profile_samples)
+    u_samples, depth_samples = _curved_patch_samples(spike_bary, spike_depth, max_profile_samples)
     n_u = u_samples.size  # rows along the spike-depth direction
     n_w = max(2, int(n_across_edge)) + 1  # columns across the c-t direction
 
@@ -325,8 +321,12 @@ def to_3d_mesh(
         """Mesh the curved trapezoid ``{c, c_near_v, t_near_v, t}``.
 
         ``u`` runs ``0 -> 1`` from the ``c-t`` base (z=0) to the
-        ``c_near_v-t_near_v`` top (z=-h_v * depth_samples[-1]); ``w`` runs
-        ``0 -> 1`` from the c-side to the t-side.
+        ``c_near_v-t_near_v`` top (z=-h_v, the flat-tip depth); ``w`` runs
+        ``0 -> 1`` from the c-side to the t-side. The full profile shape is
+        rescaled onto the patch's perpendicular extent so the cylinder keeps
+        its proportions (the curved patch always lifts to its full natural
+        depth ``h_v`` at the apex side; only its perpendicular extent shrinks
+        as ``apex_inset`` grows).
 
         The two adjacent half-triangles in an ortho-quad have opposite 2D
         orientations around ``(c, v, t)``; we detect this here (using the
@@ -390,10 +390,12 @@ def to_3d_mesh(
 
         c_pos = np.asarray(c_corner["pos"], dtype=float)
         v_pos = np.asarray(v_corner["pos"], dtype=float)
-        # Full un-truncated spike depth; the flat tip sits at
-        # z = -r_v * scale * depth_samples[-1] = -r_v * scale * spike_depth(curved_extent).
-        h_v = r_v * scale
-        z_tip = -h_v * float(depth_samples[-1]) if scale > 0 else 0.0
+        # The curved patch always reaches its full natural depth at the apex
+        # side; the patch's perpendicular extent shrinks with curved_extent
+        # (the c-to-c_near_v segment), and the depth scales proportionally
+        # so the cylinder cross-section stays self-similar.
+        h_v = r_v * scale * curved_extent
+        z_tip = -h_v if scale > 0 else 0.0
 
         c_near_v = v_pos + apex_inset * (c_pos - v_pos)
 
@@ -424,7 +426,7 @@ def _fold_curves(
       the corner of the flat tip ``c_near_v`` (``z = z_tip``);
     * for ``r < 1``, the boundary segments of every flat tip (the
       ``c_near_v - t_near_v`` lines at ``z = z_tip``), which together outline
-      the truncated cylinder caps at each original vertex.
+      the flat caps at each original vertex.
     """
     G_ortho = _build_ortho_with_tangent_points(G)
     r_v_per_vertex = _vertex_circle_radii(G_ortho)
@@ -438,7 +440,7 @@ def _fold_curves(
         apex_inset = (1.0 - r) * sf / (1.0 - (1.0 - r) * (1.0 - sf))
     curved_extent = 1.0 - apex_inset
 
-    u_samples, depth_samples = _curved_patch_samples(spike_bary, spike_depth, curved_extent, max_profile_samples)
+    u_samples, depth_samples = _curved_patch_samples(spike_bary, spike_depth, max_profile_samples)
 
     curves: list[NDArray[np.float64]] = []
 
@@ -454,8 +456,8 @@ def _fold_curves(
 
         c_pos = np.asarray(c_corner["pos"], dtype=float)
         v_pos = np.asarray(v_corner["pos"], dtype=float)
-        h_v = r_v * scale
-        z_tip = -h_v * float(depth_samples[-1]) if scale > 0 else 0.0
+        h_v = r_v * scale * curved_extent
+        z_tip = -h_v if scale > 0 else 0.0
 
         c_near_v = v_pos + apex_inset * (c_pos - v_pos)
 
