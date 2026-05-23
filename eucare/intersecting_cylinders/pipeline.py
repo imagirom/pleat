@@ -82,7 +82,7 @@ def make_intersecting_cylinders(
 
     if r != 1:
         expand_t = (1 - r) * shrink_factor / (1 - (1 - r) * (1 - shrink_factor))
-        G = conway.expand_graph(expand_t)(G, delete_on_border=False)
+        G = conway.expand_graph(expand_t)(G, delete_on_border=False, copy_graph=True)
         fs = [f for f in G.faces if "pre_conway" in f]
         for f in fs:
             f["midpoint"] = f.pseudo_incenter()
@@ -184,4 +184,7 @@ def top_view(G: "EuclideanPositionHEG", r: float = 1.0) -> "EuclideanPositionHEG
 
     if r == 1.0:
         return conway.join_graph()(G, delete_on_border=False)
+
+    # FIXME: this is not the correct top view. Revisit in detail how the crease pattern is generated and accordingly how the top view should be constructed. For now, this is a placeholder which is somewhat similar, at least in the central part of the pattern.
+    G = conway.dual_graph()(G, delete_on_border=False)
     return conway.chamfer_graph(r)(G, delete_on_border=False)

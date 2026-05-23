@@ -117,3 +117,22 @@ def circular_profile(scale: float = 1.3, n_samples: int = 1000, rdp_tol: float =
         n_samples=n_samples,
         rdp_tol=rdp_tol,
     )
+
+
+def parabolic_profile(scale: float = 1.3, n_samples: int = 1000, rdp_tol: float = 1e-4) -> Profile:
+    """Parabolic cross-section ``y = scale * (1 - (1 - x)**2)``.
+
+    This is a smoother curve than the circular profile, with zero slope at the
+    start and a more gradual approach to the maximum height. The resulting
+    crease pattern is less spiky and may be easier to fold.
+
+    Args:
+        scale: Height multiplier on the parabola.
+        n_samples: Forwarded to :meth:`Profile.from_function`.
+        rdp_tol: Forwarded to :meth:`Profile.from_function`.
+    """
+    return Profile.from_function(
+        lambda x: scale * (1.0 - (1.0 - x) ** 2),
+        n_samples=n_samples,
+        rdp_tol=rdp_tol,
+    )

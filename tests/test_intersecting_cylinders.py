@@ -175,6 +175,21 @@ class TestMesh3d:
         assert verts[:, 2].max() == pytest.approx(0.0)
         assert verts[:, 2].min() == pytest.approx(expected_min, rel=2e-3)
 
+    @pytest.mark.parametrize("r", [1.0, 0.7])
+    def test_to_3d_mesh_normals_consistently_oriented(self, r):
+        # The folded surface is a single-valued height field (z=0 at the
+        # incenters/inner faces, dipping down to the vertex spikes), so every
+        # triangle's normal must point the same way. Plotly's Mesh3d shades
+        # from the i/j/k winding order, so mixed winding renders half the
+        # surface dark/inverted even though the figure still constructs.
+        G = _make_graph(p=4, rings=2)
+        verts, tris = to_3d_mesh(G, circular_profile(scale=1.0), r=r, n_along_edge=4)
+        a, b, c = verts[tris[:, 0]], verts[tris[:, 1]], verts[tris[:, 2]]
+        nz = np.cross(b - a, c - a)[:, 2]
+        nz = nz[np.abs(nz) > 1e-9]  # ignore degenerate / vertical triangles
+        assert len(nz) > 0
+        assert np.all(nz > 0), f"mesh winding inconsistent: {(nz < 0).sum()} of {len(nz)} " "triangles face downward"
+
     def test_to_3d_mesh_invalid_r(self):
         G = _make_graph(p=4, rings=2)
         with pytest.raises(ValueError):
