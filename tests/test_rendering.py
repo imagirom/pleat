@@ -6,8 +6,6 @@ import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")  # headless: plt.show() must be a no-op
 
-import os
-
 import numpy as np
 import pytest
 
