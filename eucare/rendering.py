@@ -210,7 +210,7 @@ def multi_show(
         cell_size: Per-cell size in matplotlib inches.
         per_subplot_kwargs: Optional list of per-subplot kwargs dicts (one per graph)
             that override ``show_kwargs`` for the corresponding subplot.
-        **show_kwargs: Forwarded verbatim to each ``G.show(...)`` call
+        **show_kwargs: Forwarded verbatim to each ``G.render(...)`` call
             (e.g. ``face_inset=0.05``, ``render_faces=True``).
     """
     import matplotlib.image as mpimg
