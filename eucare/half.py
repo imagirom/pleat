@@ -1505,16 +1505,21 @@ class GeometricHEG(InAngleHEG):
         else:
             return positions
 
-    def normalize_positions(self) -> None:
-        """Center positions at the origin and rescale so the maximum distance is 1."""
-        ps, _ = self.get_position_view()
+    def normalize_positions(self, position_key: str = "pos") -> None:
+        """Center positions at the origin and rescale so the maximum distance is 1.
+
+        Args:
+            position_key: Vertex attribute to read/write. Defaults to "pos".
+        """
+        ps, _ = self.get_position_view(position_key=position_key)
         k = ps.copy()
         k = np.array([complex(*ki) for ki in k])
         k -= np.mean(k)
         k = k / np.max(np.abs(k))
         k = np.stack([k.real, k.imag], axis=-1)
         ps[:] = k
-        self.recompute_lengths_and_angles()
+        if position_key == "pos":
+            self.recompute_lengths_and_angles()
 
     def scale_positions(self, factor: float) -> None:
         """Multiply every vertex position by ``factor`` (Euclidean geometry only)."""
@@ -1583,9 +1588,14 @@ class GeometricHEG(InAngleHEG):
         """
         from .rendering import CairoRenderer
 
-        render_position_key = "euclidean_pos"
-        for v in self.vertices:
-            v[render_position_key] = self.geometry.to_euclidean(v["pos"])
+        if self.geometry is not EuclideanGeometry:
+            render_position_key = "euclidean_pos"
+            for v in self.vertices:
+                v[render_position_key] = self.geometry.to_euclidean(v["pos"])
+            self.normalize_positions(position_key=render_position_key)
+        else:
+            render_position_key = "pos"
+
         renderer = CairoRenderer(position_key=render_position_key, **renderer_kwargs)
         return renderer.render_graph(
             self,
