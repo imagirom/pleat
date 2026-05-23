@@ -5,23 +5,23 @@ from __future__ import annotations
 import numpy as np
 
 from .geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
-from .prototiles import ProtoTile, RegularEuclideanTile, RegularProtoTile
+from .prototiles import PolygonalProtoTile, ProtoTile, RegularEuclideanTile, RegularProtoTile
 
 
-class TileSet:
-    """A collection of tiles with a designated root tile for tiling expansion."""
+# class TileSet:
+#     """A collection of tiles with a designated root tile for tiling expansion."""
 
-    def __init__(self, tiles: list[ProtoTile], root_tile: ProtoTile) -> None:
-        """Store the tile list and the designated root tile."""
-        self.tiles = tiles
-        self.root_tile = root_tile
+#     def __init__(self, tiles: list[ProtoTile], root_tile: ProtoTile) -> None:
+#         """Store the tile list and the designated root tile."""
+#         self.tiles = tiles
+#         self.root_tile = root_tile
 
-    def expand_to_area(self, area: float) -> None:
-        """Expand the tiling until at least ``area`` is covered (not implemented)."""
-        raise NotImplementedError
+#     def expand_to_area(self, area: float) -> None:
+#         """Expand the tiling until at least ``area`` is covered (not implemented)."""
+#         raise NotImplementedError
 
 
-def align_tiles(tile1: ProtoTile, label1, tile2: ProtoTile, label2) -> None:
+def align_tiles(tile1: PolygonalProtoTile, label1, tile2: PolygonalProtoTile, label2) -> None:
     """Set mutual gluing instructions between two tiles along the given edge labels."""
     tile1.edge_instructions[label1] = tile2.attach_instruction(label2)
     tile2.edge_instructions[label2] = tile1.attach_instruction(label1)

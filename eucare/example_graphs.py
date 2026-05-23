@@ -136,10 +136,10 @@ def from_tiles(
     else:
         G = InAngleHEG(other=base_tile)
     if vertex_based:
-        for i in range(rings):
+        for _ in range(rings):
             add_vertex_ring(G)
     else:
-        for i in range(rings):
+        for _ in range(rings):
             for h in G.border_edges():
                 if h.on_border() and h in G.halfedges:
                     if "instruction" in h.attributes:

@@ -1,7 +1,3 @@
-# AGENTS.md
-
-This file provides guidance to AI coding agents (Claude Code, GitHub Copilot, and similar) when working in this repository.
-
 ## Project Overview
 
 Eucare is a Python library for constructing, manipulating, and visualizing geometric tilings and origami crease patterns. It supports Euclidean, hyperbolic, and spherical geometries, and can generate folded forms, reciprocal figures, and output for 3D printing.

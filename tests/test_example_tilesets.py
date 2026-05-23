@@ -9,14 +9,6 @@ from eucare.example_graphs import from_tiles
 from eucare.geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
 from eucare.prototiles import ProtoTile
 
-# ---- TileSet container ----
-
-
-def test_tile_set_expand_to_area_not_implemented():
-    t = ts.TileSet(tiles=[], root_tile=None)
-    with pytest.raises(NotImplementedError):
-        t.expand_to_area(1.0)
-
 
 # ---- Euclidean Archimedean tilesets ----
 
