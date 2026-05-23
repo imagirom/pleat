@@ -867,8 +867,6 @@ all = [
 ]
 dev = [
     { name = "black" },
-    { name = "ipython", version = "8.39.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "ipython", version = "9.13.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "mypy" },
     { name = "nbstripout" },
     { name = "plotly" },
@@ -927,7 +925,6 @@ requires-dist = [
     { name = "ipympl", marker = "extra == 'all'" },
     { name = "ipympl", marker = "extra == 'docs'" },
     { name = "ipympl", marker = "extra == 'notebook'" },
-    { name = "ipython", marker = "extra == 'dev'" },
     { name = "ipywidgets", marker = "extra == 'all'" },
     { name = "ipywidgets", marker = "extra == 'docs'" },
     { name = "ipywidgets", marker = "extra == 'notebook'" },

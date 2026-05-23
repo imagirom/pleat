@@ -15,10 +15,6 @@ dist/
 notebooks-private
 outputs
 
-# Default render artifacts (eucare.rendering / half.py)
-output.svg
-output.png
-
 # Coverage
 htmlcov/
 .coverage
