@@ -241,7 +241,10 @@ def image_to_graph(
 
     new_bp_labels = group_closeby(bp_positions, edge_length_cutoff / 2)
     new_pos_dict = {
-        int(i): np.mean([pos_dict[int(j)] for j in np.argwhere(new_bp_labels == i) + 1], axis=0)
+        int(i): np.mean(
+            [pos_dict[int(index) + 1] for index in np.flatnonzero(new_bp_labels == i)],
+            axis=0,
+        )
         for i in np.unique(new_bp_labels)
     }
     new_edges = set(
