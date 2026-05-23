@@ -1,7 +1,6 @@
 # Eucare
 
-[![CI](https://github.com/imagirom/eucare/actions/workflows/ci.yml/badge.svg)](https://github.com/imagirom/eucare/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/imagirom/eucare/graph/badge.svg)](https://codecov.io/gh/imagirom/eucare)
+[![CI](https://github.com/imagirom/oritile/actions/workflows/ci.yml/badge.svg)](https://github.com/imagirom/oritile/actions/workflows/ci.yml)
 
 **Construct geometric tilings, and turn them into origami tesselations.**
 
