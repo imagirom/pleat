@@ -293,11 +293,10 @@ class CairoRenderer:
         vertex_radius: float | None = None,
         scale: float | str = "auto",
         face_inset: float | None = None,
-        path: str = "output.svg",
         position_key: str = "pos",
         curve_position_key: str = "curve_pos",
     ) -> None:
-        """Create a renderer writing to *path* (an SVG file).
+        """Configure a renderer. Construction does no I/O; call ``render_graph``.
 
         Args:
             width: Output width in pixels (defaults to *height*, or 512).
@@ -308,7 +307,6 @@ class CairoRenderer:
             scale: Drawing scale; ``'auto'`` computes a fit from the bounding box.
             face_inset: Distance to inset face fills from the edges (defaults
                 to *line_width*).
-            path: Output SVG path.  A matching PNG is produced by callers.
             position_key: Vertex attribute holding the 2D position.
             curve_position_key: Half-edge attribute holding curved-fold polylines
                 (overrides the straight ``orig -> dest`` line).
@@ -323,18 +321,8 @@ class CairoRenderer:
         self.face_inset = face_inset
         self.position_key = position_key
         self.curve_position_key = curve_position_key
-
-        # self.surface = cairo.ImageSurface(
-        #    cairo.FORMAT_RGB24, self.width, self.height)
-        self.surface = cairo.SVGSurface(path, self.width, self.height)
-        dc = cairo.Context(self.surface)
-        dc.set_line_cap(cairo.LINE_CAP_ROUND)
-        dc.set_line_join(cairo.LINE_JOIN_ROUND)
-        self.line_width = line_width
-        dc.translate(self.width / 2, self.height / 2)
-        dc.set_source_rgb(1, 1, 1)
-        dc.paint()
-        self.dc = dc
+        self.surface = None
+        self.dc = None
 
     def render_face(self, face, color_key: str = "color_key"):
         """Draw a single face's filled polygon, honouring ``face[color_key]``."""
@@ -503,6 +491,16 @@ class CairoRenderer:
             for_cutting: Reorder edges to minimise pen-up moves on a plotter.
                 Currently raises :class:`NotImplementedError`.
         """
+        svg_buf = BytesIO()
+        self.surface = cairo.SVGSurface(svg_buf, self.width, self.height)
+        dc = cairo.Context(self.surface)
+        dc.set_line_cap(cairo.LINE_CAP_ROUND)
+        dc.set_line_join(cairo.LINE_JOIN_ROUND)
+        dc.translate(self.width / 2, self.height / 2)
+        dc.set_source_rgb(1, 1, 1)
+        dc.paint()
+        self.dc = dc
+
         global _seed_offset
         _seed_offset = np.random.randint(2**16)
         if self.scale == "auto":
@@ -560,7 +558,15 @@ class CairoRenderer:
             for v in graph.vertices:
                 self.render_vertex(v)
 
-        return self.surface
+        png_buf = BytesIO()
+        self.surface.write_to_png(png_buf)
+        self.surface.finish()
+        return Rendering(
+            svg_bytes=svg_buf.getvalue(),
+            png_bytes=png_buf.getvalue(),
+            width=self.width,
+            height=self.height,
+        )
 
 
 class SvgwriteRenderer:

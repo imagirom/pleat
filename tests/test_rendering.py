@@ -61,58 +61,56 @@ def test_is_color_true_false():
     assert not is_color((0.1, 0.2))
 
 
-def test_cairo_renderer_render_graph(tmp_path):
-    out = tmp_path / "out.svg"
+def test_cairo_renderer_render_graph_returns_rendering(tmp_path):
     G = rosette(n=6)
-    r = CairoRenderer(width=128, height=128, path=str(out))
-    surface = r.render_graph(G)
-    surface.finish()
-    assert os.path.exists(out)
-    assert out.stat().st_size > 0
+    r = CairoRenderer(width=128, height=128)
+    rendering = r.render_graph(G)
+    assert rendering.svg_bytes and rendering.png_bytes
+    assert rendering.width == 128 and rendering.height == 128
+    rendering.save(str(tmp_path / "out"))
+    assert (tmp_path / "out.svg").stat().st_size > 0
+    assert (tmp_path / "out.png").stat().st_size > 0
 
 
-def test_cairo_renderer_color_attributes(tmp_path):
-    out = tmp_path / "out.svg"
+def test_cairo_renderer_writes_nothing_on_construction(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    CairoRenderer(width=64, height=64)
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_cairo_renderer_color_attributes():
     G = rosette(n=5)
-    # Add a color attribute on faces and edges to exercise color paths.
     for f in G.faces:
         f["color_key"] = (0.2, 0.4, 0.6)
     for h in G.halfedges:
         h["color_key"] = (0.5, 0.5, 0.5, 0.5)
-    r = CairoRenderer(width=64, height=64, path=str(out))
-    r.render_graph(G)
-    r.surface.finish()
-    assert out.exists()
+    r = CairoRenderer(width=64, height=64)
+    rendering = r.render_graph(G)
+    assert rendering.png_bytes
 
 
-def test_cairo_renderer_dashed_delete(tmp_path):
-    out = tmp_path / "out.svg"
+def test_cairo_renderer_dashed_delete():
     G = rosette(n=4)
     for h in G.halfedges:
         h["delete"] = True
-    r = CairoRenderer(width=64, height=64, path=str(out))
-    r.render_graph(G)
-    r.surface.finish()
+    rendering = CairoRenderer(width=64, height=64).render_graph(G)
+    assert rendering.svg_bytes
 
 
-def test_cairo_renderer_vertex_color_join_delete(tmp_path):
-    out = tmp_path / "out.svg"
+def test_cairo_renderer_vertex_color_join_delete():
     G = rosette(n=4)
     vs = list(G.vertices)
     vs[0]["join"] = True
     vs[1]["delete"] = True
     vs[2]["color_key"] = (0.1, 0.2, 0.3)
-    r = CairoRenderer(width=64, height=64, path=str(out))
-    r.render_graph(G)
-    r.surface.finish()
+    rendering = CairoRenderer(width=64, height=64).render_graph(G)
+    assert rendering.svg_bytes
 
 
-def test_cairo_renderer_explicit_scale(tmp_path):
-    out = tmp_path / "out.svg"
+def test_cairo_renderer_explicit_scale():
     G = rosette(n=6)
-    r = CairoRenderer(width=64, height=64, path=str(out), scale=20.0)
-    r.render_graph(G)
-    r.surface.finish()
+    rendering = CairoRenderer(width=64, height=64, scale=20.0).render_graph(G)
+    assert rendering.png_bytes
 
 
 def test_svgwrite_renderer_render_graph(tmp_path):
