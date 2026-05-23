@@ -56,7 +56,7 @@ G = from_tiles(curved_platonic(7, 3), rings=3)
 ### Origami crease patterns
 
 ```python
-from eucare.reciprocal_figures import shrink_rotate_pattern, assign_this_way_by_face_z_order
+from eucare.shrink_rotate import shrink_rotate_pattern, assign_this_way_by_face_z_order
 from eucare.search_trees import face_bfs_tree
 from eucare.overlap import fold_complete
 import numpy as np
