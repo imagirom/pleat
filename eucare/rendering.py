@@ -25,6 +25,98 @@ try:
 except ImportError:
     svgwrite = None
 
+import os
+from io import BytesIO
+
+
+def _in_jupyter() -> bool:
+    """True if running inside a Jupyter/IPython kernel (ZMQ shell)."""
+    try:
+        from IPython import get_ipython
+    except ImportError:
+        return False
+    shell = get_ipython()
+    return shell is not None and shell.__class__.__name__ == "ZMQInteractiveShell"
+
+
+class Rendering:
+    """An in-memory rendered picture of a graph: display it, save it, or read its bytes.
+
+    Holds both an SVG (vector) and a PNG (raster) snapshot baked at render time.
+    In Jupyter it auto-displays as inline SVG via the rich-display protocol; in a
+    script ``show()`` opens a matplotlib window; headless it is a graceful no-op.
+    """
+
+    def __init__(self, svg_bytes: bytes, png_bytes: bytes, width: int, height: int) -> None:
+        """Store the rendered bytes and pixel dimensions.
+
+        Args:
+            svg_bytes: The SVG document as raw bytes.
+            png_bytes: The PNG image as raw bytes.
+            width: Pixel width of the raster snapshot.
+            height: Pixel height of the raster snapshot.
+        """
+        self.svg_bytes = svg_bytes
+        self.png_bytes = png_bytes
+        self.width = width
+        self.height = height
+
+    def _repr_svg_(self) -> str:
+        """Return the SVG text so Jupyter renders this inline (vector, resizable)."""
+        return self.svg_bytes.decode("utf-8")
+
+    def _repr_png_(self) -> bytes:
+        """Return the PNG bytes as a raster fallback for rich display."""
+        return self.png_bytes
+
+    def save(self, path: str) -> None:
+        """Write the rendering to disk.
+
+        ``path`` with no extension writes both ``path.svg`` and ``path.png``; a
+        ``.svg`` or ``.png`` extension writes just that format.
+
+        Args:
+            path: Destination path; extension selects the format(s).
+        """
+        ext = os.path.splitext(path)[1].lower()
+        if ext == ".svg":
+            with open(path, "wb") as f:
+                f.write(self.svg_bytes)
+        elif ext == ".png":
+            with open(path, "wb") as f:
+                f.write(self.png_bytes)
+        elif ext == "":
+            with open(path + ".svg", "wb") as f:
+                f.write(self.svg_bytes)
+            with open(path + ".png", "wb") as f:
+                f.write(self.png_bytes)
+        else:
+            raise ValueError(f"Unsupported extension {ext!r}; use .svg, .png, or no extension (writes both).")
+
+    def show(self) -> None:
+        """Display the rendering: inline in Jupyter, a matplotlib window in scripts.
+
+        In a headless context (no GUI backend, not Jupyter) this is a no-op.
+        """
+        if _in_jupyter():
+            from IPython.display import display
+
+            display(self)
+            return
+        import matplotlib
+        import matplotlib.pyplot as plt
+
+        backend = matplotlib.get_backend()
+        if backend.lower() in {"agg", "cairo", "pdf", "pgf", "ps", "svg", "template"}:
+            # Non-interactive / headless backend — nothing to display.
+            return
+        import matplotlib.image as mpimg
+
+        img = mpimg.imread(BytesIO(self.png_bytes), format="png")
+        plt.imshow(img)
+        plt.axis("off")
+        plt.show()
+
 
 # ----- Standard render presets and color constants -------------------------
 #

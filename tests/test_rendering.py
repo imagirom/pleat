@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import matplotlib  # noqa: E402
+
+matplotlib.use("Agg")  # headless: plt.show() must be a no-op
+
 import os
 
 import numpy as np
@@ -11,6 +15,7 @@ from eucare.example_graphs import rosette
 from eucare.half import RegularNGon
 from eucare.rendering import (
     CairoRenderer,
+    Rendering,
     SvgwriteRenderer,
     inset_corner,
     inset_poly,
@@ -149,3 +154,52 @@ def test_svgwrite_renderer_render_faces_raises(tmp_path):
     r = SvgwriteRenderer()
     with pytest.raises(NotImplementedError):
         r.render_graph(str(out), G, render_faces=True, render_interior_and_borders=False)
+
+
+def _dummy_rendering():
+    return Rendering(svg_bytes=b"<svg xmlns='...'></svg>", png_bytes=b"\x89PNG\r\n", width=64, height=64)
+
+
+def test_rendering_repr_svg_returns_text():
+    r = _dummy_rendering()
+    assert isinstance(r._repr_svg_(), str)
+    assert "<svg" in r._repr_svg_()
+
+
+def test_rendering_repr_png_returns_bytes():
+    r = _dummy_rendering()
+    assert r._repr_png_() == b"\x89PNG\r\n"
+
+
+def test_rendering_save_no_extension_writes_both(tmp_path):
+    r = _dummy_rendering()
+    r.save(str(tmp_path / "out"))
+    assert (tmp_path / "out.svg").exists()
+    assert (tmp_path / "out.png").exists()
+
+
+def test_rendering_save_svg_only(tmp_path):
+    r = _dummy_rendering()
+    r.save(str(tmp_path / "out.svg"))
+    assert (tmp_path / "out.svg").exists()
+    assert not (tmp_path / "out.png").exists()
+
+
+def test_rendering_save_png_only(tmp_path):
+    r = _dummy_rendering()
+    r.save(str(tmp_path / "out.png"))
+    assert (tmp_path / "out.png").exists()
+    assert not (tmp_path / "out.svg").exists()
+
+
+def test_rendering_save_unknown_extension_raises(tmp_path):
+    r = _dummy_rendering()
+    with pytest.raises(ValueError):
+        r.save(str(tmp_path / "out.pdf"))
+
+
+def test_rendering_show_headless_is_noop(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    r = _dummy_rendering()
+    assert r.show() is None
+    assert list(tmp_path.iterdir()) == []
