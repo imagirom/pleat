@@ -135,7 +135,7 @@ class TestMesh3d:
     @pytest.mark.parametrize("r", [1.0, 0.7])
     def test_to_3d_mesh_shape(self, r):
         G = _make_graph(p=4, rings=2)
-        verts, tris = to_3d_mesh(G, circular_profile(scale=1.0), r=r, n_along_edge=4)
+        verts, tris = to_3d_mesh(G, circular_profile(scale=1.0), r=r, n_across_edge=4)
         assert verts.ndim == 2 and verts.shape[1] == 3
         assert tris.ndim == 2 and tris.shape[1] == 3
         # All triangle indices reference valid vertices.
@@ -144,7 +144,7 @@ class TestMesh3d:
 
     def test_to_3d_mesh_z_nonpositive(self):
         G = _make_graph(p=4, rings=2)
-        verts, _ = to_3d_mesh(G, circular_profile(scale=1.0), r=1.0, n_along_edge=4)
+        verts, _ = to_3d_mesh(G, circular_profile(scale=1.0), r=1.0, n_across_edge=4)
         # Incenters and edge tangent points sit at z=0; vertex spikes go down.
         assert verts[:, 2].max() == pytest.approx(0.0)
         assert verts[:, 2].min() < 0.0
@@ -155,35 +155,55 @@ class TestMesh3d:
         # depth equals the blue-circle radius r_v, which for the unit square
         # equals the inradius 0.5.
         G = _make_graph(p=4, rings=2)
-        verts, _ = to_3d_mesh(G, circular_profile(scale=1.0), r=1.0, n_along_edge=4)
+        verts, _ = to_3d_mesh(G, circular_profile(scale=1.0), r=1.0, n_across_edge=4)
         assert verts[:, 2].min() == pytest.approx(-0.5, rel=1e-3)
         assert verts[:, 2].max() == pytest.approx(0.0)
 
-    def test_r_less_than_one_inner_face_at_zero(self):
-        # With the spike geometry, the incenters and the lifted shrunken inner
-        # faces sit at z=0 while vertex spikes go down. Spike depth is
-        # r_v * scale * (1 - apex_perp). For platonic 4 r_v = 0.5; the spike
-        # depth (and therefore the most-negative z) shrinks with apex_perp.
+    def test_r_less_than_one_flat_tip_at_vertex(self):
+        # For r<1 the spike apex is truncated to a flat polygon centred at
+        # each original tiling vertex. The flat tip sits at the cylinder
+        # cross-section depth corresponding to the truncation point: for a
+        # circular profile of scale 1 and platonic-4 vertices (r_v = 0.5)
+        # this is z = -r_v * (1 - sqrt(1 - curved_extent**2)).
         profile = circular_profile(scale=1.0)
         sf = profile.shrink_factor
         r = 0.7
-        apex_perp = (1 - r) * sf / (1 - (1 - r) * (1 - sf))
-        expected_min = -0.5 * 1.0 * (1.0 - apex_perp)
+        apex_inset = (1 - r) * sf / (1 - (1 - r) * (1 - sf))
+        curved_extent = 1.0 - apex_inset
+        expected_tip = -0.5 * (1.0 - np.sqrt(max(0.0, 1.0 - curved_extent**2)))
 
         G = _make_graph(p=4, rings=2)
-        verts, _ = to_3d_mesh(G, profile, r=r, n_along_edge=4)
+        verts, _ = to_3d_mesh(G, profile, r=r, n_across_edge=4)
         assert verts[:, 2].max() == pytest.approx(0.0)
-        assert verts[:, 2].min() == pytest.approx(expected_min, rel=2e-3)
+        assert verts[:, 2].min() == pytest.approx(expected_tip, rel=2e-3)
+
+        # The flat tip should sit at each original tiling vertex, not between
+        # edges. Mesh vertices exactly at the flat-tip depth (the corners of
+        # the flat-tip triangles) should be very close to original tiling
+        # vertices in the (x, y) plane: each is either an original vertex v
+        # itself or one of c_near_v / t_near_v at distance apex_inset * |c-v|
+        # from v.
+        actual_tip = float(verts[:, 2].min())
+        tip_mask = np.isclose(verts[:, 2], actual_tip, atol=1e-9)
+        tip_xy = verts[tip_mask, :2]
+        assert len(tip_xy) > 0
+        orig_xy = np.array([v["pos"] for v in G.vertices], dtype=float)
+        from scipy.spatial.distance import cdist  # type: ignore
+
+        dists = cdist(tip_xy, orig_xy).min(axis=1)
+        # The longest |c - v| in a platonic-4 tiling is sqrt(2)/2; allow a
+        # small slack for the apex_inset interpolation factor.
+        assert dists.max() < apex_inset * 0.71 + 1e-6
 
     @pytest.mark.parametrize("r", [1.0, 0.7])
     def test_to_3d_mesh_normals_consistently_oriented(self, r):
         # The folded surface is a single-valued height field (z=0 at the
-        # incenters/inner faces, dipping down to the vertex spikes), so every
-        # triangle's normal must point the same way. Plotly's Mesh3d shades
-        # from the i/j/k winding order, so mixed winding renders half the
-        # surface dark/inverted even though the figure still constructs.
+        # incenters/face centres, dipping down to the vertex spikes / flat
+        # tips), so every triangle's normal must point the same way. Plotly's
+        # Mesh3d shades from the i/j/k winding order, so mixed winding
+        # renders half the surface dark/inverted.
         G = _make_graph(p=4, rings=2)
-        verts, tris = to_3d_mesh(G, circular_profile(scale=1.0), r=r, n_along_edge=4)
+        verts, tris = to_3d_mesh(G, circular_profile(scale=1.0), r=r, n_across_edge=4)
         a, b, c = verts[tris[:, 0]], verts[tris[:, 1]], verts[tris[:, 2]]
         nz = np.cross(b - a, c - a)[:, 2]
         nz = nz[np.abs(nz) > 1e-9]  # ignore degenerate / vertical triangles
@@ -201,23 +221,31 @@ class TestMesh3d:
         # patches meet smoothly), and concentrate the depth into pointy spikes
         # at the original tiling vertices. A monotone profile of the
         # complementary shape (steep near base, flat near apex) would invert
-        # the distribution -- most of the surface deep, only a tiny strip
-        # near z=0.
+        # the distribution -- most of the surface area would be deep.
         G = _make_graph(p=4, rings=1)
-        verts, _ = to_3d_mesh(G, circular_profile(scale=1.0), r=1.0, n_along_edge=20)
+        verts, tris = to_3d_mesh(G, circular_profile(scale=1.0), r=1.0, n_across_edge=20)
         zs = verts[:, 2]
         assert zs.min() == pytest.approx(-0.5, rel=1e-3)
         assert zs.max() == pytest.approx(0.0)
-        # Most of the surface lives near the flat base; only a small fraction
-        # is close to full spike depth. (With the inverted profile the ratio
-        # would flip: ~70% deep, ~5% near zero.)
-        assert (zs > -0.05).mean() > 0.5
-        assert (zs < -0.4).mean() < 0.05
+        # Measure by triangle area (not vertex count): the profile-aware
+        # sampling deliberately concentrates samples near the steep apex,
+        # so vertex-count metrics don't reflect surface area.
+        a, b, c = verts[tris[:, 0]], verts[tris[:, 1]], verts[tris[:, 2]]
+        areas = 0.5 * np.linalg.norm(np.cross(b - a, c - a), axis=1)
+        tri_z = (a[:, 2] + b[:, 2] + c[:, 2]) / 3.0
+        total = areas.sum()
+        near_base = areas[tri_z > -0.05].sum() / total
+        deep = areas[tri_z < -0.4].sum() / total
+        # With the correct (flat-base, pointy-apex) orientation, most of the
+        # surface area sits near the flat base. With the inverted profile
+        # these ratios would flip.
+        assert near_base > 0.5
+        assert deep < 0.05
 
     def test_show_3d_returns_figure(self):
         plotly = pytest.importorskip("plotly")
         G = _make_graph(p=4, rings=2)
-        fig = show_3d(G, circular_profile(scale=1.0), r=1.0, n_along_edge=4)
+        fig = show_3d(G, circular_profile(scale=1.0), r=1.0, n_across_edge=4)
         assert isinstance(fig, plotly.graph_objects.Figure)
 
 
