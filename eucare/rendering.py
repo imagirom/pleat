@@ -196,7 +196,7 @@ def multi_show(
 ) -> None:
     """Render multiple half-edge graphs side-by-side in a matplotlib grid.
 
-    Each graph is rendered to a temporary PNG via ``G.show(...)`` and then
+    Each graph is rendered to in-memory PNG bytes via ``G.render(...)`` and then
     displayed as an image in a matplotlib subplot. This is a thin convenience
     helper for tutorials and notebook galleries — it does not return the
     renderer or its surfaces.
@@ -213,9 +213,6 @@ def multi_show(
         **show_kwargs: Forwarded verbatim to each ``G.show(...)`` call
             (e.g. ``face_inset=0.05``, ``render_faces=True``).
     """
-    import os
-    import tempfile
-
     import matplotlib.image as mpimg
     import matplotlib.pyplot as plt
 
@@ -245,30 +242,19 @@ def multi_show(
     elif ncols == 1:
         axes = np.array([[a] for a in axes])
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        for i, (G, title) in enumerate(zip(graphs, titles)):
-            r, c = divmod(i, ncols)
-            ax = axes[r][c]
-            base = os.path.join(tmpdir, f"multi_show_{i}")
-            # Suppress the inline IPython display from G.show(); we want a
-            # single combined figure, not n+1 outputs.
-            from IPython import display as _ipy_display
-
-            real_display = _ipy_display.display
-            _ipy_display.display = lambda *a, **kw: None
-            try:
-                G.show(filename=base, **{**show_kwargs, **per_subplot_kwargs[i]})
-            finally:
-                _ipy_display.display = real_display
-            img = mpimg.imread(base + ".png")
-            ax.imshow(img)
-            ax.set_axis_off()
-            if title is not None:
-                ax.set_title(title)
-        # hide any leftover axes
-        for j in range(n, nrows * ncols):
-            r, c = divmod(j, ncols)
-            axes[r][c].set_axis_off()
+    for i, (G, title) in enumerate(zip(graphs, titles)):
+        r, c = divmod(i, ncols)
+        ax = axes[r][c]
+        rendering = G.render(**{**show_kwargs, **per_subplot_kwargs[i]})
+        img = mpimg.imread(BytesIO(rendering.png_bytes), format="png")
+        ax.imshow(img)
+        ax.set_axis_off()
+        if title is not None:
+            ax.set_title(title)
+    # hide any leftover axes
+    for j in range(n, nrows * ncols):
+        r, c = divmod(j, ncols)
+        axes[r][c].set_axis_off()
 
     if suptitle is not None:
         fig.suptitle(suptitle)

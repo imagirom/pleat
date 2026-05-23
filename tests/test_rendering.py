@@ -222,3 +222,14 @@ def test_geometric_show_headless_no_files(tmp_path, monkeypatch):
     G = rosette(n=6)
     assert G.show(width=64, height=64) is None
     assert list(tmp_path.iterdir()) == []
+
+
+def test_multi_show_runs_in_memory(tmp_path, monkeypatch):
+    from eucare.rendering import multi_show
+
+    monkeypatch.chdir(tmp_path)
+    G1 = rosette(n=4)
+    G2 = rosette(n=6)
+    assert multi_show([G1, G2], titles=["a", "b"], height=64) is None
+    # No stray files and no disk round-trip.
+    assert list(tmp_path.iterdir()) == []
