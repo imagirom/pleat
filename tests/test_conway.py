@@ -1,5 +1,9 @@
 """Tests for Conway operators."""
 
+import matplotlib
+
+matplotlib.use("Agg")  # headless: rendering smoke tests must not need a display
+
 import numpy as np
 import pytest
 
@@ -218,10 +222,6 @@ class TestConwayOperatorInternals:
 )
 def test_geometric_show_smoke(factory_name, capsys):
     """``GeometricConwayOperator.show`` runs end-to-end headless and annotates stdout."""
-    import matplotlib
-
-    matplotlib.use("Agg")  # headless: show() must be a graceful no-op
-
     import eucare.conway as conway_mod
 
     factory = getattr(conway_mod, factory_name)
