@@ -220,14 +220,16 @@ class TestConwayOperatorInternals:
     "factory_name",
     ["dual_graph", "kis_graph", "gyro_graph", "flagstone_pvitelli_graph"],
 )
-def test_geometric_show_smoke(factory_name, capsys):
-    """``GeometricConwayOperator.show`` runs end-to-end headless and annotates stdout."""
+def test_geometric_show_smoke(factory_name):
+    """``GeometricConwayOperator.render``/``show`` run end-to-end headless."""
     import eucare.conway as conway_mod
+    from eucare.rendering import Rendering
 
     factory = getattr(conway_mod, factory_name)
     op = factory()
 
+    # render() builds the styled fundamental-domain graph and rasterises it in memory.
+    assert isinstance(op.render(), Rendering)
+
     # No files, no IPython: show() is display-only and degrades to a no-op headless.
-    assert op.show(annotate_barycentric=True) is None
-    captured = capsys.readouterr().out
-    assert "Barycentric" in captured
+    assert op.show() is None

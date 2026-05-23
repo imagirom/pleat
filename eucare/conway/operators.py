@@ -6,6 +6,8 @@ from copy import copy
 
 import numpy as np
 
+from eucare.rendering import Rendering
+
 from ..base import euclidean_to_barycentric_map
 from ..half import Face, GeometricHEG, HalfEdge, HalfEdgeGraph, Vertex
 from ..utils import invert_mapping
@@ -338,32 +340,30 @@ class GeometricConwayOperator(TopologicalConwayOperator):
     #: Matches the ``v1, vf, v2`` layout used by every factory in :mod:`eucare.conway.factories`.
     _SHOW_REFERENCE_TRIANGLE: np.ndarray = np.array([[0.0, -1.0], [1.0, 0.0], [0.0, 1.0]])
 
-    def show(
+    def get_fundamental_domain_graph_to_render(
         self,
-        annotate_barycentric: bool = False,
         delete_color: tuple[float, float, float] = (0.85, 0.15, 0.15),
         join_color: tuple[float, float, float] = (0.15, 0.65, 0.20),
         keep_color: tuple[float, float, float] = (0.30, 0.30, 0.30),
-        **show_kwargs: object,
-    ) -> None:
-        """Render the fundamental-domain graph, colouring elements by their role.
+    ) -> HalfEdgeGraph:
+        """Build a copy of the fundamental-domain graph, colouring elements by their role.
 
-        Vertices and edges flagged as ``delete`` are drawn in *delete_color*
+        Vertices and edges flagged as ``delete`` are coloured *delete_color*
         (default: red), and edges become dashed via the existing renderer behaviour;
-        vertices flagged as ``join`` are drawn in *join_color* (default: green); everything else uses *keep_color*.
+        vertices flagged as ``join`` are coloured *join_color* (default: green); everything else uses *keep_color*.
 
         Args:
-            annotate_barycentric: If True, print a table of each vertex's
-                barycentric coordinates to stdout.
             delete_color: RGB triple for delete-marked elements.
             join_color: RGB triple for join-marked vertices.
             keep_color: RGB triple for retained elements.
-            **show_kwargs: Forwarded to :meth:`HalfEdgeGraph.show`.
+
+        Returns:
+            A Euclidean-projected copy of the graph with ``color_key`` attributes set, ready to render.
         """
         from ..half import EuclideanGeometry
 
         # Project barycentric vertex positions back to a canonical Euclidean triangle.
-        graph_copy, (v_map, _, _) = self.graph.copy(deepcopy_attributes=False, return_mappings=True)
+        graph_copy, (_, _, _) = self.graph.copy(deepcopy_attributes=False, return_mappings=True)
         graph_copy.geometry = EuclideanGeometry
         to_euclidean = EuclideanGeometry.barycentric_to_euclidean_map(self._SHOW_REFERENCE_TRIANGLE)
         for v in graph_copy.vertices:
@@ -382,23 +382,20 @@ class GeometricConwayOperator(TopologicalConwayOperator):
                 h["color_key"] = delete_color
             elif "color_key" not in h.attributes:
                 h["color_key"] = keep_color
+        return graph_copy
 
-        if annotate_barycentric:
-            inv = {v_map[u]: u for u in self.graph.vertices}
-            print("Barycentric coordinates relative to (v1, vf, v2):")
-            for v in graph_copy.vertices:
-                bary = inv[v]["pos"]
-                role = (
-                    "delete"
-                    if v.attributes.get("delete", False)
-                    else "join" if v.attributes.get("join", False) else "keep"
-                )
-                print(f"  {role:>6}: ({bary[0]:+.3f}, {bary[1]:+.3f}, {bary[2]:+.3f})")
+    def render(self, **show_kwargs: object) -> Rendering:
+        """Render the fundamental domain graph with styling from :meth:`get_fundamental_domain_graph_to_render`."""
 
+        fundamental_domain_graph = self.get_fundamental_domain_graph_to_render()
         kwargs = dict(
             line_width="50%",
             face_inset=0,
         )
         kwargs.update(show_kwargs)
+        return fundamental_domain_graph.render(**kwargs)
 
-        graph_copy.show(**kwargs)
+    def show(self, **kwargs: object) -> None:
+        """Render the fundamental domain graph with styling from :meth:`get_fundamental_domain_graph_to_render` and display it."""
+        rendering = self.render(**kwargs)
+        rendering.show()
