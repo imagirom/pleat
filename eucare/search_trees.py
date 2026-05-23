@@ -19,7 +19,7 @@ def bfs_tree(source: T | set[T], neighbor_iter: Callable[[T], Iterable[T]]) -> l
     """Compute a BFS spanning-tree edge list starting from a node or set.
 
     Args:
-        start: A single starting node, or a set of starting nodes (forest root).
+        source: A single starting node, or a set of starting nodes (forest root).
         neighbor_iter: Function mapping a node to an iterable of its neighbours.
 
     Returns:

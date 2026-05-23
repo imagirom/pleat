@@ -22,17 +22,14 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Set up Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
-
       - name: Install system dependencies (cairo)
         run: sudo apt-get update && sudo apt-get install -y libcairo2-dev pkg-config
 
       - name: Install project
-        run: uv pip install --system -e ".[dev]"
+        run: uv sync --extra dev --python ${{ matrix.python-version }}
 
       - name: Run tests
-        run: pytest -q -m "not slow"
+        run: uv run --no-sync pytest -q -m "not slow"
 
   lint:
     runs-on: ubuntu-latest
@@ -42,14 +39,8 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
 
-      - name: Set up Python
-        run: uv python install 3.10
-
-      - name: Install black
-        run: uv pip install --system black
-
       - name: Run black
-        run: black --check eucare tests
+        run: uvx black@24.10.0 --check eucare tests
 
   docs:
     runs-on: ubuntu-latest
@@ -59,16 +50,13 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
 
-      - name: Set up Python
-        run: uv python install 3.10
-
       - name: Install system dependencies (cairo)
         run: sudo apt-get update && sudo apt-get install -y libcairo2-dev pkg-config
 
       - name: Install project with docs extras
-        run: uv pip install --system -e ".[dev,docs]"
+        run: uv sync --extra dev --extra docs
 
       - name: Build docs
         env:
           DISABLE_MKDOCS_2_WARNING: "true"
-        run: mkdocs build --strict
+        run: uv run --no-sync mkdocs build --strict

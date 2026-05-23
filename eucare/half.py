@@ -397,21 +397,20 @@ def pseudo_incenter(f: Face | np.ndarray) -> np.ndarray:
     return incenter
 
 
-def pseudo_circumcenter(ps, return_radius=False):
-    """
-    Compute the point inside the polygon which minimizes the standard deviation of distances to the vertices, i.e. the "best fit" circumcenter.
+def pseudo_circumcenter(ps, return_radius=False) -> np.ndarray | tuple[np.ndarray, float]:
+    """Compute the "best fit" circumcenter of a polygon.
+
+    Finds the interior point that minimizes the standard deviation of
+    distances to the vertices.
 
     Args:
-        ps : array_like, shape (N, 2)
-            Polygon vertices.
-        return_radius : bool
-            If True, also return the circumradius.
+        ps (array_like): Polygon vertices, shape (N, 2).
+        return_radius (bool): If True, also return the circumradius.
 
     Returns:
-        center : ndarray, shape (2,)
-            Circumcenter of the polygon.
-        radius : float, optional
-            Circumradius, only if return_radius=True.
+        The circumcenter (shape ``(2,)``). If ``return_radius`` is True, a
+            ``(center, radius)`` tuple is returned instead, where ``radius``
+            is the circumradius.
     """
     ps = np.asarray(ps, dtype=float)
 
