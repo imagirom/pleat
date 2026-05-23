@@ -195,6 +195,25 @@ class TestMesh3d:
         with pytest.raises(ValueError):
             to_3d_mesh(G, circular_profile(), r=0.0)
 
+    def test_profile_orientation_flat_base_pointy_apex(self):
+        # The 3D surface should be a "spike" surface: nearly flat in a broad
+        # region near the c-t base of each half-triangle (where neighbouring
+        # patches meet smoothly), and concentrate the depth into pointy spikes
+        # at the original tiling vertices. A monotone profile of the
+        # complementary shape (steep near base, flat near apex) would invert
+        # the distribution -- most of the surface deep, only a tiny strip
+        # near z=0.
+        G = _make_graph(p=4, rings=1)
+        verts, _ = to_3d_mesh(G, circular_profile(scale=1.0), r=1.0, n_along_edge=20)
+        zs = verts[:, 2]
+        assert zs.min() == pytest.approx(-0.5, rel=1e-3)
+        assert zs.max() == pytest.approx(0.0)
+        # Most of the surface lives near the flat base; only a small fraction
+        # is close to full spike depth. (With the inverted profile the ratio
+        # would flip: ~70% deep, ~5% near zero.)
+        assert (zs > -0.05).mean() > 0.5
+        assert (zs < -0.4).mean() < 0.05
+
     def test_show_3d_returns_figure(self):
         plotly = pytest.importorskip("plotly")
         G = _make_graph(p=4, rings=2)

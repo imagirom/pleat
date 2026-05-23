@@ -14,27 +14,38 @@ two dual circle packings touch (the same construction used in
 ``show_dual_circle_packings`` in the docs notebook). Each ortho quad has cyclic
 corners ``(v, t1, c, t2)``:
 
-* ``v`` is an original tiling vertex,
-* ``c`` is the incenter of an adjacent face (centre of a *red* circle),
+* ``v`` is an original tiling vertex (a *spike apex* in 3D),
+* ``c`` is the incenter of an adjacent face (a *flat base* point in 3D),
 * ``t1, t2`` are the points where the original edges incident to ``v`` are
-  tangent to both the face incircle and the *blue* vertex-circle of ``v``.
+  tangent to both the face incircle (around ``c``) and the *vertex circle* of
+  ``v``.
 
-The blue circle radius ``r_v = |v - t|`` controls the depth of the **spike**
-at vertex ``v``. Heights are assigned as
+The vertex-circle radius ``r_v = |v - t|`` controls the depth of the spike at
+``v``. The model is split into half-triangles ``(c, v, t)`` and each is lifted
+into a curved patch. We use one barycentric coordinate, ``bary_v``, which
+varies from ``0`` along the flat-base edge ``c-t`` (the boundary shared with the
+adjacent face patch — surfaces meet smoothly here) to ``1`` at the spike apex
+``v`` (where neighbouring patches converge into a sharp point). The patch
+height is
 
-* ``c, t1, t2`` at ``z = 0`` (flat plane containing the incenters and the
-  edge-tangent points),
-* ``v`` pulled down to ``z = -r_v * scale * (1 - apex_perp)``,
+.. code-block:: text
 
-where ``scale = profile.y[-1] / shrink_factor`` is the apex height of the
-profile and ``apex_perp = 0`` for ``r = 1`` (no shrinking) or
-``(1 - r) * sf / (1 - (1 - r)(1 - sf))`` for ``r < 1``.
+    z(bary_v) = - r_v * scale * spike_depth(bary_v) * (1 - apex_inset),
 
-For ``r < 1`` the curved patch only fills the inner sub-triangle
-``{c_inner, v, t_inner}`` (with ``c_inner = v + (1 - apex_perp)(c - v)`` and
-``t_inner`` defined analogously); the complementary trapezoid
-``{c, c_inner, t_inner, t}`` is flat at ``z = 0`` and tiles the lifted
-shrunken inner face.
+where ``scale = profile.y[-1] / shrink_factor`` is the profile's peak height
+and ``spike_depth(0) = 0`` (flat at the c-t base), ``spike_depth(1) = 1``
+(full spike depth at ``v``). ``spike_depth`` is the profile's cross-section
+read from the *apex* end inwards: it has *zero slope at the base* (so adjacent
+patches meet flat across ``c-t``) and *maximum slope at the apex* (so the
+spike at ``v`` is pointy). See :func:`_spike_depth_from_profile`.
+
+For ``r < 1`` the original vertex is replaced by a flat polygon dual to it,
+``apex_inset = (1 - r) * sf / (1 - (1 - r)(1 - sf)) > 0`` is the perpendicular
+fraction of the half-triangle covered by that flat polygon, and the curved
+patch only fills the inner sub-triangle ``{c_inner, v, t_inner}`` (with
+``c_inner = v + (1 - apex_inset)(c - v)`` and ``t_inner`` analogous). The
+complementary trapezoid ``{c, c_inner, t_inner, t}`` is flat at ``z = 0`` and
+tiles the lifted shrunken inner face.
 """
 
 from __future__ import annotations
@@ -49,6 +60,46 @@ from .profiles import Profile
 
 if TYPE_CHECKING:
     from ..half import EuclideanPositionHEG
+
+
+def _spike_depth_from_profile(
+    profile: Profile,
+) -> tuple[NDArray[np.float64], NDArray[np.float64], float]:
+    """Re-parameterise the 2D profile as a spike-depth function for 3D lifting.
+
+    The :class:`Profile` stores its cross-section in the convention used by the
+    2D crease-pattern pipeline: ``profile.t`` runs from ``0`` at the vertex
+    side to ``sf = shrink_factor`` at the face/incenter side, and ``profile.y``
+    is the corresponding cylinder height (zero at the vertex side, peak at the
+    face side). For the canonical circular profile this means the slope of
+    ``y`` is steepest at ``t=0`` and zero at ``t=sf``.
+
+    When lifting into 3D we want the *opposite* orientation along the
+    half-triangle ``(c, v, t)``: the patch should be flat (zero slope) along
+    the ``c-t`` base (so neighbouring patches meet smoothly there) and steep
+    at the vertex apex ``v`` (so vertices look pointy). We therefore flip the
+    profile so that:
+
+    * ``spike_bary[0] = 0`` corresponds to the c-t base, ``spike_bary[-1] = 1``
+      corresponds to the apex ``v``;
+    * ``spike_depth[0] = 0`` (no depth at base), ``spike_depth[-1] = 1`` (full
+      depth at apex), with zero slope at ``bary=0`` and maximum slope at
+      ``bary=1``.
+
+    Returns:
+        ``(spike_bary, spike_depth, scale)`` where ``scale = profile.y[-1] /
+        profile.shrink_factor`` is the unscaled peak height (preserved for the
+        existing convention ``h_v = r_v * scale * curved_extent``).
+    """
+    sf = profile.shrink_factor
+    profile_x = profile.t / sf  # 0..1 in pipeline convention (0 = vertex side)
+    profile_y = profile.y / sf  # 0..scale in pipeline convention
+    scale = float(profile_y[-1])
+    if scale <= 0.0:
+        return profile_x.copy(), np.zeros_like(profile_x), 0.0
+    spike_bary = 1.0 - profile_x[::-1]
+    spike_depth = 1.0 - profile_y[::-1] / scale
+    return spike_bary, spike_depth, scale
 
 
 def _build_ortho_with_tangent_points(
@@ -172,16 +223,14 @@ def to_3d_mesh(
     G_ortho = _build_ortho_with_tangent_points(G)
     r_v_per_vertex = _vertex_circle_radii(G_ortho)
 
-    sf = profile.shrink_factor
-    profile_x = profile.t / sf  # 0..1; 0 at the c/t side, 1 at the vertex side
-    profile_y = profile.y / sf  # 0..scale (height in same units as perp)
-    scale = float(profile_y[-1])
+    spike_bary, spike_depth, scale = _spike_depth_from_profile(profile)
 
     if r == 1.0:
-        apex_perp = 0.0
+        apex_inset = 0.0
     else:
-        apex_perp = (1.0 - r) * sf / (1.0 - (1.0 - r) * (1.0 - sf))
-    inner_scale = 1.0 - apex_perp  # curved-region perp extent (relative to v-c)
+        sf = profile.shrink_factor
+        apex_inset = (1.0 - r) * sf / (1.0 - (1.0 - r) * (1.0 - sf))
+    curved_extent = 1.0 - apex_inset  # fraction of v-c filled by curved patch
 
     n = max(2, int(n_along_edge))
     vertices: list[NDArray[np.float64]] = []
@@ -193,17 +242,34 @@ def to_3d_mesh(
         t_pt: NDArray[np.float64],
         h_v: float,
     ) -> None:
-        """Mesh a triangle with corners c (z=0), v (z=-h_v), t (z=0) using a
-        barycentric grid. Height follows ``-h_v * profile_y(lam_v) / scale``."""
+        """Mesh a triangle with corners c (z=0), v (z=-h_v), t (z=0).
+
+        Height varies with the barycentric coordinate ``bary_v`` (0 along the
+        flat ``c-t`` base, 1 at the spike apex ``v``):
+
+            z(bary_v) = -h_v * spike_depth(bary_v)
+
+        where ``spike_depth`` has zero slope at ``bary_v=0`` (so neighbouring
+        patches meet smoothly across the ``c-t`` base) and maximum slope at
+        ``bary_v=1`` (so vertices look pointy). The two adjacent half-triangles
+        in an ortho-quad have opposite 2D orientations around ``(c, v, t)``;
+        we detect that here and swap to keep all triangle normals pointing up.
+        """
+        # Ensure CCW 2D orientation of (c, v, t) so every triangle's normal
+        # points upward (+z), matching the single-valued height field.
+        cross = (v_pt[0] - c_pt[0]) * (t_pt[1] - c_pt[1]) - (v_pt[1] - c_pt[1]) * (t_pt[0] - c_pt[0])
+        if cross < 0.0:
+            t_pt, c_pt = c_pt, t_pt
+
         coords: dict[tuple[int, int], int] = {}
         for i in range(n + 1):
             for j in range(n + 1 - i):
-                lam_v = i / n
-                lam_t = j / n
-                lam_c = 1.0 - lam_v - lam_t
-                pos = lam_c * c_pt + lam_v * v_pt + lam_t * t_pt
+                bary_v = i / n
+                bary_t = j / n
+                bary_c = 1.0 - bary_v - bary_t
+                pos = bary_c * c_pt + bary_v * v_pt + bary_t * t_pt
                 if scale > 0:
-                    z = -h_v * float(np.interp(lam_v, profile_x, profile_y)) / scale
+                    z = -h_v * float(np.interp(bary_v, spike_bary, spike_depth))
                 else:
                     z = 0.0
                 coords[(i, j)] = len(vertices)
@@ -231,23 +297,29 @@ def to_3d_mesh(
 
         c_pos = np.asarray(c_corner["pos"], dtype=float)
         v_pos = np.asarray(v_corner["pos"], dtype=float)
-        # Spike depth: scale h_v with inner_scale so that the cylinder
-        # proportions are preserved as the curved patch shrinks toward v.
-        h_v = r_v * scale * inner_scale
+        # Spike depth scaled by curved_extent so the cylinder proportions are
+        # preserved as the curved patch shrinks toward v for r < 1.
+        h_v = r_v * scale * curved_extent
 
-        # Curved-region inner corner along v-c (r=1 => c_inner = c).
-        c_inner = v_pos + inner_scale * (c_pos - v_pos)
+        # Inner corner along v-c (r=1 => c_inner = c).
+        c_inner = v_pos + curved_extent * (c_pos - v_pos)
 
         for t_corner in (t1_corner, t2_corner):
             t_pos = np.asarray(t_corner["pos"], dtype=float)
-            t_inner = v_pos + inner_scale * (t_pos - v_pos)
+            t_inner = v_pos + curved_extent * (t_pos - v_pos)
 
             _add_curved_half_triangle(c_inner, v_pos, t_inner, h_v)
 
             # For r<1, fill the complementary flat trapezoid at z=0.
-            if apex_perp > 0.0:
+            if apex_inset > 0.0:
+                quad = [c_pos, c_inner, t_inner, t_pos]
+                cross = (quad[1][0] - quad[0][0]) * (quad[2][1] - quad[0][1]) - (quad[1][1] - quad[0][1]) * (
+                    quad[2][0] - quad[0][0]
+                )
+                if cross < 0.0:
+                    quad = quad[::-1]
                 idx0 = len(vertices)
-                for p in (c_pos, c_inner, t_inner, t_pos):
+                for p in quad:
                     vertices.append(np.array([p[0], p[1], 0.0]))
                 triangles.append((idx0, idx0 + 1, idx0 + 2))
                 triangles.append((idx0, idx0 + 2, idx0 + 3))
@@ -269,16 +341,14 @@ def _fold_curves(
     G_ortho = _build_ortho_with_tangent_points(G)
     r_v_per_vertex = _vertex_circle_radii(G_ortho)
 
-    sf = profile.shrink_factor
-    profile_x = profile.t / sf
-    profile_y = profile.y / sf
-    scale = float(profile_y[-1])
+    spike_bary, spike_depth, scale = _spike_depth_from_profile(profile)
 
     if r == 1.0:
-        apex_perp = 0.0
+        apex_inset = 0.0
     else:
-        apex_perp = (1.0 - r) * sf / (1.0 - (1.0 - r) * (1.0 - sf))
-    inner_scale = 1.0 - apex_perp
+        sf = profile.shrink_factor
+        apex_inset = (1.0 - r) * sf / (1.0 - (1.0 - r) * (1.0 - sf))
+    curved_extent = 1.0 - apex_inset
 
     curves: list[NDArray[np.float64]] = []
 
@@ -295,20 +365,20 @@ def _fold_curves(
 
         c_pos = np.asarray(c_corner["pos"], dtype=float)
         v_pos = np.asarray(v_corner["pos"], dtype=float)
-        h_v = r_v * scale * inner_scale
-        c_inner = v_pos + inner_scale * (c_pos - v_pos)
+        h_v = r_v * scale * curved_extent
+        c_inner = v_pos + curved_extent * (c_pos - v_pos)
 
-        n_samples = len(profile_x)
+        n_samples = len(spike_bary)
         curve = np.empty((n_samples, 3))
         for k in range(n_samples):
-            lam_v = float(profile_x[k])
-            xy = (1.0 - lam_v) * c_inner + lam_v * v_pos
-            z = -h_v * float(profile_y[k]) / scale if scale > 0 else 0.0
+            bary_v = float(spike_bary[k])
+            xy = (1.0 - bary_v) * c_inner + bary_v * v_pos
+            z = -h_v * float(spike_depth[k]) if scale > 0 else 0.0
             curve[k] = [xy[0], xy[1], z]
         curves.append(curve)
 
     # Inner shrunken-face polygons (closed) at z=0 for r<1 - one per original face.
-    if apex_perp > 0.0:
+    if apex_inset > 0.0:
         G_copy = G.copy()
         for f in G_copy.faces:
             f["midpoint"] = f.pseudo_incenter()
@@ -318,7 +388,7 @@ def _fold_curves(
                 continue
             poly = []
             for vert in f.vertex_iter():
-                p_inner = inner_scale * np.asarray(vert["pos"], dtype=float) + apex_perp * c
+                p_inner = curved_extent * np.asarray(vert["pos"], dtype=float) + apex_inset * c
                 poly.append([p_inner[0], p_inner[1], 0.0])
             poly.append(poly[0])
             curves.append(np.asarray(poly, dtype=float))

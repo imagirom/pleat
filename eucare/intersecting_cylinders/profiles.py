@@ -1,9 +1,21 @@
 """Profile curves used by the intersecting-cylinders pattern.
 
-A :class:`Profile` describes the cross-section of the curved triangles that sit on
-the edges of the input tiling. It stores arc-length-parametrised samples ``(t, l)``
-(both normalised so total arc-length is 1) together with the corresponding
-``shrink_factor`` (the inverse of the original total arc-length).
+A :class:`Profile` describes the cross-section of the curved triangles that sit
+on the edges of the input tiling. It stores arc-length-parametrised samples of
+a height function ``fn(x)`` for ``x in [0, 1]``, normalised so that the total
+arc length equals 1.
+
+The cross-section is interpreted differently by the 2D pipeline (which produces
+the crease pattern in :mod:`eucare.intersecting_cylinders.pipeline`) and by the
+3D mesh builder (:mod:`eucare.intersecting_cylinders.mesh3d`):
+
+* In 2D, ``profile.t`` is the *perpendicular* coordinate of the crease and
+  ``profile.l`` the *along-edge* arc-length coordinate. ``profile.t = 0``
+  corresponds to the *vertex side* of the half-triangle and ``profile.t = sf``
+  to the *face/incenter side*.
+* In 3D, the same height function is re-used but read from the *apex end
+  inwards* so that the spike forms at the vertex; see
+  :func:`eucare.intersecting_cylinders.mesh3d._spike_depth_from_profile`.
 """
 
 from __future__ import annotations
@@ -20,19 +32,25 @@ from rdp import rdp
 class Profile:
     """Arc-length-parametrised cross-section curve.
 
-    The cross-section is a curve in the ``(perpendicular, height)`` plane defined
-    by a height function ``fn(x)`` for ``x in [0, 1]``. Samples of this curve are
-    simplified by Ramer-Douglas-Peucker and stored in normalised form so that
-    the **total arc length is 1**.
+    The cross-section is the curve ``(x, fn(x))`` for ``x in [0, 1]``, where
+    ``fn(0) = 0`` and ``fn`` is non-negative. Samples are simplified by the
+    Ramer-Douglas-Peucker algorithm and stored after rescaling so that the
+    **total arc length is 1** (and the perpendicular extent is therefore
+    ``shrink_factor = 1 / unscaled_arc_length <= 1``).
 
     Attributes:
-        t: ``perpendicular_axis * shrink_factor``; ranges in ``[0, shrink_factor]``.
-            This is what the crease pattern uses as the perpendicular component
-            of the curved fold.
-        l: Normalised arc length; ranges in ``[0, 1]``.
-        y: ``height_axis * shrink_factor``; ranges in ``[0, ymax * shrink_factor]``.
-            Used for 3D mesh construction.
-        shrink_factor: ``1 / total_unscaled_arc_length`` of the original curve.
+        t: Perpendicular coordinate, scaled to ``[0, shrink_factor]``. In the
+            2D pipeline, ``t = 0`` is the *vertex-side* end of the curved
+            crease and ``t = shrink_factor`` is the *face-side* end (toward the
+            incenter).
+        l: Arc length along the curve, scaled to ``[0, 1]``. Used by the 2D
+            pipeline as the along-edge coordinate of the curved crease.
+        y: Height ``fn(x)``, scaled by ``shrink_factor`` so it ranges in
+            ``[0, fn_max * shrink_factor]``. Drives the 3D spike depth (after
+            re-orientation by ``mesh3d._spike_depth_from_profile``).
+        shrink_factor: ``1 / total_unscaled_arc_length``. Equals the
+            perpendicular extent of the *folded* fundamental strip relative to
+            the original tile edge length.
     """
 
     t: NDArray[np.float64]
@@ -47,7 +65,7 @@ class Profile:
         n_samples: int = 1000,
         rdp_tol: float = 1e-4,
     ) -> "Profile":
-        """Build a :class:`Profile` from a height function ``fn`` defined on ``[0, 1]``.
+        """Build a :class:`Profile` from a height function ``fn`` on ``[0, 1]``.
 
         Args:
             fn: Height function with ``fn(0) == 0``. Evaluated on
