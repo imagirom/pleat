@@ -8,6 +8,8 @@ helpers (:func:`inset_corner`, :func:`inset_poly`) and color utilities.
 from __future__ import annotations
 
 import logging
+import os
+from io import BytesIO
 from typing import TYPE_CHECKING, Iterable
 
 import cairo
@@ -24,9 +26,6 @@ try:
     import svgwrite
 except ImportError:
     svgwrite = None
-
-import os
-from io import BytesIO
 
 
 def _in_jupyter() -> bool:
@@ -113,8 +112,9 @@ class Rendering:
         import matplotlib.image as mpimg
 
         img = mpimg.imread(BytesIO(self.png_bytes), format="png")
-        plt.imshow(img)
-        plt.axis("off")
+        fig, ax = plt.subplots()
+        ax.imshow(img)
+        ax.axis("off")
         plt.show()
 
 
