@@ -198,8 +198,11 @@ def test_rendering_save_unknown_extension_raises(tmp_path):
         r.save(str(tmp_path / "out.pdf"))
 
 
-def test_rendering_show_headless_is_noop(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
+def test_rendering_show_headless_is_noop(monkeypatch):
+    import matplotlib.pyplot as plt
+
+    called = []
+    monkeypatch.setattr(plt, "show", lambda *a, **k: called.append(True))
     r = _dummy_rendering()
     assert r.show() is None
-    assert list(tmp_path.iterdir()) == []
+    assert called == []  # headless (Agg) backend -> early return, no display attempted
