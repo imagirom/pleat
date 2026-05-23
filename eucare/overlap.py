@@ -985,37 +985,35 @@ def save_results(
 
     os.makedirs(path, exist_ok=True)
     cp_settings = render_settings.copy()
-    cp_settings.update(dict(filename=os.path.join(path, "CP"), render_faces=False))
-    results["CP"].show(**cp_settings)
+    cp_settings.update(dict(render_faces=False))
+    results["CP"].save(os.path.join(path, "CP"), **cp_settings)
 
     folded_settings = render_settings.copy()
     folded_settings["line_width"] /= 2
     if "folded_view_top" in results:
         rotate_graph(results["folded_view_top"], folded_angle)
-        folded_settings.update(dict(filename=os.path.join(path, "top")))
-        results["folded_view_top"].show(**folded_settings)
+        results["folded_view_top"].save(os.path.join(path, "top"), **folded_settings)
     if "folded_view_bottom" in results:
         rotate_graph(results["folded_view_bottom"], folded_angle)
-        folded_settings.update(dict(filename=os.path.join(path, "bottom")))
-        results["folded_view_bottom"].show(**folded_settings)
+        results["folded_view_bottom"].save(os.path.join(path, "bottom"), **folded_settings)
 
     backlight_settings = copy(render_settings)
     backlight_settings["render_edges"] = False
     backlight_settings["render_faces"] = True
     backlight_settings["line_width"] = 0
-    backlight_settings["filename"] = os.path.join(path, "backlit")
     for f in results["folded_state"].faces:
         if "original_faces" in f:
             f["color_key"] = [0, 0, 0, 1 - (1 - opacity) ** (len(f["original_faces"]))]
         else:
             f["color_key"] = [0, 0, 0, opacity]
-    results["folded_state"].show(**backlight_settings)
+    results["folded_state"].save(os.path.join(path, "backlit"), **backlight_settings)
 
     if "CP_for_origami_simulator" in results:
         optimize_rotation(results["CP_for_origami_simulator"], angle_offset=0)
         cp_for_simulator_settings = cp_settings.copy()
-        cp_for_simulator_settings.update(dict(filename=os.path.join(path, "CP_for_origami_simulator")))
-        results["CP_for_origami_simulator"].show(**cp_for_simulator_settings)
+        results["CP_for_origami_simulator"].save(
+            os.path.join(path, "CP_for_origami_simulator"), **cp_for_simulator_settings
+        )
 
     sheet_height = angle_to_height(SRG, np.pi / 2) / scale
 

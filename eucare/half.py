@@ -20,6 +20,10 @@ import logging
 from copy import copy, deepcopy
 from itertools import chain
 from math import pi
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .rendering import Rendering
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -1556,43 +1560,59 @@ class GeometricHEG(InAngleHEG):
         self.geometry = EuclideanGeometry
         self.recompute_lengths_and_angles()
 
-    def show(
+    def render(
         self,
         render_faces: bool = True,
         render_edges: bool = True,
         render_vertices: bool = True,
-        block: bool = True,
-        figsize: tuple[float, float] | None = None,
         for_cutting: bool = False,
-        filename: str = "output",
-        **kwargs,
-    ) -> None:
-        """Render the graph with Cairo and display it inline (Jupyter) or via Matplotlib.
+        **renderer_kwargs: object,
+    ) -> "Rendering":
+        """Render the graph with Cairo and return an in-memory :class:`Rendering`.
 
-        The rendered PNG is also written to ``{filename}.png``.
+        Args:
+            render_faces: Whether to draw face fills.
+            render_edges: Whether to draw edges.
+            render_vertices: Whether to draw vertex markers.
+            for_cutting: Reorder edges for a plotter (currently unsupported).
+            **renderer_kwargs: Forwarded to :class:`~eucare.rendering.CairoRenderer`
+                (e.g. ``width``, ``height``, ``line_width``, ``scale``, ``face_inset``).
+
+        Returns:
+            A :class:`~eucare.rendering.Rendering` holding the SVG and PNG bytes.
         """
-        figsize = (5, 5) if figsize is None else figsize
-        import matplotlib.image as mpimg
-
         from .rendering import CairoRenderer
 
         render_position_key = "euclidean_pos"
         for v in self.vertices:
             v[render_position_key] = self.geometry.to_euclidean(v["pos"])
-        renderer = CairoRenderer(path=filename + ".svg", position_key=render_position_key, **kwargs)
-        surface = renderer.render_graph(
+        renderer = CairoRenderer(position_key=render_position_key, **renderer_kwargs)
+        return renderer.render_graph(
             self,
             render_faces=render_faces,
             render_edges=render_edges,
             render_vertices=render_vertices,
             for_cutting=for_cutting,
         )
-        filename = filename + ".png"
-        surface.write_to_png(filename)
 
-        from IPython.display import Image, display
+    def show(self, **style: object) -> None:
+        """Render and display the graph (inline in Jupyter, a window in scripts).
 
-        display(Image(filename))
+        Args:
+            **style: Forwarded to :meth:`render`.
+        """
+        self.render(**style).show()
+
+    def save(self, path: str, **style: object) -> None:
+        """Render the graph and write it to *path*.
+
+        ``path`` with no extension writes both ``path.svg`` and ``path.png``.
+
+        Args:
+            path: Destination path; extension selects the format(s).
+            **style: Forwarded to :meth:`render`.
+        """
+        self.render(**style).save(path)
 
     def central_face(self) -> Face:
         """Return the face whose midpoint is closest to the origin (Euclidean only)."""

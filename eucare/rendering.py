@@ -8,6 +8,8 @@ helpers (:func:`inset_corner`, :func:`inset_poly`) and color utilities.
 from __future__ import annotations
 
 import logging
+import os
+from io import BytesIO
 from typing import TYPE_CHECKING, Iterable
 
 import cairo
@@ -24,6 +26,106 @@ try:
     import svgwrite
 except ImportError:
     svgwrite = None
+
+
+def _in_jupyter() -> bool:
+    """True if running inside a Jupyter/IPython kernel (ZMQ shell)."""
+    try:
+        from IPython import get_ipython
+    except ImportError:
+        return False
+    shell = get_ipython()
+    return shell is not None and shell.__class__.__name__ == "ZMQInteractiveShell"
+
+
+# matplotlib backends that have no GUI window — calling plt.show() on them is a
+# no-op that only emits a warning, so we skip it for graceful headless behaviour.
+_NON_INTERACTIVE_BACKENDS = {"agg", "cairo", "pdf", "pgf", "ps", "svg", "template"}
+
+
+def _headless() -> bool:
+    """True if the active matplotlib backend cannot open a display window."""
+    import matplotlib
+
+    return matplotlib.get_backend().lower() in _NON_INTERACTIVE_BACKENDS
+
+
+class Rendering:
+    """An in-memory rendered picture of a graph: display it, save it, or read its bytes.
+
+    Holds both an SVG (vector) and a PNG (raster) snapshot baked at render time.
+    In Jupyter it auto-displays as inline SVG via the rich-display protocol; in a
+    script ``show()`` opens a matplotlib window; headless it is a graceful no-op.
+    """
+
+    def __init__(self, svg_bytes: bytes, png_bytes: bytes, width: int, height: int) -> None:
+        """Store the rendered bytes and pixel dimensions.
+
+        Args:
+            svg_bytes: The SVG document as raw bytes.
+            png_bytes: The PNG image as raw bytes.
+            width: Pixel width of the raster snapshot.
+            height: Pixel height of the raster snapshot.
+        """
+        self.svg_bytes = svg_bytes
+        self.png_bytes = png_bytes
+        self.width = width
+        self.height = height
+
+    def _repr_svg_(self) -> str:
+        """Return the SVG text so Jupyter renders this inline (vector, resizable)."""
+        return self.svg_bytes.decode("utf-8")
+
+    def _repr_png_(self) -> bytes:
+        """Return the PNG bytes as a raster fallback for rich display."""
+        return self.png_bytes
+
+    def save(self, path: str) -> None:
+        """Write the rendering to disk.
+
+        ``path`` with no extension writes both ``path.svg`` and ``path.png``; a
+        ``.svg`` or ``.png`` extension writes just that format.
+
+        Args:
+            path: Destination path; extension selects the format(s).
+        """
+        ext = os.path.splitext(path)[1].lower()
+        if ext == ".svg":
+            with open(path, "wb") as f:
+                f.write(self.svg_bytes)
+        elif ext == ".png":
+            with open(path, "wb") as f:
+                f.write(self.png_bytes)
+        elif ext == "":
+            with open(path + ".svg", "wb") as f:
+                f.write(self.svg_bytes)
+            with open(path + ".png", "wb") as f:
+                f.write(self.png_bytes)
+        else:
+            raise ValueError(f"Unsupported extension {ext!r}; use .svg, .png, or no extension (writes both).")
+
+    def show(self) -> None:
+        """Display the rendering: inline in Jupyter, a matplotlib window in scripts.
+
+        In a headless context (no GUI backend, not Jupyter) this is a no-op.
+        """
+        if _in_jupyter():
+            from IPython.display import display
+
+            display(self)
+            return
+        import matplotlib.pyplot as plt
+
+        if _headless():
+            # Non-interactive / headless backend — nothing to display.
+            return
+        import matplotlib.image as mpimg
+
+        img = mpimg.imread(BytesIO(self.png_bytes), format="png")
+        fig, ax = plt.subplots()
+        ax.imshow(img)
+        ax.axis("off")
+        plt.show()
 
 
 # ----- Standard render presets and color constants -------------------------
@@ -104,7 +206,7 @@ def multi_show(
 ) -> None:
     """Render multiple half-edge graphs side-by-side in a matplotlib grid.
 
-    Each graph is rendered to a temporary PNG via ``G.show(...)`` and then
+    Each graph is rendered to in-memory PNG bytes via ``G.render(...)`` and then
     displayed as an image in a matplotlib subplot. This is a thin convenience
     helper for tutorials and notebook galleries — it does not return the
     renderer or its surfaces.
@@ -118,12 +220,9 @@ def multi_show(
         cell_size: Per-cell size in matplotlib inches.
         per_subplot_kwargs: Optional list of per-subplot kwargs dicts (one per graph)
             that override ``show_kwargs`` for the corresponding subplot.
-        **show_kwargs: Forwarded verbatim to each ``G.show(...)`` call
+        **show_kwargs: Forwarded verbatim to each ``G.render(...)`` call
             (e.g. ``face_inset=0.05``, ``render_faces=True``).
     """
-    import os
-    import tempfile
-
     import matplotlib.image as mpimg
     import matplotlib.pyplot as plt
 
@@ -153,35 +252,25 @@ def multi_show(
     elif ncols == 1:
         axes = np.array([[a] for a in axes])
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        for i, (G, title) in enumerate(zip(graphs, titles)):
-            r, c = divmod(i, ncols)
-            ax = axes[r][c]
-            base = os.path.join(tmpdir, f"multi_show_{i}")
-            # Suppress the inline IPython display from G.show(); we want a
-            # single combined figure, not n+1 outputs.
-            from IPython import display as _ipy_display
-
-            real_display = _ipy_display.display
-            _ipy_display.display = lambda *a, **kw: None
-            try:
-                G.show(filename=base, **{**show_kwargs, **per_subplot_kwargs[i]})
-            finally:
-                _ipy_display.display = real_display
-            img = mpimg.imread(base + ".png")
-            ax.imshow(img)
-            ax.set_axis_off()
-            if title is not None:
-                ax.set_title(title)
-        # hide any leftover axes
-        for j in range(n, nrows * ncols):
-            r, c = divmod(j, ncols)
-            axes[r][c].set_axis_off()
+    for i, (G, title) in enumerate(zip(graphs, titles)):
+        r, c = divmod(i, ncols)
+        ax = axes[r][c]
+        rendering = G.render(**{**show_kwargs, **per_subplot_kwargs[i]})
+        img = mpimg.imread(BytesIO(rendering.png_bytes), format="png")
+        ax.imshow(img)
+        ax.set_axis_off()
+        if title is not None:
+            ax.set_title(title)
+    # hide any leftover axes
+    for j in range(n, nrows * ncols):
+        r, c = divmod(j, ncols)
+        axes[r][c].set_axis_off()
 
     if suptitle is not None:
         fig.suptitle(suptitle)
     fig.tight_layout()
-    plt.show()
+    if not _headless():
+        plt.show()
 
 
 class CairoRenderer:
@@ -201,11 +290,10 @@ class CairoRenderer:
         vertex_radius: float | None = None,
         scale: float | str = "auto",
         face_inset: float | None = None,
-        path: str = "output.svg",
         position_key: str = "pos",
         curve_position_key: str = "curve_pos",
     ) -> None:
-        """Create a renderer writing to *path* (an SVG file).
+        """Configure a renderer. Construction does no I/O; call ``render_graph``.
 
         Args:
             width: Output width in pixels (defaults to *height*, or 512).
@@ -216,7 +304,6 @@ class CairoRenderer:
             scale: Drawing scale; ``'auto'`` computes a fit from the bounding box.
             face_inset: Distance to inset face fills from the edges (defaults
                 to *line_width*).
-            path: Output SVG path.  A matching PNG is produced by callers.
             position_key: Vertex attribute holding the 2D position.
             curve_position_key: Half-edge attribute holding curved-fold polylines
                 (overrides the straight ``orig -> dest`` line).
@@ -231,18 +318,8 @@ class CairoRenderer:
         self.face_inset = face_inset
         self.position_key = position_key
         self.curve_position_key = curve_position_key
-
-        # self.surface = cairo.ImageSurface(
-        #    cairo.FORMAT_RGB24, self.width, self.height)
-        self.surface = cairo.SVGSurface(path, self.width, self.height)
-        dc = cairo.Context(self.surface)
-        dc.set_line_cap(cairo.LINE_CAP_ROUND)
-        dc.set_line_join(cairo.LINE_JOIN_ROUND)
-        self.line_width = line_width
-        dc.translate(self.width / 2, self.height / 2)
-        dc.set_source_rgb(1, 1, 1)
-        dc.paint()
-        self.dc = dc
+        self.surface = None
+        self.dc = None
 
     def render_face(self, face, color_key: str = "color_key"):
         """Draw a single face's filled polygon, honouring ``face[color_key]``."""
@@ -400,7 +477,7 @@ class CairoRenderer:
         render_faces: bool = True,
         render_edges: bool = True,
         for_cutting: bool = False,
-    ) -> None:
+    ) -> "Rendering":
         """Render the whole *graph* (faces, edges, vertices) onto the cairo surface.
 
         Args:
@@ -410,7 +487,20 @@ class CairoRenderer:
             render_edges: Whether to draw edges.
             for_cutting: Reorder edges to minimise pen-up moves on a plotter.
                 Currently raises :class:`NotImplementedError`.
+
+        Returns:
+            A :class:`Rendering` holding the SVG and PNG bytes.
         """
+        svg_buf = BytesIO()
+        self.surface = cairo.SVGSurface(svg_buf, self.width, self.height)
+        dc = cairo.Context(self.surface)
+        dc.set_line_cap(cairo.LINE_CAP_ROUND)
+        dc.set_line_join(cairo.LINE_JOIN_ROUND)
+        dc.translate(self.width / 2, self.height / 2)
+        dc.set_source_rgb(1, 1, 1)
+        dc.paint()
+        self.dc = dc
+
         global _seed_offset
         _seed_offset = np.random.randint(2**16)
         if self.scale == "auto":
@@ -468,7 +558,15 @@ class CairoRenderer:
             for v in graph.vertices:
                 self.render_vertex(v)
 
-        return self.surface
+        png_buf = BytesIO()
+        self.surface.write_to_png(png_buf)
+        self.surface.finish()
+        return Rendering(
+            svg_bytes=svg_buf.getvalue(),
+            png_bytes=png_buf.getvalue(),
+            width=self.width,
+            height=self.height,
+        )
 
 
 class SvgwriteRenderer:
