@@ -66,24 +66,22 @@ nav:
       - Architecture: concepts/architecture.md
   - Notebooks:
       - Overview: notebooks/00_Overview.ipynb
-      - Constructing Tilings:
+      - Constructing tilings:
           - 01 Euclidean Tilings: notebooks/01_Tilings_Euclidean.ipynb
           - 02 Curved Geometries: notebooks/02_Curved_Geometries.ipynb
-          - 03 Crease Patterns (SRG): notebooks/03_Crease_Patterns_SRG.ipynb
-          - 04 Folding and Overlap: notebooks/04_Folding_and_Overlap.ipynb
           - 05 Conway Operators: notebooks/05_Conway_Operators.ipynb
           - 06 Export and 3D: notebooks/06_Export_and_3D.ipynb
           - 07 Styling: notebooks/07_Styling.ipynb
           - 08 Modifications: notebooks/08_Modifications.ipynb
           - Image To Graph: notebooks/Image To Graph.ipynb
-      - Tilings to Crease Patterns:
-        #   - Tiling Demo: notebooks/Tiling Demo.ipynb
-        #   - GomJau-Hogg Notation: notebooks/GomJau-Hogg Notation.ipynb
-        #   - Hyperbolic and Other Rings: notebooks/Hyperbolic and other Rings.ipynb
-        #   - Origami Crease Patterns: notebooks/Better reciprocal Figures.ipynb
+        #   - GomJau-Hogg Notation: TODO
+      - Tilings to origami tesselations:
+          - Shrink-Rotate: notebooks/03_Crease_Patterns_SRG.ipynb
           - 09 Interactive SRG: notebooks/09_Interactive_SRG.ipynb
-          - 10 Intersecting Cylinders: notebooks/10_Intersecting_Cylinders.ipynb
+          - Intersecting Cylinders: notebooks/10_Intersecting_Cylinders.ipynb
           - Alternating Flagstones: notebooks/Alternating Flagstones.ipynb
+      # - 04 Folding and Overlap: notebooks/04_Folding_and_Overlap.ipynb #TODO: proper notebook walking through my layer-order algorithm: CP -> Overlap graph -> ILP -> layer-order -> top / bottom rendering
+
   - Contributing:
       - Docs Pipeline: contributing/docs-pipeline.md
   - API Reference: reference/
