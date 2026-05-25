@@ -20,4 +20,3 @@ repos:
     rev: 0.7.1
     hooks:
       - id: nbstripout
-        exclude: ^docs/notebooks/

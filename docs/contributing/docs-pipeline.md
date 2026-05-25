@@ -12,16 +12,6 @@ uv pip install -e ".[docs]"
 
 The `docs` extra installs:
 
-| Package | Role |
-|---|---|
-| `mkdocs-material` | Theme and Markdown extensions |
-| `mkdocstrings[python]` | Auto-generates API pages from docstrings |
-| `mkdocs-gen-files` | Runs `docs/gen_ref_pages.py` at build time to create `reference/*.md` |
-| `mkdocs-literate-nav` | Reads the generated `reference/SUMMARY.md` to populate the API nav |
-| `mkdocs-jupyter` | Renders and executes Jupyter notebooks as docs pages |
-| `jupyter`, `ipywidgets`, `ipympl` | Runtime needed for the published notebook examples |
-| `scikit-image`, `mahotas`, `rdp`, `plotly` | Optional stacks required by notebooks currently published in the docs |
-
 ## Build and Preview
 
 ```bash
@@ -62,7 +52,7 @@ Docstrings use **Google style**. mkdocstrings extracts them and renders sections
    ```
 3. Run `DISABLE_MKDOCS_2_WARNING=true mkdocs build` and fix any missing runtime dependencies before committing.
 
-The docs build executes notebooks from source, so committed outputs in `docs/notebooks/` are optional. The pre-commit configuration deliberately skips output stripping for `docs/notebooks/`, while stripping outputs from notebooks elsewhere in the repository.
+The docs build executes notebooks from source, so cell outputs are stripped on commit for all notebooks in the repository, including those under `docs/notebooks/`.
 
 ### Interactive widgets (ipywidgets)
 
@@ -81,7 +71,7 @@ Install the hooks once per clone:
 pre-commit install
 ```
 
-The repository uses `nbstripout` in pre-commit to remove cell outputs from notebooks on commit, except for notebooks under `docs/notebooks/`. That keeps exploratory notebooks lightweight while leaving the published docs notebooks free to carry checked-in outputs when that is useful.
+The repository uses `nbstripout` in pre-commit to remove cell outputs from all notebooks on commit, including those under `docs/notebooks/`. The docs build re-executes notebooks from source, so checked-in outputs are unnecessary.
 
 ### Notebook headings
 
