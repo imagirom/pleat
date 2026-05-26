@@ -216,6 +216,100 @@ class TestConwayOperatorInternals:
         assert hasattr(op, "v1") and hasattr(op, "vf") and hasattr(op, "v2")
 
 
+class TestShorthandMethods:
+    """Shorthand methods on GeometricHEG (G.ambo().dual()...). See issue #28."""
+
+    @pytest.mark.parametrize(
+        "method_name,args",
+        [
+            ("dual", ()),
+            ("kis", ()),
+            ("ambo", ()),
+            ("join", ()),
+            ("meta", ()),
+            ("ortho", ()),
+            ("goldberg2", ()),
+            ("truncate", (0.4,)),
+            ("gyro", ()),
+            ("starify", (0.3,)),
+            ("alternating_flagstone", (0.3,)),
+            ("shrink_rotate", (0.5,)),
+            ("loft", (0.5,)),
+            ("lace", (0.5,)),
+            ("expand", (0.5,)),
+            ("flagstone_pvitelli", (0.25,)),
+            ("chamfer", (0.5,)),
+        ],
+    )
+    def test_each_method_returns_consistent_graph(self, method_name, args):
+        G = _make_tiling(rings=2)
+        result = getattr(G, method_name)(*args)
+        result.check_consistency()
+        assert len(result.faces) > 0
+
+    def test_chaining(self):
+        """G.ambo().dual().truncate(0.4).dual() — the canonical example from the issue."""
+        G = _make_tiling(rings=3)
+        result = G.ambo().dual().truncate(0.4).dual()
+        result.check_consistency()
+        assert len(result.faces) > 0
+
+    def test_method_returns_self_by_default(self):
+        """Without copy_graph, methods mutate in place and return the same object."""
+        G = _make_tiling(rings=2)
+        result = G.dual()
+        assert result is G
+
+    def test_method_with_copy_graph(self):
+        G = _make_tiling(rings=2)
+        original_faces = set(G.faces)
+        result = G.dual(copy_graph=True)
+        assert result is not G
+        assert set(G.faces) == original_faces  # original untouched
+
+    def test_truncate_with_t(self):
+        G = _make_tiling(rings=2)
+        a = _make_tiling(rings=2).truncate(0.3)
+        b = G.truncate(0.7)
+        a.check_consistency()
+        b.check_consistency()
+        # Different cut depths produce structurally valid (but different) graphs.
+        assert len(a.faces) == len(b.faces) > 0
+
+
+class TestFaceFilterCallable:
+    """``faces=`` accepts a callable Face -> bool, in addition to a set."""
+
+    def test_callable_filter_true(self):
+        G = _make_tiling(rings=2)
+        n_in = len(G.faces)
+        result = G.kis(faces=lambda f: True)
+        assert len(result.faces) > n_in  # kis splits every face into triangles
+
+    def test_callable_filter_false(self):
+        G = _make_tiling(rings=2)
+        n_in = len(G.faces)
+        result = G.kis(faces=lambda f: False)
+        # No face matched, so structure is unchanged.
+        assert len(result.faces) == n_in
+
+    def test_callable_filter_matches_explicit_set(self):
+        """Passing ``faces=callable`` is equivalent to passing the matching set."""
+        from eucare.half import IdObject
+
+        IdObject.reset_ids()
+        G1 = _make_tiling(rings=2)
+        selected = {next(iter(G1.faces))}
+        target_id = next(iter(selected))["id"]
+        G1.kis(faces=selected)
+
+        IdObject.reset_ids()
+        G2 = _make_tiling(rings=2)
+        G2.kis(faces=lambda f: f["id"] == target_id)
+
+        assert len(G1.faces) == len(G2.faces)
+
+
 @pytest.mark.parametrize(
     "factory_name",
     ["dual_graph", "kis_graph", "gyro_graph", "flagstone_pvitelli_graph"],

@@ -26,6 +26,9 @@ from .factories import (
 )
 from .operators import GeometricConwayOperator, TopologicalConwayOperator
 
+# Side-effect import: attaches shorthand methods (G.ambo().dual()...) to GeometricHEG.
+from . import methods as _methods  # noqa: F401
+
 __all__ = [
     "GeometricConwayOperator",
     "TopologicalConwayOperator",
