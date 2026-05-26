@@ -12,7 +12,7 @@ from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from copy import copy
 from functools import cmp_to_key
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, Any, Callable
 
 import networkx as nx
 import numpy as np
@@ -704,9 +704,7 @@ def face_order_to_clean_graph(
     bottom_color: tuple[float, ...] = (0.8, 0.8, 0.8),
 ) -> "EuclideanPositionHEG":
     """Extract a clean renderable graph showing only the top or bottom layer of a folded model."""
-    from .half import EuclideanPositionHEG as _EHEG
-
-    view = cast(_EHEG, G.copy())
+    view = G.copy()
 
     color_key_mapping = {
         True: bottom_color,

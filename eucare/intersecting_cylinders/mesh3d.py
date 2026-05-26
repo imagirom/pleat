@@ -63,7 +63,7 @@ last. Across the edge, the mesh uses ``n_across_edge`` uniform subdivisions
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -171,11 +171,11 @@ def _build_ortho_with_tangent_points(
     actual edge tangent points (intersection of the original edge with the line
     between the two adjacent face incenters).
     """
-    G = cast("EuclideanPositionHEG", G.copy())
+    G = G.copy()
     for f in G.faces:
         f["midpoint"] = f.pseudo_incenter()
 
-    G_ortho = cast("EuclideanPositionHEG", conway.ortho_graph()(G, delete_on_border=False, copy_graph=True))
+    G_ortho = conway.ortho_graph()(G, delete_on_border=False, copy_graph=True)
 
     for v in list(G_ortho.vertices):
         if "pre_conway" not in v.attributes:

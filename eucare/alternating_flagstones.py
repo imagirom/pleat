@@ -36,7 +36,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -116,7 +116,7 @@ def build_structure(
     # The `pre_conway` attributes that the operator stamps onto CP point
     # into this intermediate copy, which `v_map`/`f_map` map back to
     # `original`.
-    original = cast("EuclideanPositionHEG", G.copy())
+    original = G.copy()
     pre_CP, (v_map, _, f_map) = original.copy(return_mappings=True)
     v_map_rev = {v: k for k, v in v_map.items()}
     f_map_rev = {f: k for k, f in f_map.items()}
@@ -132,7 +132,7 @@ def build_structure(
             if "pre_conway" in obj.attributes:
                 del obj["pre_conway"]
 
-    CP = cast("EuclideanPositionHEG", alternating_flagstone_graph(t=t)(cast(GeometricHEG, pre_CP)))
+    CP = alternating_flagstone_graph(t=t)(pre_CP)
 
     # CP-iteration order is the single authoritative ordering. ``original_faces``
     # is built parallel to ``flagstone_faces`` so that index ``i`` in either list
@@ -453,11 +453,11 @@ def _mirror_mat(line: NDArray | list[NDArray]) -> NDArray:
     r1 = _rotation_mat(-angle)
     r2 = _rotation_mat(angle)
     mx = np.array([[1, 0, 0], [0, -1, 0], [0, 0, 1]], dtype=np.float64)
-    return cast(NDArray, t2 @ r2 @ mx @ r1 @ t1)
+    return t2 @ r2 @ mx @ r1 @ t1
 
 
 def _apply_affine(m: NDArray, v: NDArray) -> NDArray:
-    return cast(NDArray, (m @ np.concatenate([v, [1]]))[:2])
+    return (m @ np.concatenate([v, [1]]))[:2]
 
 
 def extend_border(CP: "EuclideanPositionHEG") -> "EuclideanPositionHEG":
@@ -481,7 +481,7 @@ def extend_border(CP: "EuclideanPositionHEG") -> "EuclideanPositionHEG":
        processes every border edge cleanly, but on others (square / hex
        bases) some edges remain unextended.
     """
-    out = cast("EuclideanPositionHEG", CP.copy())
+    out = CP.copy()
     for h in out.border_edges():
         if not h.on_border():
             # A previously-added triangle has already absorbed this halfedge.
@@ -496,7 +496,7 @@ def extend_border(CP: "EuclideanPositionHEG") -> "EuclideanPositionHEG":
             h_new, _ = out.subdivide_face(rev_face, h.orig, h.dest)
             h_new[CREASE_ASSIGNMENT] = h_new.rev[CREASE_ASSIGNMENT] = MOUNTAIN
             h_new_2, v_new = out.subdivide_edge(h, pos=pos)
-            out.subdivide_face(cast(Face, None), h_new_2.nex.dest, v_new)
+            out.subdivide_face(None, h_new_2.nex.dest, v_new)
         except StopIteration:
             # Border zigzag: skip and continue.
             continue
@@ -511,7 +511,7 @@ def extend_border(CP: "EuclideanPositionHEG") -> "EuclideanPositionHEG":
 
 
 def _edge_midpoint(h: HalfEdge) -> NDArray:
-    return cast(NDArray, np.mean([v["pos"] for v in (h.orig, h.dest)], axis=0))
+    return np.mean([v["pos"] for v in (h.orig, h.dest)], axis=0)
 
 
 def cut_twist_centres(
@@ -534,8 +534,7 @@ def cut_twist_centres(
         inset: Negative for outward inset (the default; matches the
             notebook). Forwarded to :func:`eucare.rendering.inset_poly`.
     """
-    CP_for_folding_raw, (v_map, _, f_map) = structure.CP.copy(return_mappings=True)
-    CP_for_folding = cast("EuclideanPositionHEG", CP_for_folding_raw)
+    CP_for_folding, (v_map, _, f_map) = structure.CP.copy(return_mappings=True)
 
     polys: list[NDArray] = []
     for star, group in structure.star_groups.items():
@@ -611,7 +610,7 @@ def subdivide_ridges_for_curved_fold(
     if not isinstance(n_subdivisions, int) or n_subdivisions < 2:
         raise ValueError(f"n_subdivisions must be an int >= 2, got {n_subdivisions!r}")
 
-    G = cast("EuclideanPositionHEG", CP.copy())
+    G = CP.copy()
 
     to_subdivide = set()
     for h in G.halfedges:

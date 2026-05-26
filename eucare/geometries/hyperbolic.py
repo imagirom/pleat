@@ -8,7 +8,7 @@ mean, and projecting back.
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -16,6 +16,14 @@ from numpy.typing import NDArray
 from .base import Geometry
 
 ComplexPoint = complex | NDArray[Any]
+
+
+@overload
+def apply_mobius(mat: NDArray[Any], points: complex) -> complex: ...
+
+
+@overload
+def apply_mobius(mat: NDArray[Any], points: NDArray[Any]) -> NDArray[Any]: ...
 
 
 def apply_mobius(mat: NDArray[Any], points: ComplexPoint) -> ComplexPoint:
@@ -31,6 +39,12 @@ class MobiusTransform:
             mat = np.array(mat)
         assert mat.shape == (2, 2), f"{mat.shape}"
         self.mat: NDArray[Any] = mat
+
+    @overload
+    def __call__(self, points: complex) -> complex: ...
+
+    @overload
+    def __call__(self, points: NDArray[Any]) -> NDArray[Any]: ...
 
     def __call__(self, points: ComplexPoint) -> ComplexPoint:
         return apply_mobius(self.mat, points)
@@ -102,7 +116,7 @@ class PoincareDiskModel(Geometry):
         if p1 == 0:
             return MobiusTransform([[1, p2], [p2.conjugate(), 1]])
         m1 = cls.translation(p2, 0)
-        m2 = cls.translation(0, -cast(complex, m1(p1)))
+        m2 = cls.translation(0, -m1(p1))
         m3 = cls.translation(0, p2)
         return m3 @ m2 @ m1
 

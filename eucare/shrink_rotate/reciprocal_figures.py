@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 from copy import copy
-from typing import cast
+
 
 import numpy as np
 from numpy.typing import NDArray
@@ -127,10 +127,7 @@ def reciprocal_figure(
             f[reciprocal_pos_key] = dual_vertices[i]
 
     # Step 5: Make the reciprocal figure into a face graph.
-    D, (v_map, e_map, f_map) = cast(
-        tuple[GeometricHEG, tuple[dict[Vertex, Vertex], dict[HalfEdge, HalfEdge], dict[Face, Face]]],
-        G.copy(return_mappings=True),
-    )
+    D, (v_map, e_map, f_map) = G.copy(return_mappings=True)
     face2reciprocalpos = {f_map[f]: dual_vertices[i] for i, f in enumerate(faces)}
 
     D = dual_graph()(D)

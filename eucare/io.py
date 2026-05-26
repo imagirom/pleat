@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, cast
+from typing import Any, Callable
 
 import numpy as np
 import yaml
@@ -49,8 +49,8 @@ def graph_to_dict(
                 value: Any = obj[attr]
                 if isinstance(value, np.ndarray):
                     value = value.tolist()
-                if np.isscalar(value):
-                    value = float(cast(Any, value))
+                if isinstance(value, (int, float, np.floating, np.integer)):
+                    value = float(value)
                 result[attr] = value
         return result
 

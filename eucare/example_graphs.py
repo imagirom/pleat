@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Sequence, cast
+from typing import Any, Callable, Literal, Sequence, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -109,6 +109,27 @@ def complete_closest_vertices(G: GeometricHEG, eps: float = 1e-6) -> None:
             complete_vertex(G, v)
 
 
+@overload
+def from_tiles(
+    tiles: Sequence[ProtoTile],
+    rings: int = ...,
+    vertex_based: bool = ...,
+    base_tile: "int | ProtoTile | HalfEdgeGraph" = ...,
+    add_positions: Literal[True] = ...,
+) -> GeometricHEG: ...
+
+
+@overload
+def from_tiles(
+    tiles: Sequence[ProtoTile],
+    rings: int = ...,
+    vertex_based: bool = ...,
+    base_tile: "int | ProtoTile | HalfEdgeGraph" = ...,
+    *,
+    add_positions: Literal[False],
+) -> InAngleHEG: ...
+
+
 def from_tiles(
     tiles: Sequence[ProtoTile],
     rings: int = 2,
@@ -167,7 +188,7 @@ def kised_soccer_ball() -> GeometricHEG:
     from eucare.conway import kis_graph
 
     n, k = (5, 3)
-    G = cast(GeometricHEG, from_tiles(curved_zip(n, k), rings=3))
+    G = from_tiles(curved_zip(n, k), rings=3)
     G = kis_graph()(G)
     G.delete_subset([v for v in G.vertices if v.on_border() and v.order() < 5])
     G.delete_subset([f for f in G.faces if f.order() > 3])
@@ -206,10 +227,10 @@ def hyperbolic_square_graph(
         return (z + 1j) / (1j * z + 1)
 
     if G is None:
-        G = cast(GeometricHEG, ec.example_graphs.from_tiles(ec.example_tilesets.curved_platonic(7, 3), 1))
+        G = ec.example_graphs.from_tiles(ec.example_tilesets.curved_platonic(7, 3), 1)
 
     def map_to_square(G: GeometricHEG) -> GeometricHEG:
-        G_square = cast(GeometricHEG, G.copy())
+        G_square = G.copy()
         G_square.geometry = ec.geometries.EuclideanGeometry
         for v in G_square.vertices:
             if "square_pos" in v:

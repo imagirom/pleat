@@ -15,7 +15,7 @@ The single public entry point is :func:`shrink_rotate_pattern`.
 from __future__ import annotations
 
 import logging
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 
@@ -40,7 +40,7 @@ def shrink_rotate_pattern(
     assign_creases: bool = True,
     simplify_boundary: bool = True,
     **reciprocal_figure_kwargs: Any,
-) -> EuclideanPositionHEG:
+) -> GeometricHEG:
     """Build a shrink-rotate crease pattern from tiling *G*.
 
     Each face of *G* is subdivided by the shrink-rotate Conway operator;
@@ -73,10 +73,7 @@ def shrink_rotate_pattern(
         _ = reciprocal_figure(G, **reciprocal_figure_kwargs)
         logger.info("Done with reciprocal figure.")
 
-    SRG, (_, _, f_map) = cast(
-        tuple[GeometricHEG, tuple[dict[Vertex, Vertex], dict[HalfEdge, HalfEdge], dict[Face, Face]]],
-        G.copy(return_mappings=True),
-    )
+    SRG, (_, _, f_map) = G.copy(return_mappings=True)
     inverse_f_map = invert_mapping(f_map)  # SRG-pre_conway → G
 
     SRG = shrink_rotate_graph()(SRG)
@@ -127,7 +124,7 @@ def shrink_rotate_pattern(
 
     logger.info("CP has %d edges", len(SRG.halfedges) // 2)
 
-    return cast(EuclideanPositionHEG, SRG)
+    return SRG
 
 
 def assign_shrink_rotate_creases(SRG: HalfEdgeGraph) -> None:

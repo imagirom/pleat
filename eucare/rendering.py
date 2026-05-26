@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import os
 from io import BytesIO
-from typing import TYPE_CHECKING, Any, Iterable, cast
+from typing import TYPE_CHECKING, Any, Iterable
 
 import cairo
 import numpy as np
@@ -286,6 +286,9 @@ class CairoRenderer:
     back to a translucent blue (faces) or grey (edges).
     """
 
+    surface: cairo.SVGSurface
+    dc: cairo.Context[Any]
+
     def __init__(
         self,
         width: int | None = None,
@@ -312,19 +315,20 @@ class CairoRenderer:
             curve_position_key: Half-edge attribute holding curved-fold polylines
                 (overrides the straight ``orig -> dest`` line).
         """
-        if width is None and height is None:
-            width, height = 512, 512
-        self.width: int = width if width is not None else cast(int, height)
-        self.height: int = height if height is not None else cast(int, width)
+        if width is None:
+            width = height if height is not None else 512
+        if height is None:
+            height = width
+        self.width = width
+        self.height = height
         self.scale: float | str = scale
         self.line_width: float | str = line_width
-        self.vertex_radius: float | None = vertex_radius
-        self.face_inset: float | None = face_inset
+        self.vertex_radius = vertex_radius
+        self.face_inset = face_inset
         self.position_key = position_key
         self.curve_position_key = curve_position_key
-        # surface and dc are set by render_graph(); reading them before that is an error.
-        self.surface: cairo.SVGSurface = cast(cairo.SVGSurface, None)
-        self.dc: cairo.Context[Any] = cast("cairo.Context[Any]", None)
+        # ``surface`` and ``dc`` are set by ``render_graph``; reading them
+        # before that call raises ``AttributeError``.
 
     def render_face(self, face: Face, color_key: str = "color_key") -> cairo.SVGSurface:
         """Draw a single face's filled polygon, honouring ``face[color_key]``."""

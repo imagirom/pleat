@@ -6,7 +6,7 @@ parameter, and :func:`make_intersecting_cylinders` for the main entry point.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 
@@ -85,18 +85,14 @@ def make_intersecting_cylinders(
 
     if r != 1:
         expand_t = (1 - r) * shrink_factor / (1 - (1 - r) * (1 - shrink_factor))
-        G = cast("EuclideanPositionHEG", conway.expand_graph(expand_t)(G, delete_on_border=False, copy_graph=True))
+        G = conway.expand_graph(expand_t)(G, delete_on_border=False, copy_graph=True)
         fs = [f for f in G.faces if "pre_conway" in f]
         for f in fs:
             f["midpoint"] = f.pseudo_incenter()
     else:
         fs = list(G.faces)
 
-    G_copy, (v_map_f, h_map_f, f_map_f) = cast(
-        "tuple[EuclideanPositionHEG, tuple[dict[half.Vertex, half.Vertex], dict[half.HalfEdge, half.HalfEdge], dict[half.Face, half.Face]]]",
-        G.copy(return_mappings=True),
-    )
-    G = G_copy
+    G, (v_map_f, h_map_f, f_map_f) = G.copy(return_mappings=True)
 
     v_map = _reverse_mapping(v_map_f)
     h_map = _reverse_mapping(h_map_f)
@@ -105,15 +101,12 @@ def make_intersecting_cylinders(
 
     vertex_pairs_to_halfedges = {(h.orig, h.dest): h_map[h] for h in G.halfedges}
 
-    G = cast(
-        "EuclideanPositionHEG",
-        conway.lace_graph(0.5, join=True)(
-            G,
-            faces=[f_map_f[f] for f in fs],
-            delete_inner_border=True,
-            delete_on_border=False,
-            copy_graph=False,
-        ),
+    G = conway.lace_graph(0.5, join=True)(
+        G,
+        faces=[f_map_f[f] for f in fs],
+        delete_inner_border=True,
+        delete_on_border=False,
+        copy_graph=False,
     )
     G.delete_subset([f for f in G.faces if f.any_side not in G.halfedges])
     G.check_consistency()
@@ -189,13 +182,13 @@ def top_view(G: "EuclideanPositionHEG", r: float = 1.0) -> "EuclideanPositionHEG
     if not 0.0 < r <= 1.0:
         raise ValueError("r must lie in (0, 1]")
 
-    G = cast("EuclideanPositionHEG", G.copy())
+    G = G.copy()
     for f in G.faces:
         f["midpoint"] = f.pseudo_incenter()
 
     if r == 1.0:
-        return cast("EuclideanPositionHEG", conway.join_graph()(G, delete_on_border=False))
+        return conway.join_graph()(G, delete_on_border=False)
 
     # FIXME: this is not the correct top view. Revisit in detail how the crease pattern is generated and accordingly how the top view should be constructed. For now, this is a placeholder which is somewhat similar, at least in the central part of the pattern.
-    G = cast("EuclideanPositionHEG", conway.dual_graph()(G, delete_on_border=False))
-    return cast("EuclideanPositionHEG", conway.chamfer_graph(r)(G, delete_on_border=False))
+    G = conway.dual_graph()(G, delete_on_border=False)
+    return conway.chamfer_graph(r)(G, delete_on_border=False)

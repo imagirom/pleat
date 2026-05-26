@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from copy import copy
-from typing import Any, cast
+from typing import Any, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -14,6 +14,10 @@ from ..base import euclidean_to_barycentric_map
 from ..geometries.base import Geometry
 from ..half import Face, GeometricHEG, HalfEdge, HalfEdgeGraph, Vertex
 from ..utils import invert_mapping
+
+
+G = TypeVar("G", bound="HalfEdgeGraph")
+G_geom = TypeVar("G_geom", bound="GeometricHEG")
 
 
 class TopologicalConwayOperator:
@@ -40,7 +44,8 @@ class TopologicalConwayOperator:
 
     def show(self) -> None:
         """Render the fundamental domain graph for visualization."""
-        cast(GeometricHEG, self.graph).show(scale=300, line_width=0.03, render_faces=False)
+        assert isinstance(self.graph, GeometricHEG)
+        self.graph.show(scale=300, line_width=0.03, render_faces=False)
 
     def get_tri(self, h: HalfEdge) -> NDArray[np.floating[Any]] | None:
         """Return the triangle for half-edge ``h``, or None for purely topological operators."""
@@ -69,12 +74,12 @@ class TopologicalConwayOperator:
 
     def __call__(
         self,
-        graph: HalfEdgeGraph,
+        graph: G,
         faces: "set[Face] | None" = None,
         delete_on_border: bool = True,
         delete_inner_border: bool = False,
         copy_graph: bool = False,
-    ) -> HalfEdgeGraph:
+    ) -> G:
         """Apply the operator to ``graph``, optionally restricted to ``faces``.
 
         Args:
@@ -104,7 +109,6 @@ class TopologicalConwayOperator:
                     del obj["pre_conway"]
 
         # apply the operator to a set of halfedges in a graph
-        assert isinstance(graph, HalfEdgeGraph)
         if faces is None:
             faces = graph.faces
         halfedges = [h for f in faces for h in f.halfedge_iter()]
@@ -334,10 +338,10 @@ class GeometricConwayOperator(TopologicalConwayOperator):
 
     def __call__(  # type: ignore[override]
         self,
-        graph: GeometricHEG,
+        graph: G_geom,
         recompute_lengths_and_angles: bool = True,
         **kwargs: Any,
-    ) -> GeometricHEG:
+    ) -> G_geom:
         """Apply the geometric operator to ``graph``.
 
         Args:
@@ -349,10 +353,8 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         Returns:
             The transformed graph.
         """
-        assert isinstance(graph, GeometricHEG)
         self.geometry = graph.geometry
         result = super().__call__(graph, **kwargs)
-        assert isinstance(result, GeometricHEG)
         if recompute_lengths_and_angles:
             result.recompute_lengths_and_angles()
         return result
@@ -384,8 +386,7 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         from ..half import EuclideanGeometry
 
         # Project barycentric vertex positions back to a canonical Euclidean triangle.
-        graph_copy_base, (_, _, _) = self.graph.copy(deepcopy_attributes=False, return_mappings=True)
-        graph_copy = cast(GeometricHEG, graph_copy_base)
+        graph_copy, (_, _, _) = self.graph.copy(deepcopy_attributes=False, return_mappings=True)
         graph_copy.geometry = EuclideanGeometry
         to_euclidean = EuclideanGeometry.barycentric_to_euclidean_map(self._SHOW_REFERENCE_TRIANGLE)
         for v in graph_copy.vertices:

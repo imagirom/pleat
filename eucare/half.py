@@ -20,7 +20,7 @@ import logging
 from copy import copy, deepcopy
 from itertools import chain
 from math import pi
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Literal, cast, overload
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Literal, TypeVar, overload
 
 if TYPE_CHECKING:
     from .geometries.base import Geometry
@@ -134,9 +134,10 @@ class HalfEdge(IdObject):
     Note:
         ``rev``/``nex``/``pre``/``orig``/``dest`` are typed as non-optional
         because the data structure invariant requires them to be set once the
-        graph is fully constructed.  They may be left unset by the constructor
-        and assigned later during incremental graph building; reading them
-        before they are assigned is a programming error.
+        graph is fully constructed.  The constructor accepts ``None`` to
+        support incremental graph building; in that case the corresponding
+        attribute is simply left unset and reading it before it is assigned
+        raises :class:`AttributeError`.
     """
 
     printname = "HE"
@@ -158,16 +159,17 @@ class HalfEdge(IdObject):
         face: Face | None = None,
     ) -> None:
         super(HalfEdge, self).__init__()
-        # HalfEdge references
-        self.rev = cast(HalfEdge, rev)
-        self.nex = cast(HalfEdge, nex)
-        self.pre = cast(HalfEdge, pre)
-
-        # Vertex references
-        self.orig = cast(Vertex, orig)
-        self.dest = cast(Vertex, dest)
-
-        # Face reference (genuinely optional: None on border)
+        if rev is not None:
+            self.rev = rev
+        if nex is not None:
+            self.nex = nex
+        if pre is not None:
+            self.pre = pre
+        if orig is not None:
+            self.orig = orig
+        if dest is not None:
+            self.dest = dest
+        # Face is genuinely optional: None on border edges.
         self.face = face
 
     # def __repr__(self):
@@ -199,7 +201,8 @@ class Vertex(IdObject):
     Note:
         ``any_outgoing`` is typed as non-optional because every fully
         constructed vertex points to some outgoing half-edge.  The constructor
-        accepts ``None`` to support incremental graph building.
+        accepts ``None`` to support incremental graph building; in that case
+        the attribute is left unset until assigned.
     """
 
     printname = "V"
@@ -208,7 +211,8 @@ class Vertex(IdObject):
 
     def __init__(self, any_outgoing: HalfEdge | None = None) -> None:
         super(Vertex, self).__init__()
-        self.any_outgoing = cast(HalfEdge, any_outgoing)
+        if any_outgoing is not None:
+            self.any_outgoing = any_outgoing
 
     def outgoing_iter(self) -> Iterator[HalfEdge]:
         """Yield outgoing half-edges in counter-clockwise order around this vertex."""
@@ -308,14 +312,16 @@ class Face(IdObject):
     Note:
         ``any_side`` is typed as non-optional because every fully constructed
         face references one of its boundary half-edges.  The constructor
-        accepts ``None`` to support incremental graph building.
+        accepts ``None`` to support incremental graph building; in that case
+        the attribute is left unset until assigned.
     """
 
     any_side: HalfEdge
 
     def __init__(self, any_side: HalfEdge | None = None) -> None:
         super(Face, self).__init__()
-        self.any_side = cast(HalfEdge, any_side)
+        if any_side is not None:
+            self.any_side = any_side
 
     def halfedge_iter(self) -> Iterator[HalfEdge]:
         """Yield boundary half-edges in counter-clockwise order around this face."""
@@ -475,6 +481,9 @@ def pseudo_circumcenter(ps: NDArray, return_radius: bool = False) -> NDArray | t
     if return_radius:
         return center, radius
     return center
+
+
+G = TypeVar("G", bound="HalfEdgeGraph")
 
 
 class HalfEdgeGraph:
@@ -851,7 +860,9 @@ class HalfEdgeGraph:
 
         return h2, v
 
-    def subdivide_face(self, f: Face, v1: Vertex, v2: Vertex, **halfedge_attributes: object) -> tuple[HalfEdge, Face]:
+    def subdivide_face(
+        self, f: Face | None, v1: Vertex, v2: Vertex, **halfedge_attributes: object
+    ) -> tuple[HalfEdge, Face]:
         """Subdivide face ``f`` along a new edge from ``v1`` to ``v2``.
 
         Two new half-edges ``h12`` (``v1 -> v2``) and ``h21`` (``v2 -> v1``)
@@ -1229,18 +1240,18 @@ class HalfEdgeGraph:
 
     @overload
     def copy(
-        self,
+        self: G,
         deepcopy_attributes: bool = ...,
         *,
         return_mappings: Literal[True],
-    ) -> tuple[HalfEdgeGraph, tuple[dict[Vertex, Vertex], dict[HalfEdge, HalfEdge], dict[Face, Face]]]: ...
+    ) -> tuple[G, tuple[dict[Vertex, Vertex], dict[HalfEdge, HalfEdge], dict[Face, Face]]]: ...
 
     @overload
     def copy(
-        self,
+        self: G,
         deepcopy_attributes: bool = ...,
         return_mappings: Literal[False] = ...,
-    ) -> HalfEdgeGraph: ...
+    ) -> G: ...
 
     def copy(
         self, deepcopy_attributes: bool = False, return_mappings: bool = False
