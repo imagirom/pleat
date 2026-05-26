@@ -108,13 +108,12 @@ class Profile:
         )
 
     def plot(self, ax=None) -> None:
-        """Plot the simplified ``(l, t)`` polyline; convenience for notebooks."""
+        """Plot the simplified ``(t, y)`` polyline."""
         import matplotlib.pyplot as plt
 
         if ax is None:
             ax = plt.gca()
-        ax.plot(self.l, self.t)
-        ax.scatter(self.l, self.t, marker=".")
+        ax.plot(self.t, self.y)
         ax.set_aspect(1)
 
 
