@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from eucare.gjh.parser import compile_gjh_graph, polygon_placement
+from eucare.gjh.distill import spec_from_graph
 
 
 def test_polygon_placement_single_polygon():
@@ -40,3 +41,22 @@ def test_compile_gjh_graph_platonic_hex():
     G = compile_gjh_graph("6/m30/r(h1)", bbox_size=12)
     assert all(f.order() == 6 for f in G.faces)
     assert len(G.faces) > 5
+
+
+def test_spec_from_graph_hex_tiling():
+    """A pure hex tiling distills to a single tile spec with 6 edges."""
+    G = compile_gjh_graph("6/m30/r(h1)", bbox_size=12)
+    spec = spec_from_graph(G)
+    assert len(spec) == 1
+    only_tile = next(iter(spec.values()))
+    assert len(only_tile) == 6
+    # every edge of the hex glues to another hex
+    assert all(neighbor == next(iter(spec.keys())) for neighbor, _ in only_tile)
+
+
+def test_spec_from_graph_3_6_3_6_tiling():
+    """3.6.3.6 tiling distills to two tiles, a triangle (3 edges) and hex (6 edges)."""
+    G = compile_gjh_graph("3-6/m30/r(c2)", bbox_size=20)
+    spec = spec_from_graph(G)
+    orders = sorted(len(edges) for edges in spec.values())
+    assert orders == [3, 6]
