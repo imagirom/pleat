@@ -492,6 +492,7 @@ def find_folded_face_order(
     double_fold_weight: float = 0,
     allow_slack: bool = True,
     problem_file: str | None = None,
+    quiet: bool = False,
 ) -> dict:
     """Determine the stacking order of overlapping faces by solving an ILP.
 
@@ -590,7 +591,7 @@ def find_folded_face_order(
         prob.writeLP(problem_file)
         if solver is None:
             for solver_class in SOLVER_ORDER:
-                candidate = solver_class()
+                candidate = solver_class(msg=False if quiet else True)
                 if candidate.available():
                     solver = candidate
                     break
@@ -765,7 +766,7 @@ def fold_complete(
         over_under_pairs = get_over_under_pairs_from_creases(G)
         G_over = overlap_graph(G, overlap_eps)
         assert area_eps == 0, "Not implemented!"
-        crease_assignment = find_folded_face_order(G_over, over_under_pairs)
+        crease_assignment = find_folded_face_order(G_over, over_under_pairs, quiet=quiet)
         # make CP
         for e in G.halfedges:
             e[CREASE_ASSIGNMENT] = crease_assignment.get(e, 0)
