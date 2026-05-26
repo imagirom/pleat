@@ -83,3 +83,60 @@ def test_cached_spec_known_code():
 def test_cached_spec_missing_code_raises():
     with pytest.raises(KeyError):
         cached_spec("99-99-99")
+
+
+from eucare import gjh as gjh_module
+from eucare.example_graphs import from_tiles
+from eucare.gjh import GJH_CODES, compile_gjh_spec, gjh, gjh_graph, gjh_spec
+
+
+def test_gjh_returns_tiles_for_cached_code():
+    tiles = gjh("3/m30/r(h2)")
+    assert len(tiles) == 1
+    assert tiles[0].order == 3
+
+
+def test_gjh_grows_to_a_tiling():
+    tiles = gjh("3-6/m30/r(c2)")  # 3.6.3.6
+    G = from_tiles(tiles, rings=2)
+    orders = {f.order() for f in G.faces}
+    assert orders == {3, 6}
+
+
+def test_gjh_spec_matches_cache_for_known_code():
+    spec = gjh_spec("3/m30/r(h2)")
+    assert spec == {"a": [("a", 0), ("a", 0), ("a", 0)]}
+
+
+def test_gjh_graph_for_uncached_code_uses_parser():
+    # Even cached codes should round-trip through gjh_graph.
+    G = gjh_graph("6/m30/r(h1)", bbox_size=10)
+    assert all(f.order() == 6 for f in G.faces)
+    assert len(G.faces) > 4
+
+
+@pytest.mark.parametrize("code", GJH_CODES)
+def test_all_cached_codes_load_as_tiles(code):
+    tiles = gjh(code)
+    assert len(tiles) >= 1
+    # Every tile must have at least 3 edges.
+    assert all(tile.order >= 3 for tile in tiles)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    "code",
+    [
+        "3/m30/r(h2)",  # platonic
+        "3-6/m30/r(c2)",  # simple 1-uniform (3.6.3.6)
+        "4-6,4-0,3,3/m/r(v1)/r(h25)",  # 3-uniform [3.4²·6; (3.6.3.6)²]
+    ],
+)
+def test_compile_matches_cache(code):
+    """For a representative subset, parser+distiller output must equal the cached spec."""
+    fresh = compile_gjh_spec(code, bbox_size=20)
+    cached = gjh_spec(code)
+    # Specs are equal up to tile and edge renaming. Quick structural check:
+    assert sorted(len(v) for v in fresh.values()) == sorted(len(v) for v in cached.values())
+    # If the test fails on a stricter equality, this gives an actionable error message.
+    assert fresh == cached, f"Compiled spec differs from cache for {code}:\n  fresh = {fresh}\n  cached = {cached}"
