@@ -75,7 +75,7 @@ build-backend = "hatchling.build"
 packages = ["eucare"]
 
 [tool.hatch.build]
-include = ["eucare/py.typed"]
+include = ["eucare/py.typed", "eucare/gjh/_data/*.yml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

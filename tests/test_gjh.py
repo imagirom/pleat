@@ -6,6 +6,7 @@ import pytest
 
 from eucare.gjh.parser import compile_gjh_graph, polygon_placement
 from eucare.gjh.distill import spec_from_graph
+from eucare.gjh.library import CACHED_SPECS, GJH_CODES, cached_spec
 
 
 def test_polygon_placement_single_polygon():
@@ -60,3 +61,25 @@ def test_spec_from_graph_3_6_3_6_tiling():
     spec = spec_from_graph(G)
     orders = sorted(len(edges) for edges in spec.values())
     assert orders == [3, 6]
+
+
+def test_library_loads_89_codes():
+    assert len(GJH_CODES) == 89
+    assert len(CACHED_SPECS) == 89
+
+
+def test_library_preserves_numeric_prefix_ordering():
+    # First entry is the regular triangle tiling; last is one of the 3-uniform.
+    assert GJH_CODES[0] == "3/m30/r(h2)"
+    assert GJH_CODES[1] == "6/m30/r(h1)"
+    assert GJH_CODES[2] == "4/m45/r(h1)"
+
+
+def test_cached_spec_known_code():
+    spec = cached_spec("3/m30/r(h2)")
+    assert spec == {"a": [("a", 0), ("a", 0), ("a", 0)]}
+
+
+def test_cached_spec_missing_code_raises():
+    with pytest.raises(KeyError):
+        cached_spec("99-99-99")
