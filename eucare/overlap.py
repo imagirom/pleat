@@ -601,7 +601,16 @@ def find_folded_face_order(
         logger.info(
             "Solving ILP with solver %s..", solver.__class__.__name__ if isinstance(solver, pulp.LpSolver) else solver
         )
-        prob.solve(solver=solver)
+        # Some solvers (notably CPLEX's parallel optimizer) drop auxiliary log
+        # files in CWD; run the solve from the problem file's directory so
+        # they land there instead of next to the caller's notebook/script.
+        problem_dir = os.path.dirname(problem_file) or "."
+        prev_cwd = os.getcwd()
+        os.chdir(problem_dir)
+        try:
+            prob.solve(solver=solver)
+        finally:
+            os.chdir(prev_cwd)
     else:
         logger.info("Skipping ILP since everything is already determined..")
 
