@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from copy import copy
 
 import numpy as np
@@ -67,7 +68,7 @@ class TopologicalConwayOperator:
     def __call__(
         self,
         graph: HalfEdgeGraph,
-        faces: "set[Face] | None" = None,
+        faces: "set[Face] | Callable[[Face], bool] | None" = None,
         delete_on_border: bool = True,
         delete_inner_border: bool = False,
         copy_graph: bool = False,
@@ -76,7 +77,9 @@ class TopologicalConwayOperator:
 
         Args:
             graph: Input half-edge graph; mutated in place unless ``copy_graph``.
-            faces: Faces to apply the operator to. Defaults to all faces.
+            faces: Faces to apply the operator to. Either an explicit set of
+                faces, or a callable ``face -> bool`` used to filter
+                ``graph.faces``. Defaults to all faces.
             delete_on_border: If True, delete faces whose original border edge
                 was marked for deletion.
             delete_inner_border: If True, also clear the ``delete`` flag on
@@ -102,6 +105,8 @@ class TopologicalConwayOperator:
         assert isinstance(graph, HalfEdgeGraph)
         if faces is None:
             faces = graph.faces
+        elif callable(faces):
+            faces = {f for f in graph.faces if faces(f)}
         halfedges = [h for f in faces for h in f.halfedge_iter()]
         assert all(isinstance(h, HalfEdge) for h in halfedges)
         affected_faces = {h.face for h in halfedges}
