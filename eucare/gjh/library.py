@@ -29,7 +29,10 @@ def _load_all() -> tuple[list[str], dict[str, TilesetSpec]]:
     codes: list[str] = []
     specs: dict[str, TilesetSpec] = {}
     data_root = files(_DATA_PKG)
-    yml_files = sorted(p for p in data_root.iterdir() if p.name.endswith(".yml"))
+    yml_files = sorted(
+        (p for p in data_root.iterdir() if p.name.endswith(".yml")),
+        key=lambda p: p.name,
+    )
     for resource in yml_files:
         text = resource.read_text()
         code, spec = _read_code_and_spec(text)
