@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
+from typing import Any, Callable, Sequence, cast
 
 import numpy as np
+from numpy.typing import NDArray
 from sympy import N, elliptic_f
 
 from .example_tilesets import curved_zip, pgg_2x
@@ -17,7 +19,9 @@ logger = logging.getLogger(__name__)
 # TODO https://en.wikipedia.org/wiki/File:Planar_Fractalizing_Truncated_Hexagonal_Tiling_II.png
 
 
-def get_edge_with(graph: HalfEdgeGraph, func: "callable | None" = None, on_border: bool = False) -> HalfEdge:
+def get_edge_with(
+    graph: HalfEdgeGraph, func: Callable[[HalfEdge], bool] | None = None, on_border: bool = False
+) -> HalfEdge:
     """Return the first half-edge satisfying ``func``, optionally restricted to border edges.
 
     Args:
@@ -37,7 +41,9 @@ def get_edge_with(graph: HalfEdgeGraph, func: "callable | None" = None, on_borde
     raise LookupError("Cannot find edge with requested property")
 
 
-def get_vertex_with(graph: HalfEdgeGraph, func: "callable | None" = None, on_border: bool = False) -> Vertex:
+def get_vertex_with(
+    graph: HalfEdgeGraph, func: Callable[[Vertex], bool] | None = None, on_border: bool = False
+) -> Vertex:
     """Return the first vertex satisfying ``func``, optionally restricted to border vertices.
 
     Args:
@@ -61,8 +67,8 @@ def rosette(n: int = 8) -> EuclideanPositionHEG:
     """Construct a rosette pattern from ``n`` rhombus tiles around a central vertex."""
     assert isinstance(n, int)
     alpha = 2 * np.pi / n
-    G, edgedict = RhombusTile(alpha).make_graph(add_positions=True)
-    G = EuclideanPositionHEG(other=G)
+    base_graph, edgedict = RhombusTile(alpha).make_graph(add_positions=True)
+    G = EuclideanPositionHEG(other=base_graph)
     v = edgedict[0].dest
     while v.on_border():
         RhombusTile(alpha).attach_instruction(0)(G, v.get_outgoing_border())
@@ -98,16 +104,18 @@ def complete_closest_vertices(G: GeometricHEG, eps: float = 1e-6) -> None:
     assert isinstance(G, GeometricHEG)
     vertex_dists = {e.orig: G.geometry.distance_to_origin(e.orig["pos"]) for e in G.border_edge_iter()}
     d_min = np.min(list(vertex_dists.values()))
-    [complete_vertex(G, v) for v, d in vertex_dists.items() if d - d_min < eps and v.on_border()]
+    for v, d in vertex_dists.items():
+        if d - d_min < eps and v.on_border():
+            complete_vertex(G, v)
 
 
 def from_tiles(
-    tiles: list[ProtoTile],
+    tiles: Sequence[ProtoTile],
     rings: int = 2,
     vertex_based: bool = True,
     base_tile: "int | ProtoTile | HalfEdgeGraph" = -1,
     add_positions: bool = True,
-) -> HalfEdgeGraph:
+) -> InAngleHEG:
     """Grow a tiling from a list of proto-tiles by expanding for the given number of rings.
 
     Args:
@@ -127,6 +135,7 @@ def from_tiles(
         base_tile = tiles[base_tile]
     if isinstance(base_tile, ProtoTile):
         base_tile = base_tile.make_graph(add_positions=add_positions)[0]
+    G: InAngleHEG
     if add_positions:
         assert (
             len({tile.geometry for tile in tiles}) == 1
@@ -147,18 +156,18 @@ def from_tiles(
     return G
 
 
-def pgg_2x_tiling(rings: int = 15) -> HalfEdgeGraph:
+def pgg_2x_tiling(rings: int = 15) -> InAngleHEG:
     """Construct a pgg wallpaper group tiling with the given number of rings."""
-    tiles = pgg_2x()
+    tiles = list(pgg_2x())
     return from_tiles(tiles, rings)
 
 
-def kised_soccer_ball() -> HalfEdgeGraph:
+def kised_soccer_ball() -> GeometricHEG:
     """Construct a kised soccer ball (icosahedron variant) on the sphere."""
     from eucare.conway import kis_graph
 
     n, k = (5, 3)
-    G = from_tiles(curved_zip(n, k), rings=3)
+    G = cast(GeometricHEG, from_tiles(curved_zip(n, k), rings=3))
     G = kis_graph()(G)
     G.delete_subset([v for v in G.vertices if v.on_border() and v.order() < 5])
     G.delete_subset([f for f in G.faces if f.order() > 3])
@@ -183,24 +192,24 @@ def hyperbolic_square_graph(
     """
     import eucare as ec
 
-    def wrapped_elliptic_f(z, m):
+    def wrapped_elliptic_f(z: complex, m: complex) -> complex:
         return complex(N(elliptic_f(z, m)))
 
-    def complex_to_array(z):
+    def complex_to_array(z: complex) -> NDArray[Any]:
         return np.array([z.real, z.imag])
 
-    def disk_to_square(z, w=1):
+    def disk_to_square(z: complex, w: complex = 1) -> complex:
         return np.sqrt(1j) * wrapped_elliptic_f(np.arcsin(w * z), -1)
         # return np.sqrt(2) * wrapped_elliptic_f(np.arcsin(np.sqrt(z+1)), np.sqrt(2)/2)
 
-    def disk_to_halfplane(z):
+    def disk_to_halfplane(z: complex) -> complex:
         return (z + 1j) / (1j * z + 1)
 
     if G is None:
-        G = ec.example_graphs.from_tiles(ec.example_graphs.curved_platonic(7, 3), 1)
+        G = cast(GeometricHEG, ec.example_graphs.from_tiles(ec.example_tilesets.curved_platonic(7, 3), 1))
 
-    def map_to_square(G):
-        G_square = G.copy()
+    def map_to_square(G: GeometricHEG) -> GeometricHEG:
+        G_square = cast(GeometricHEG, G.copy())
         G_square.geometry = ec.geometries.EuclideanGeometry
         for v in G_square.vertices:
             if "square_pos" in v:
@@ -210,7 +219,7 @@ def hyperbolic_square_graph(
 
         return G_square
 
-    nv_before = None
+    nv_before: int | None = None
     nv_after = G.order
     while nv_before != nv_after:
         nv_before = nv_after

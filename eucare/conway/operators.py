@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from copy import copy
+from typing import Any, cast
 
 import numpy as np
+from numpy.typing import NDArray
 
 from eucare.rendering import Rendering
 
 from ..base import euclidean_to_barycentric_map
+from ..geometries.base import Geometry
 from ..half import Face, GeometricHEG, HalfEdge, HalfEdgeGraph, Vertex
 from ..utils import invert_mapping
 
@@ -37,14 +40,14 @@ class TopologicalConwayOperator:
 
     def show(self) -> None:
         """Render the fundamental domain graph for visualization."""
-        self.graph.show(scale=300, line_width=0.03, render_faces=False)
+        cast(GeometricHEG, self.graph).show(scale=300, line_width=0.03, render_faces=False)
 
-    def get_tri(self, h: HalfEdge) -> "np.ndarray | None":
+    def get_tri(self, h: HalfEdge) -> NDArray[np.floating[Any]] | None:
         """Return the triangle for half-edge ``h``, or None for purely topological operators."""
         return None
 
     def generate_graph_and_corners(
-        self, tri: "np.ndarray | None", h: HalfEdge | None = None
+        self, tri: NDArray[np.floating[Any]] | None, h: HalfEdge | None = None
     ) -> tuple[HalfEdgeGraph, tuple[Vertex, Vertex, Vertex]]:
         """Return a copy of the fundamental-domain graph and its three corner vertices.
 
@@ -87,10 +90,12 @@ class TopologicalConwayOperator:
         Returns:
             The (possibly copied) graph after substitution.
         """
+        obj_map: dict[Any, Any] = dict()
         if copy_graph:
-            graph, (v_map, h_map, f_map) = graph.copy(return_mappings=True)
-            v_map, h_map, f_map = [invert_mapping(m) for m in (v_map, h_map, f_map)]
-            obj_map = dict()
+            graph, (v_map_raw, h_map_raw, f_map_raw) = graph.copy(return_mappings=True)
+            v_map = invert_mapping(v_map_raw)
+            h_map = invert_mapping(h_map_raw)
+            f_map = invert_mapping(f_map_raw)
             obj_map.update(v_map)
             obj_map.update(h_map)
             obj_map.update(f_map)
@@ -107,21 +112,24 @@ class TopologicalConwayOperator:
         affected_faces = {h.face for h in halfedges}
         assert None not in affected_faces, "Cannot apply Conway operator to boundary edge"  # Or can we?
         old_halfedges = frozenset(graph.halfedges)
-        v1_out_lookup = dict()
-        v2_out_lookup = dict()
-        vf_lookup = dict()
-        vf_set = set()
+        v1_out_lookup: dict[HalfEdge, HalfEdge] = dict()
+        v2_out_lookup: dict[HalfEdge, HalfEdge] = dict()
+        vf_lookup: dict[HalfEdge, Vertex] = dict()
+        vf_set: set[Vertex] = set()
 
         graphs_and_corners = [self.generate_graph_and_corners(self.get_tri(h), h) for h in halfedges]
 
         for gc, h in zip(graphs_and_corners, halfedges):
             orig_face = h.face
+            assert orig_face is not None
             con_graph, (v1, vf, v2) = gc
 
             # add reference to old face/vertex to new face/vertex
             for new_vertex, old_obj in [(v1, h.dest), (vf, h.face), (v2, h.orig)]:
                 if new_vertex.attributes.get("delete", False):
-                    new_vertex.get_outgoing_border().rev.face["pre_conway"] = old_obj
+                    border_face = new_vertex.get_outgoing_border().rev.face
+                    assert border_face is not None
+                    border_face["pre_conway"] = old_obj
                 else:
                     new_vertex["pre_conway"] = old_obj
 
@@ -178,6 +186,7 @@ class TopologicalConwayOperator:
                     current = next
             else:
                 if True:  # not delete_on_border or not h.rev.on_border(): #Fixme
+                    assert h.face is not None
                     for k in h.face.halfedge_iter():
                         if (not delete_inner_border) or h.rev.on_border():
                             k["delete"] = False
@@ -185,6 +194,7 @@ class TopologicalConwayOperator:
                         k.rev["border_delete"] = True
 
                 if h.rev.on_border():
+                    assert h.face is not None
                     graph.delete_face(h.face)
                 else:
                     HalfEdgeGraph.delete_edge(graph, h)
@@ -193,12 +203,14 @@ class TopologicalConwayOperator:
         # TODO: keep a record of which edges to delete in the end..
         # and a record of all affected vertices to update angles
 
-        to_delete = set()
-        to_process = copy(graph.halfedges)  # this is bad for performance: make everything work locally!
-        to_keep = set()
-        while to_process:
-            h = to_process.pop()
-            to_process.remove(h.rev)
+        to_delete: set[HalfEdge] = set()
+        to_process_set: set[HalfEdge] = copy(
+            graph.halfedges
+        )  # this is bad for performance: make everything work locally!
+        to_keep: set[HalfEdge] = set()
+        while to_process_set:
+            h = to_process_set.pop()
+            to_process_set.remove(h.rev)
             if h.attributes.get("delete", False):
                 # only delete edges if their reverse also wants to be deleted
                 if h.rev.attributes.get("delete", False):
@@ -214,8 +226,8 @@ class TopologicalConwayOperator:
             to_keep.union(to_delete) == graph.halfedges
         ), f"{graph.halfedges.difference(to_keep.union(to_delete))}, {to_keep.union(to_delete).difference(graph.halfedges)}"
 
-        faces_to_keep = set()
-        faces_to_maybe_remove = set()
+        faces_to_keep: set[Face] = set()
+        faces_to_maybe_remove: set[Face | None] = set()
         while to_keep:
             # find the new faces
             h = to_keep.pop()
@@ -248,6 +260,7 @@ class TopologicalConwayOperator:
             for e in list(graph.border_edges()):
                 if e in graph.halfedges:
                     if e.rev.attributes.get("border_delete", False):
+                        assert e.rev.face is not None
                         graph.delete_face(e.rev.face)
             # delete dangling faces
             while True:
@@ -278,7 +291,10 @@ class TopologicalConwayOperator:
 class GeometricConwayOperator(TopologicalConwayOperator):
     """Conway operator that assigns new vertex positions using barycentric coordinate interpolation."""
 
-    def __init__(self, *super_args: object, **super_kwargs: object) -> None:
+    graph: GeometricHEG
+    geometry: type[Geometry] | None
+
+    def __init__(self, graph: GeometricHEG, v1: Vertex, vf: Vertex, v2: Vertex) -> None:
         """Store the fundamental domain and convert its positions to barycentric coordinates.
 
         After construction, every vertex in ``self.graph`` carries barycentric
@@ -286,37 +302,41 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         re-projected to Euclidean coordinates per target triangle inside
         :meth:`generate_graph_and_corners`.
         """
-        super(GeometricConwayOperator, self).__init__(*super_args, **super_kwargs)
+        super(GeometricConwayOperator, self).__init__(graph, v1, vf, v2)
         # convert euclidean to barycentric coordinates
         to_barycentric = euclidean_to_barycentric_map(np.array([self.v1["pos"], self.vf["pos"], self.v2["pos"]]))
         for v in self.graph.vertices:
             v["pos"] = to_barycentric(v["pos"])
         self.geometry = None
 
-    def get_tri(self, h: HalfEdge) -> np.ndarray:
+    def get_tri(self, h: HalfEdge) -> NDArray[np.floating[Any]]:
         """Return the triangle ``(h.dest, face midpoint, h.orig)`` for half-edge ``h``."""
+        assert h.face is not None
+        assert self.geometry is not None
         midpoint = h.face.get(
             "midpoint", self.geometry.center_of_mass(np.stack([v["pos"] for v in h.face.vertex_iter()]))
         )
         return np.array([h.dest["pos"], midpoint, h.orig["pos"]])
 
     def generate_graph_and_corners(
-        self, tri: np.ndarray, h: HalfEdge | None = None
+        self, tri: NDArray[np.floating[Any]] | None, h: HalfEdge | None = None
     ) -> tuple[HalfEdgeGraph, tuple[Vertex, Vertex, Vertex]]:
         """Return a copy of the domain with positions mapped from barycentric to Euclidean coordinates."""
         result, corners = super(GeometricConwayOperator, self).generate_graph_and_corners(tri, h)
 
+        assert tri is not None
+        assert self.geometry is not None
         to_euclidean = self.geometry.barycentric_to_euclidean_map(tri)
         # this could be vectorized
         for v in result.vertices:
             v["pos"] = to_euclidean(v["pos"])
         return result, corners
 
-    def __call__(
+    def __call__(  # type: ignore[override]
         self,
         graph: GeometricHEG,
         recompute_lengths_and_angles: bool = True,
-        **kwargs: object,
+        **kwargs: Any,
     ) -> GeometricHEG:
         """Apply the geometric operator to ``graph``.
 
@@ -332,20 +352,21 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         assert isinstance(graph, GeometricHEG)
         self.geometry = graph.geometry
         result = super().__call__(graph, **kwargs)
+        assert isinstance(result, GeometricHEG)
         if recompute_lengths_and_angles:
             result.recompute_lengths_and_angles()
         return result
 
     #: Canonical reference triangle for visualizing the fundamental domain.
     #: Matches the ``v1, vf, v2`` layout used by every factory in :mod:`eucare.conway.factories`.
-    _SHOW_REFERENCE_TRIANGLE: np.ndarray = np.array([[0.0, -1.0], [1.0, 0.0], [0.0, 1.0]])
+    _SHOW_REFERENCE_TRIANGLE: NDArray[np.floating[Any]] = np.array([[0.0, -1.0], [1.0, 0.0], [0.0, 1.0]])
 
     def get_fundamental_domain_graph_to_render(
         self,
         delete_color: tuple[float, float, float] = (0.85, 0.15, 0.15),
         join_color: tuple[float, float, float] = (0.15, 0.65, 0.20),
         keep_color: tuple[float, float, float] = (0.30, 0.30, 0.30),
-    ) -> HalfEdgeGraph:
+    ) -> GeometricHEG:
         """Build a copy of the fundamental-domain graph, colouring elements by their role.
 
         Vertices and edges flagged as ``delete`` are coloured *delete_color*
@@ -363,7 +384,8 @@ class GeometricConwayOperator(TopologicalConwayOperator):
         from ..half import EuclideanGeometry
 
         # Project barycentric vertex positions back to a canonical Euclidean triangle.
-        graph_copy, (_, _, _) = self.graph.copy(deepcopy_attributes=False, return_mappings=True)
+        graph_copy_base, (_, _, _) = self.graph.copy(deepcopy_attributes=False, return_mappings=True)
+        graph_copy = cast(GeometricHEG, graph_copy_base)
         graph_copy.geometry = EuclideanGeometry
         to_euclidean = EuclideanGeometry.barycentric_to_euclidean_map(self._SHOW_REFERENCE_TRIANGLE)
         for v in graph_copy.vertices:
@@ -384,18 +406,18 @@ class GeometricConwayOperator(TopologicalConwayOperator):
                 h["color_key"] = keep_color
         return graph_copy
 
-    def render(self, **show_kwargs: object) -> Rendering:
+    def render(self, **show_kwargs: Any) -> Rendering:
         """Render the fundamental domain graph with styling from :meth:`get_fundamental_domain_graph_to_render`."""
 
         fundamental_domain_graph = self.get_fundamental_domain_graph_to_render()
-        kwargs = dict(
+        kwargs: dict[str, Any] = dict(
             line_width="50%",
             face_inset=0,
         )
         kwargs.update(show_kwargs)
         return fundamental_domain_graph.render(**kwargs)
 
-    def show(self, **kwargs: object) -> None:
+    def show(self, **kwargs: Any) -> None:
         """Render the fundamental domain graph with styling from :meth:`get_fundamental_domain_graph_to_render` and display it."""
         rendering = self.render(**kwargs)
         rendering.show()

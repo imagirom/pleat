@@ -36,14 +36,15 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
+from numpy.typing import NDArray
 
 from .base import angle_to_axis, line_intersection, unit_vector
 from .conway import alternating_flagstone_graph
 from .cutting import cut_out_poly
-from .half import Face, Vertex
+from .half import Face, GeometricHEG, HalfEdge, Vertex
 from .overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY, color_creases
 from .rendering import inset_poly
 
@@ -115,7 +116,7 @@ def build_structure(
     # The `pre_conway` attributes that the operator stamps onto CP point
     # into this intermediate copy, which `v_map`/`f_map` map back to
     # `original`.
-    original = G.copy()
+    original = cast("EuclideanPositionHEG", G.copy())
     pre_CP, (v_map, _, f_map) = original.copy(return_mappings=True)
     v_map_rev = {v: k for k, v in v_map.items()}
     f_map_rev = {f: k for k, f in f_map.items()}
@@ -131,7 +132,7 @@ def build_structure(
             if "pre_conway" in obj.attributes:
                 del obj["pre_conway"]
 
-    CP = alternating_flagstone_graph(t=t)(pre_CP)
+    CP = cast("EuclideanPositionHEG", alternating_flagstone_graph(t=t)(cast(GeometricHEG, pre_CP)))
 
     # CP-iteration order is the single authoritative ordering. ``original_faces``
     # is built parallel to ``flagstone_faces`` so that index ``i`` in either list
@@ -202,7 +203,7 @@ def _assign_initial_creases(structure: AlternatingFlagstoneStructure) -> None:
 # Metric
 
 
-def _edge_length(h) -> float:
+def _edge_length(h: HalfEdge) -> float:
     return float(np.linalg.norm(h.orig["pos"] - h.dest["pos"]))
 
 
@@ -327,18 +328,18 @@ def optimize_alternating_flagstone(
     #   target_length: indices of the two flagstone-side endpoints whose
     #                  current distance is the *target* length.
     corner_index = {v: i for i, v in enumerate(corners)}
-    connections = []
-    target_length_indices = []
+    connections_list: list[list[int]] = []
+    target_length_indices_list: list[list[int]] = []
     for h in structure.original.halfedges_representing_edges():
         if h.on_border() or h.rev.on_border():
             continue
         va, _ = original_to_corner[(h.orig, h.face)]
         vb, _ = original_to_corner[(h.dest, h.rev.face)]
         vc, _ = original_to_corner[(h.dest, h.face)]
-        connections.append([corner_index[va], corner_index[vb]])
-        target_length_indices.append([corner_index[va], corner_index[vc]])
-    connections = torch.LongTensor(connections)
-    target_length_indices = torch.LongTensor(target_length_indices)
+        connections_list.append([corner_index[va], corner_index[vb]])
+        target_length_indices_list.append([corner_index[va], corner_index[vc]])
+    connections = torch.LongTensor(connections_list)
+    target_length_indices = torch.LongTensor(target_length_indices_list)
 
     star_group_indices = [[corner_index[c] for c in star_groups[star]] for star in star_vertices]
 
@@ -349,18 +350,18 @@ def optimize_alternating_flagstone(
     offsets = torch.nn.Parameter(torch.zeros(n_faces, 2).float())
     star_points = torch.nn.Parameter(initial_star_points.clone())
 
-    def rot_mat(a):
+    def rot_mat(a: Any) -> Any:
         s, c = torch.sin(a), torch.cos(a)
         return torch.stack([c, -s, s, c], dim=-1).view(-1, 2, 2)
 
-    def forward():
+    def forward() -> tuple[Any, Any]:
         rms = rot_mat(angles)
         out = []
         for coords, center, R, off in zip(face_coords0, rotation_centers, rms, offsets):
             out.append(((coords - center) @ R * scale) + center + off)
         return torch.cat(out), star_points
 
-    def loss_fn(face_coords, star_coords):
+    def loss_fn(face_coords: Any, star_coords: Any) -> Any:
         # connection loss
         a = face_coords[connections]
         l = (a[:, 1] - a[:, 0]).pow(2).sum(-1).sqrt()
@@ -388,7 +389,7 @@ def optimize_alternating_flagstone(
     for v, p in zip(corners + star_vertices, position_view):
         v["pos"] = p
 
-    iterator = range(n_steps)
+    iterator: Any = range(n_steps)
     if progress:
         try:  # pragma: no cover
             from tqdm.auto import tqdm
@@ -433,18 +434,18 @@ def optimize_alternating_flagstone(
 # Border processing
 
 
-def _translation_mat(t):
+def _translation_mat(t: NDArray) -> NDArray:
     m = np.eye(3)
     m[:2, 2] = t
     return m
 
 
-def _rotation_mat(a):
+def _rotation_mat(a: float | NDArray) -> NDArray:
     s, c = np.sin(a), np.cos(a)
     return np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
 
 
-def _mirror_mat(line):
+def _mirror_mat(line: NDArray | list[NDArray]) -> NDArray:
     """3x3 affine that mirrors the plane across the line ``[p0, p1]``."""
     t1 = _translation_mat(-line[0])
     t2 = _translation_mat(line[0])
@@ -452,11 +453,11 @@ def _mirror_mat(line):
     r1 = _rotation_mat(-angle)
     r2 = _rotation_mat(angle)
     mx = np.array([[1, 0, 0], [0, -1, 0], [0, 0, 1]], dtype=np.float64)
-    return t2 @ r2 @ mx @ r1 @ t1
+    return cast(NDArray, t2 @ r2 @ mx @ r1 @ t1)
 
 
-def _apply_affine(m, v):
-    return (m @ np.concatenate([v, [1]]))[:2]
+def _apply_affine(m: NDArray, v: NDArray) -> NDArray:
+    return cast(NDArray, (m @ np.concatenate([v, [1]]))[:2])
 
 
 def extend_border(CP: "EuclideanPositionHEG") -> "EuclideanPositionHEG":
@@ -480,7 +481,7 @@ def extend_border(CP: "EuclideanPositionHEG") -> "EuclideanPositionHEG":
        processes every border edge cleanly, but on others (square / hex
        bases) some edges remain unextended.
     """
-    out = CP.copy()
+    out = cast("EuclideanPositionHEG", CP.copy())
     for h in out.border_edges():
         if not h.on_border():
             # A previously-added triangle has already absorbed this halfedge.
@@ -490,10 +491,12 @@ def extend_border(CP: "EuclideanPositionHEG") -> "EuclideanPositionHEG":
         try:
             v = h.rev.nex.dest
             pos = _apply_affine(_mirror_mat([h.orig["pos"], h.dest["pos"]]), v["pos"])
-            h_new, _ = out.subdivide_face(h.rev.face, h.orig, h.dest)
+            rev_face = h.rev.face
+            assert rev_face is not None
+            h_new, _ = out.subdivide_face(rev_face, h.orig, h.dest)
             h_new[CREASE_ASSIGNMENT] = h_new.rev[CREASE_ASSIGNMENT] = MOUNTAIN
             h_new_2, v_new = out.subdivide_edge(h, pos=pos)
-            out.subdivide_face(None, h_new_2.nex.dest, v_new)
+            out.subdivide_face(cast(Face, None), h_new_2.nex.dest, v_new)
         except StopIteration:
             # Border zigzag: skip and continue.
             continue
@@ -507,8 +510,8 @@ def extend_border(CP: "EuclideanPositionHEG") -> "EuclideanPositionHEG":
 # Cutting twist centres for a foldable CP
 
 
-def _edge_midpoint(h):
-    return np.mean([v["pos"] for v in (h.orig, h.dest)], axis=0)
+def _edge_midpoint(h: HalfEdge) -> NDArray:
+    return cast(NDArray, np.mean([v["pos"] for v in (h.orig, h.dest)], axis=0))
 
 
 def cut_twist_centres(
@@ -531,9 +534,10 @@ def cut_twist_centres(
         inset: Negative for outward inset (the default; matches the
             notebook). Forwarded to :func:`eucare.rendering.inset_poly`.
     """
-    CP_for_folding, (v_map, _, f_map) = structure.CP.copy(return_mappings=True)
+    CP_for_folding_raw, (v_map, _, f_map) = structure.CP.copy(return_mappings=True)
+    CP_for_folding = cast("EuclideanPositionHEG", CP_for_folding_raw)
 
-    polys = []
+    polys: list[NDArray] = []
     for star, group in structure.star_groups.items():
         star_c = v_map[star]
         if star_c not in CP_for_folding.vertices:
@@ -542,15 +546,15 @@ def cut_twist_centres(
 
         if star_c.on_border():
             h = next(h1 for h1 in star_c.incoming_iter() if h1.on_border()).rev
-            poly = [h.orig["pos"], h.dest["pos"]]
+            poly_pts: list[NDArray] = [h.orig["pos"], h.dest["pos"]]
             while True:
                 h = h.pre.rev
                 if h.on_border():
                     break
                 h = h.pre.rev
-                poly.append(h.dest["pos"])
-            poly.append(_edge_midpoint(h))
-            poly = np.stack(poly)
+                poly_pts.append(h.dest["pos"])
+            poly_pts.append(_edge_midpoint(h))
+            poly = np.stack(poly_pts)
         else:
             poly = np.stack([v["pos"] for v in star_c.vertex_iter() if v in group_c])
         polys.append(poly)
@@ -570,7 +574,7 @@ def cut_twist_centres(
     CP_for_folding.delete_subset(to_delete)
 
     for poly in polys:
-        cut_out_poly(CP_for_folding, inset_poly(poly, inset), delete_outside=True)
+        cut_out_poly(CP_for_folding, np.asarray(inset_poly(list(poly), inset)), delete_outside=True)
     CP_for_folding.recompute_lengths_and_angles()
     return CP_for_folding
 
@@ -579,9 +583,10 @@ def cut_twist_centres(
 # Curved-fold subdivision (for Origami Simulator)
 
 
-def _opposite_triangle_vertex(h):
+def _opposite_triangle_vertex(h: HalfEdge) -> Vertex | None:
     if h.on_border():
         return None
+    assert h.face is not None
     if h.face.order() != 3:
         return None
     return h.nex.dest
@@ -606,7 +611,7 @@ def subdivide_ridges_for_curved_fold(
     if not isinstance(n_subdivisions, int) or n_subdivisions < 2:
         raise ValueError(f"n_subdivisions must be an int >= 2, got {n_subdivisions!r}")
 
-    G = CP.copy()
+    G = cast("EuclideanPositionHEG", CP.copy())
 
     to_subdivide = set()
     for h in G.halfedges:
@@ -638,10 +643,13 @@ def subdivide_ridges_for_curved_fold(
             )
         new_vs = [G.subdivide_edge(h, pos=p)[1] for p in pts]
 
+        assert h.face is not None
         for vi in new_vs:
             G.subdivide_face(h.face, v1, vi, color_key=(1, 1, 0))
         if not h.rev.on_border():
+            rev_face = h.rev.face
+            assert rev_face is not None
             for vi in new_vs:
-                G.subdivide_face(h.rev.face, vi, v2, color_key=(1, 1, 0))
+                G.subdivide_face(rev_face, vi, v2, color_key=(1, 1, 0))
 
     return G

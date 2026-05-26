@@ -26,7 +26,20 @@ threed = ["meshio"]
 torch = ["torch", "einops"]
 image = ["scikit-image", "mahotas"]
 intersecting_cylinders = ["rdp", "plotly"]
-dev = ["pytest", "pytest-cov", "black", "mypy", "pre-commit", "nbstripout", "rdp", "plotly"]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "black",
+    "mypy",
+    "pre-commit",
+    "nbstripout",
+    "rdp",
+    "plotly",
+    "types-PyYAML",
+    "types-networkx",
+    "types-tqdm",
+    "scipy-stubs",
+]
 docs = [
     "mkdocs-materialx",
     "mkdocstrings[python]",
@@ -111,16 +124,16 @@ extend-exclude = '''
 python_version = "3.10"
 warn_unused_ignores = true
 warn_redundant_casts = true
-# Start permissive; tighten per module via overrides as typing lands.
-ignore_missing_imports = false
-disallow_untyped_defs = false
+ignore_missing_imports = true
+disallow_untyped_defs = true
 check_untyped_defs = true
 no_implicit_optional = true
+exclude = ["tests/", "docs/"]
 
 [[tool.mypy.overrides]]
-# Modules that have been fully annotated — promote to strict here.
-module = []
-disallow_untyped_defs = true
+# tifffile uses Python 3.12+ `type` statement syntax; skip parsing it under py3.10.
+module = "tifffile.*"
+follow_imports = "skip"
 
 # to make it so torch cpu is installed
 

@@ -7,7 +7,9 @@ some curved regions should instead be replaced with classical flat-foldable twis
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+import numpy as np
 
 from .. import base, half
 
@@ -20,7 +22,7 @@ _BLUE = (0.0, 0.0, 1.0)
 _YELLOW = (1.0, 1.0, 0.0)
 
 
-def _set_color(color, *objs) -> None:
+def _set_color(color: tuple[float, float, float], *objs: Any) -> None:
     """Assign ``color_key = color`` to every element in ``objs`` (recursive over iterables)."""
     for obj in objs:
         if isinstance(obj, (half.Face, half.HalfEdge, half.Vertex)):
@@ -43,15 +45,16 @@ def convert_to_triangle_twist(G: "EuclideanPositionHEG", v: "Vertex") -> None:
     """
     G.delete_subset([h for h in v.outgoing_iter() if h["color_key"] == _RED])
 
-    tasks = []
+    tasks: list[tuple[half.HalfEdge, half.Face, half.Vertex, np.ndarray]] = []
     for h in list(v.outgoing_iter()):
         v2 = h.rev.nex.nex.dest
         _set_color(_GREEN, v2)
         direction = v["pos"] - h.rev.nex.dest["pos"]
         f = h.rev.face
+        assert f is not None
         pos = base.line_intersection(
-            [v2["pos"], v2["pos"] + direction],
-            [h.orig["pos"], h.dest["pos"]],
+            np.stack([v2["pos"], v2["pos"] + direction]),
+            np.stack([h.orig["pos"], h.dest["pos"]]),
         )
         tasks.append((h, f, v2, pos))
 
@@ -61,7 +64,9 @@ def convert_to_triangle_twist(G: "EuclideanPositionHEG", v: "Vertex") -> None:
         _set_color(_RED, h2)
 
     for h in v.outgoing_iter():
-        h2, _ = G.subdivide_face(h.face, h.dest, h.pre.orig)
+        f_h = h.face
+        assert f_h is not None
+        h2, _ = G.subdivide_face(f_h, h.dest, h.pre.orig)
         _set_color(_BLUE, h2)
 
     G.delete_subset([v])

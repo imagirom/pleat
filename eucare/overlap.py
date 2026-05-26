@@ -8,16 +8,18 @@ import os
 import sys
 import tempfile
 from collections import defaultdict
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from copy import copy
 from functools import cmp_to_key
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 import networkx as nx
 import numpy as np
 import pulp
 from fastcluster import linkage_vector
 from numba import jit
+from numpy.typing import NDArray
 from scipy.cluster.hierarchy import fcluster
 from tqdm.auto import tqdm
 
@@ -27,7 +29,7 @@ from .layout import angle_to_height, min_edge_length, optimize_rotation, rotate_
 from .rendering import BORDER_COLOR, MOUNTAIN_COLOR, VALLEY_COLOR, CairoRenderer, SvgwriteRenderer, multi_show
 
 if TYPE_CHECKING:
-    from .half import EuclideanPositionHEG, Face
+    from .half import EuclideanPositionHEG, Face, HalfEdge
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +39,7 @@ def intervals_overlapping(interval1: tuple[float, float], interval2: tuple[float
     return not (interval1[0] > interval2[1]) and not (interval1[1] < interval2[0])
 
 
-def get_potential_intersections(segments: np.ndarray, epsilon: float = 1e-12) -> list[tuple[int, int]]:
+def get_potential_intersections(segments: NDArray[Any], epsilon: float = 1e-12) -> list[tuple[int, int]]:
     """Return pairs of segment indices that may intersect, using a sweep-line approach on bounding boxes."""
     # list of start and end points, with index of corresponding segment and flag whether it is a start or an end point.
     segments = np.array(segments).copy()
@@ -50,19 +52,19 @@ def get_potential_intersections(segments: np.ndarray, epsilon: float = 1e-12) ->
     x_coords.sort(axis=1)
 
     # create tuples (position, index, is_start)
-    points = [(s[0][0] - epsilon, i, 1) for i, s in enumerate(segments)] + [
+    point_list: list[tuple[Any, int, int]] = [(s[0][0] - epsilon, i, 1) for i, s in enumerate(segments)] + [
         (s[1][0], i, 0) for i, s in enumerate(segments)
     ]
-    points = np.array(points, dtype=tuple)
+    points: NDArray[Any] = np.array(point_list, dtype=tuple)
 
     # sort by first coordinate
     points = points[np.argsort(points[:, 0])]
-    active_labels = set()
-    possibly_intersecting = list()
+    active_labels: set[int] = set()
+    possibly_intersecting: list[tuple[int, int]] = list()
     for i, is_start in points[:, 1:]:
         if is_start:
             for j in active_labels:
-                if intervals_overlapping(segments[i, :, 1], segments[j, :, 1]):
+                if intervals_overlapping(tuple(segments[i, :, 1]), tuple(segments[j, :, 1])):
                     possibly_intersecting.append((i, j))
             active_labels.add(i)
         else:
@@ -71,19 +73,19 @@ def get_potential_intersections(segments: np.ndarray, epsilon: float = 1e-12) ->
 
 
 @jit(nopython=True)
-def _on_segment(p, q, r):
+def _on_segment(p: NDArray[Any], q: NDArray[Any], r: NDArray[Any]) -> bool:
     """Check if q lies on segment pr, assuming the three points are collinear."""
     return (min(p[0], r[0]) <= q[0] <= max(p[0], r[0])) and (min(p[1], r[1]) <= q[1] <= max(p[1], r[1]))
 
 
 @jit(nopython=True)
-def _det(a, b):
+def _det(a: Any, b: Any) -> float:
     """Compute the 2x2 determinant of vectors a and b."""
     return a[0] * b[1] - a[1] * b[0]
 
 
 @jit(nopython=True)
-def line_segment_intersections(s1, s2, eps=1e-12):
+def line_segment_intersections(s1: NDArray[Any], s2: NDArray[Any], eps: float = 1e-12) -> list[NDArray[Any]]:
     """Return a list of intersection points between two line segments, handling collinear cases."""
 
     if s1.dtype is not np.float64:
@@ -140,22 +142,23 @@ def line_segment_intersections(s1, s2, eps=1e-12):
     return result
 
 
-def fast_group_closeby(pts: np.ndarray, eps: float) -> np.ndarray:
+def fast_group_closeby(pts: NDArray[Any], eps: float) -> NDArray[np.int32]:
     """Cluster nearby points using single-linkage clustering on cityblock distance."""
     Z = linkage_vector(pts, method="single", metric="cityblock")
     unsorted = fcluster(Z, eps, criterion="distance")
-    result = []
+    result: list[int] = []
     i = 0
-    id_map = {}
+    id_map: dict[int, int] = {}
     for idx in unsorted:
-        if idx not in id_map:
-            id_map[idx] = i
+        idx_int = int(idx)
+        if idx_int not in id_map:
+            id_map[idx_int] = i
             i += 1
-        result.append(id_map[idx])
+        result.append(id_map[idx_int])
     return np.array(result, dtype=np.int32)
 
 
-def faster_group_closeby_nx(arr: np.ndarray, eps: float) -> np.ndarray:
+def faster_group_closeby_nx(arr: NDArray[Any], eps: float) -> NDArray[np.int32]:
     """Cluster nearby points via approximate single-linkage using grid-based connected components.
 
     Points less than eps apart receive the same label. Return an array mapping
@@ -164,7 +167,7 @@ def faster_group_closeby_nx(arr: np.ndarray, eps: float) -> np.ndarray:
     if len(arr) == 0:
         return np.zeros(0, dtype=np.int32)
     scaled = arr / eps / 2
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     for offset in itertools.product([0, 0.5], repeat=arr.shape[-1]):
         _, index, inverse_ids, counts = np.unique(
             np.floor(scaled + offset), axis=0, return_counts=True, return_inverse=True, return_index=True
@@ -221,9 +224,9 @@ def overlap_graph(G: "EuclideanPositionHEG", eps: float = 1e-10) -> "EuclideanPo
     # TODO implement sweeping line algorithm https://www.geeksforgeeks.org/given-a-set-of-line-segments-find-if-any-two-segments-intersect/
 
     # This will be a list of the positions of crossings between line segments. This includes the original vertices.
-    crossings = []
+    crossings_list: list[NDArray[Any]] = []
     # This will be a list mapping the index of a crossing to the pair (i, j) of indices of the corresponding edges.
-    crossings_to_edges = []
+    crossings_to_edges: list[tuple[int, int]] = []
 
     # iterate over all pairs
     potential_intersections = get_potential_intersections(line_segments, epsilon=eps)
@@ -233,10 +236,10 @@ def overlap_graph(G: "EuclideanPositionHEG", eps: float = 1e-10) -> "EuclideanPo
         intersections = line_segment_intersections(l1, l2, eps=eps)
         if not intersections:
             continue
-        crossings.extend(intersections)
+        crossings_list.extend(intersections)
         for _ in range(len(intersections)):
             crossings_to_edges.append((i, j))
-    crossings = np.array(crossings)
+    crossings: NDArray[Any] = np.array(crossings_list)
     timer.round("crossings")
 
     # ------ group closeby crossings ------
@@ -254,38 +257,38 @@ def overlap_graph(G: "EuclideanPositionHEG", eps: float = 1e-10) -> "EuclideanPo
 
     # construct an array mapping crossings to all involved edges,
     # and on mapping edges to all crossings they are involved in.
-    filtered_crossings_to_edges = [set() for i in range(n_filtered_crossings)]  # TODO: get rid of
-    edges_to_crossings = [set() for i in range(len(edges))]
+    filtered_crossings_to_edges: list[set[int]] = [set() for i in range(n_filtered_crossings)]  # TODO: get rid of
+    edges_to_crossings: list[set[int]] = [set() for i in range(len(edges))]
     for i, edge_ids in enumerate(crossings_to_edges):
         filtered_crossings_to_edges[clustering[i]].update(edge_ids)
-        for e in edge_ids:
-            edges_to_crossings[e].add(clustering[i])
+        for edge_idx in edge_ids:
+            edges_to_crossings[edge_idx].add(clustering[i])
     timer.round("filtered crossings")
 
     # ------ get crossing orders, construct nx graph ------
     logger.info("getting crossing orders..")
     # nodes = np.arange(n_filtered_crossings)
-    nx_edges = []
-    edge_to_ordered_ids = []
+    nx_edges_list: list[NDArray[Any]] = []
+    edge_to_ordered_ids: list[NDArray[Any]] = []
     # for each edge (=line segment), order the crossings on it from its orig to dest.
     for i in tqdm(range(len(line_segments))):
-        e = edges[i]
+        he = edges[i]
         crossing_ids = np.array(list(edges_to_crossings[i]))
         crossing_positions = filtered_crossings[crossing_ids]
         progression_along_edge = (
-            (crossing_positions - e.orig["pos"][None]) * (e.dest["pos"] - e.orig["pos"])[None]
+            (crossing_positions - he.orig["pos"][None]) * (he.dest["pos"] - he.orig["pos"])[None]
         ).sum(-1)
         order = np.argsort(progression_along_edge)
         ordered_ids = crossing_ids[order]
         edge_to_ordered_ids.append(ordered_ids)
         # add line segments between crossings along the edge to the nx graph
-        nx_edges.append(np.stack([ordered_ids[:-1], ordered_ids[1:]], axis=-1))
-    nx_edges = np.concatenate(nx_edges)
+        nx_edges_list.append(np.stack([ordered_ids[:-1], ordered_ids[1:]], axis=-1))
+    nx_edges: NDArray[Any] = np.concatenate(nx_edges_list)
     timer.round("crossing orders")
 
     logger.info("constructing nx graph..")
-    nx_graph = nx.Graph()
-    nx_graph.add_edges_from(nx_edges)
+    nx_graph: nx.Graph = nx.Graph()
+    nx_graph.add_edges_from([(int(a), int(b)) for a, b in nx_edges])
     nx_positions = {i: pos for i, pos in enumerate(filtered_crossings)}
     timer.round("nx graph constructed.")
     logger.info("order of nx graph: %d", nx_graph.order())
@@ -311,7 +314,9 @@ def overlap_graph(G: "EuclideanPositionHEG", eps: float = 1e-10) -> "EuclideanPo
         f["original_faces"] = set()
 
     # get face orientations
-    face_orientations = {}
+    from .half import Face as _Face
+
+    face_orientations: dict[_Face, bool] = {}
     for f in G.faces:
         face_orientations[f] = f.area() > 0
 
@@ -319,9 +324,9 @@ def overlap_graph(G: "EuclideanPositionHEG", eps: float = 1e-10) -> "EuclideanPo
         ordered_ids_0 = edge_to_ordered_ids[i]
         if len(ordered_ids_0) == 0:
             raise RuntimeError(f"orig and dest of every edge should be crossings, but edge {edges[i]} has no crossings")
-        for e in (edges[i], edges[i].rev):
+        for he2 in (edges[i], edges[i].rev):
             ordered_ids = ordered_ids_0
-            if e is edges[i].rev:
+            if he2 is edges[i].rev:
                 # reverse order of crossings (=nodes in nx graph) for reversed edge
                 ordered_ids = ordered_ids[::-1]
             # this for loop sets adds the orig of the original edge to the 'original_vertices' attribute
@@ -331,11 +336,13 @@ def overlap_graph(G: "EuclideanPositionHEG", eps: float = 1e-10) -> "EuclideanPo
             #  along the edge is no vertex in the overlap graph. Show an example!
             for idx in ordered_ids:
                 if idx in v_lookup and "original_vertices" in v_lookup[idx]:
-                    v_lookup[idx]["original_vertices"].add(e.orig)
+                    v_lookup[idx]["original_vertices"].add(he2.orig)
                     break
             # to assign original edges and face_groups, revert the order of the edge if the face is oriented negatively.
-            if not e.on_border() and not face_orientations[e.face]:
-                ordered_ids = ordered_ids[::-1]
+            if not he2.on_border():
+                assert he2.face is not None
+                if not face_orientations[he2.face]:
+                    ordered_ids = ordered_ids[::-1]
             # iterate along segments between crossings on the original edge
             for k, l in zip(ordered_ids[:-1], ordered_ids[1:]):
                 if k not in v_lookup or l not in v_lookup:
@@ -343,16 +350,17 @@ def overlap_graph(G: "EuclideanPositionHEG", eps: float = 1e-10) -> "EuclideanPo
                 # find the halfedge in the overlap graph between crossings k and l
 
                 new_edge = next(h for h in v_lookup[k].outgoing_iter() if h.dest is v_lookup[l])
-                new_edge["original_edges"].add(e)
-                if not e.on_border():
-                    if frozenset((e, e.rev)) not in new_edge["original_face_groups"]:
-                        new_edge["original_face_groups"][frozenset((e, e.rev))] = set()
-                    new_edge["original_face_groups"][frozenset((e, e.rev))].add(e.face)
+                new_edge["original_edges"].add(he2)
+                if not he2.on_border():
+                    assert he2.face is not None
+                    if frozenset((he2, he2.rev)) not in new_edge["original_face_groups"]:
+                        new_edge["original_face_groups"][frozenset((he2, he2.rev))] = set()
+                    new_edge["original_face_groups"][frozenset((he2, he2.rev))].add(he2.face)
 
     # convert the face groups from a dict to a list of sets, as the information which edge the individual original faces
     # were coming from is no longer required.
-    for e in overlap_G.halfedges:
-        e["original_face_groups"] = [frozenset(group) for group in e["original_face_groups"].values()]
+    for he3 in overlap_G.halfedges:
+        he3["original_face_groups"] = [frozenset(group) for group in he3["original_face_groups"].values()]
 
     # ------ assign original faces ------
     logger.info("assigning original faces..")
@@ -360,24 +368,28 @@ def overlap_graph(G: "EuclideanPositionHEG", eps: float = 1e-10) -> "EuclideanPo
     # the folded model).
     initial_edge = next(overlap_G.border_edge_iter()).rev
     assert not initial_edge.on_border()
-    frontier = [(initial_edge, {e_orig.face for e_orig in initial_edge["original_edges"] if not e_orig.on_border()})]
+    frontier: list[tuple[HalfEdge, set[_Face]]] = [
+        (initial_edge, {e_orig.face for e_orig in initial_edge["original_edges"] if not e_orig.on_border()})
+    ]
     yet_to_assign = set(overlap_G.faces)
     while yet_to_assign:
         current_halfedge, original_faces = frontier.pop()
         assert not current_halfedge.on_border()
         current_face = current_halfedge.face
+        assert current_face is not None
         if current_face not in yet_to_assign:
             continue
         current_face["original_faces"] = original_faces
         yet_to_assign.remove(current_face)
-        for e in current_face.halfedge_iter():
-            if not e.rev.on_border() and e.rev.face in yet_to_assign:
+        for he4 in current_face.halfedge_iter():
+            if not he4.rev.on_border() and he4.rev.face in yet_to_assign:
+                assert he4.rev.face is not None
                 frontier.append(
                     (
-                        e.rev,
+                        he4.rev,
                         (
-                            original_faces - {e_orig.face for e_orig in e["original_edges"] if not e_orig.on_border()}
-                        ).union({e_orig.face for e_orig in e.rev["original_edges"] if not e_orig.on_border()}),
+                            original_faces - {e_orig.face for e_orig in he4["original_edges"] if not e_orig.on_border()}
+                        ).union({e_orig.face for e_orig in he4.rev["original_edges"] if not e_orig.on_border()}),
                     )
                 )
     timer.round("complete")
@@ -394,9 +406,9 @@ LENGTH = "length"
 SORTED_ORIGINAL_FACES = "sorted_original_faces"
 
 
-def find_triplet_overlap_areas(G: "EuclideanPositionHEG") -> dict[frozenset, float]:
+def find_triplet_overlap_areas(G: "EuclideanPositionHEG") -> dict[frozenset[Any], float]:
     """Compute the total overlap area for each triplet of original faces."""
-    result = defaultdict(float)
+    result: dict[frozenset[Any], float] = defaultdict(float)
     bar = tqdm(G.faces, desc="finding triplet overlap areas")
     for f in bar:
         area = f.area()
@@ -406,12 +418,14 @@ def find_triplet_overlap_areas(G: "EuclideanPositionHEG") -> dict[frozenset, flo
     return result
 
 
-def find_fold_over_facet_lengths(G: "EuclideanPositionHEG") -> dict[tuple[frozenset, "Face"], float]:
+def find_fold_over_facet_lengths(G: "EuclideanPositionHEG") -> dict[tuple[frozenset[Any], "Face"], float]:
     """Compute total edge length where a fold passes over a facet."""
-    result = defaultdict(float)
+    result: dict[tuple[frozenset[Any], Face], float] = defaultdict(float)
     for e in tqdm(G.halfedges, desc="finding fold over facet lengths"):
         if e.on_border() or e.rev.on_border():
             continue
+        assert e.face is not None
+        assert e.rev.face is not None
         over_both = e.face[ORIGINAL_FACES].intersection(e.rev.face[ORIGINAL_FACES])
         edge_length = e[LENGTH]
         for group in e[FACES_OF_FOLDS_ON_EDGE]:
@@ -422,9 +436,9 @@ def find_fold_over_facet_lengths(G: "EuclideanPositionHEG") -> dict[tuple[frozen
     return result
 
 
-def find_conincident_fold_lengths(G: "EuclideanPositionHEG") -> dict[frozenset, float]:
+def find_conincident_fold_lengths(G: "EuclideanPositionHEG") -> dict[frozenset[Any], float]:
     """Compute total edge length where two folds coincide."""
-    result = defaultdict(float)
+    result: dict[frozenset[Any], float] = defaultdict(float)
     for e in tqdm(G.halfedges, desc="finding coincident fold lengths"):
         if e.on_border():
             continue
@@ -436,12 +450,12 @@ def find_conincident_fold_lengths(G: "EuclideanPositionHEG") -> dict[frozenset, 
     return dict(result)
 
 
-def cache_all(cache=None):
+def cache_all(cache: dict[Any, Any] | None = None) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator factory that memoizes all calls in a shared cache dict."""
     cache = dict() if cache is None else cache
 
-    def wrapper(func):
-        def wrapped(*args):
+    def wrapper(func: Callable[..., Any]) -> Callable[..., Any]:
+        def wrapped(*args: Any) -> Any:
             if args in cache:
                 return cache[args]
             result = func(*args)
@@ -456,14 +470,14 @@ def cache_all(cache=None):
 SOLVER_ORDER = [pulp.CPLEX, pulp.GLPK, pulp.PULP_CBC_CMD]
 
 
-def infer_additional_over_under_pairs(over_under_pairs: list, facet_triplets: set) -> list:
+def infer_additional_over_under_pairs(over_under_pairs: list[Any], facet_triplets: set[Any]) -> list[Any]:
     """Transitively close over/under relations: if A over B and B over C within a triplet, infer A over C."""
     # over_dict[f] is set of all facets that f lies over.
     over_dict = defaultdict(set)
     for over, under in over_under_pairs:
         over_dict[over].add(under)
 
-    def n_pairs():
+    def n_pairs() -> int:
         return sum(len(over_set) for over_set in over_dict.values())
 
     current = n_pairs()
@@ -487,13 +501,13 @@ def infer_additional_over_under_pairs(over_under_pairs: list, facet_triplets: se
 
 def find_folded_face_order(
     G: "EuclideanPositionHEG",
-    over_under_pairs=(),
-    solver=None,
+    over_under_pairs: Iterable[Any] = (),
+    solver: Any = None,
     double_fold_weight: float = 0,
     allow_slack: bool = True,
     problem_file: str | None = None,
     quiet: bool = False,
-) -> dict:
+) -> dict[Any, Any]:
     """Determine the stacking order of overlapping faces by solving an ILP.
 
     Assign 'sorted_original_faces' to each face of the overlap graph G and return
@@ -521,6 +535,7 @@ def find_folded_face_order(
         len(coincident_fold_lengths),
     )
 
+    over_under_pairs = list(over_under_pairs)
     n_over_under_before = len(over_under_pairs)
     over_under_pairs = infer_additional_over_under_pairs(over_under_pairs, set(triplet_overlap_areas.keys()))
 
@@ -532,15 +547,15 @@ def find_folded_face_order(
 
     n_vars = 0
 
-    def get_varname():
+    def get_varname() -> str:
         nonlocal n_vars
         n_vars += 1
         return "x" + str(n_vars)
 
-    over_dict = dict()
+    over_dict: dict[Any, Any] = dict()
 
     @cache_all(over_dict)
-    def over(face1, face2):
+    def over(face1: Any, face2: Any) -> Any:
         opposite = over_dict.get((face2, face1), None)
         if opposite is not None:
             return 1 - opposite
@@ -556,7 +571,7 @@ def find_folded_face_order(
     prob += 0, ""  # empty objective function
     objective = 0
 
-    def add_constraint(constraint):
+    def add_constraint(constraint: Any) -> None:
         if isinstance(constraint, pulp.LpConstraint):
             nonlocal prob
             prob += constraint, ""
@@ -605,7 +620,7 @@ def find_folded_face_order(
     else:
         logger.info("Skipping ILP since everything is already determined..")
 
-    def comparison_func(a, b):
+    def comparison_func(a: Any, b: Any) -> int:
         result = over_dict.get((a, b), 1 - over_dict.get((b, a), 0.5))
         if isinstance(result, (pulp.LpVariable, pulp.LpAffineExpression)):
             result = result.value()
@@ -618,17 +633,19 @@ def find_folded_face_order(
 
     logger.info("determining face order..")
     for f in G.faces:
-        original_faces = list(f[ORIGINAL_FACES]).copy()
-        original_faces.sort(key=cmp_to_key(comparison_func))
-        f[SORTED_ORIGINAL_FACES] = original_faces
+        original_faces_list = list(f[ORIGINAL_FACES]).copy()
+        original_faces_list.sort(key=cmp_to_key(comparison_func))
+        f[SORTED_ORIGINAL_FACES] = original_faces_list
 
     logger.info("assigning creases..")
-    crease_assignment = dict()
-    original_faces = {f_orig for f in G.faces for f_orig in f[ORIGINAL_FACES]}
-    original_edges = {e for f in original_faces for e in f.halfedge_iter()}
+    crease_assignment: dict[Any, Any] = dict()
+    original_faces_set = {f_orig for f in G.faces for f_orig in f[ORIGINAL_FACES]}
+    original_edges = {e for f in original_faces_set for e in f.halfedge_iter()}
     for e in original_edges:
         if e.on_border() or e.rev.on_border():
             continue
+        assert e.face is not None
+        assert e.rev.face is not None
         crease_assignment[e] = comparison_func(e.face, e.rev.face) * (1 if e.face["color_key"] else -1)
 
     return crease_assignment
@@ -661,13 +678,16 @@ def get_over_under_pairs_from_creases(
     G: "EuclideanPositionHEG", two_coloring_key: str = "color_key"
 ) -> list[list["Face"]]:
     """Derive over/under face pairs from mountain/valley crease assignments on a two-colored graph."""
-    over_under_pairs = []
+    over_under_pairs: list[list[Face]] = []
     for e in G.halfedges:
         crease_type = e.attributes.get(CREASE_ASSIGNMENT, None)
         if crease_type in (MOUNTAIN, VALLEY) and not (e.on_border() or e.rev.on_border()):
+            assert e.face is not None
             e_above = e if e.face[two_coloring_key] else e.rev
             if crease_type is MOUNTAIN:
                 e_above = e_above.rev
+            assert e_above.face is not None
+            assert e_above.rev.face is not None
             over_under_pairs.append([e_above.face, e_above.rev.face])
     logger.info("number of pairs: %d", len(over_under_pairs))
     return over_under_pairs
@@ -680,11 +700,13 @@ BOTTOM = "bottom_side"
 def face_order_to_clean_graph(
     G: "EuclideanPositionHEG",
     side: str = TOP,
-    top_color: tuple = (0.5, 0.5, 0.9),
-    bottom_color: tuple = (0.8, 0.8, 0.8),
+    top_color: tuple[float, ...] = (0.5, 0.5, 0.9),
+    bottom_color: tuple[float, ...] = (0.8, 0.8, 0.8),
 ) -> "EuclideanPositionHEG":
     """Extract a clean renderable graph showing only the top or bottom layer of a folded model."""
-    view = G.copy()
+    from .half import EuclideanPositionHEG as _EHEG
+
+    view = cast(_EHEG, G.copy())
 
     color_key_mapping = {
         True: bottom_color,
@@ -701,12 +723,14 @@ def face_order_to_clean_graph(
             key = not key
         f["color_key"] = color_key_mapping[key]
 
-    to_delete = [
-        e
-        for e in view.halfedges
-        if not (e.on_border() or e.rev.on_border())
-        and e.face["sorted_original_faces"][layer] is e.rev.face["sorted_original_faces"][layer]
-    ]
+    to_delete = []
+    for e in view.halfedges:
+        if e.on_border() or e.rev.on_border():
+            continue
+        assert e.face is not None
+        assert e.rev.face is not None
+        if e.face["sorted_original_faces"][layer] is e.rev.face["sorted_original_faces"][layer]:
+            to_delete.append(e)
     view.delete_subset(to_delete)
     view.recompute_lengths_and_angles()
 
@@ -781,7 +805,7 @@ def fold_complete(
 
 
 @contextmanager
-def _quiet_progress(quiet: bool):
+def _quiet_progress(quiet: bool) -> Iterator[None]:
     """Context manager: while ``quiet`` is True, silence this module's tqdm bars and logger."""
     if not quiet:
         yield
@@ -790,11 +814,11 @@ def _quiet_progress(quiet: bool):
     module = sys.modules[__name__]
     original_tqdm = module.tqdm
 
-    def silent_tqdm(iterable=None, *args, **kwargs):
+    def silent_tqdm(iterable: Any = None, *args: Any, **kwargs: Any) -> Any:
         kwargs["disable"] = True
         return original_tqdm(iterable, *args, **kwargs)
 
-    module.tqdm = silent_tqdm
+    module.tqdm = silent_tqdm  # type: ignore[attr-defined]
     previous_level = logger.level
     previous_disabled = logger.disabled
     logger.setLevel(logging.CRITICAL + 1)
@@ -802,7 +826,7 @@ def _quiet_progress(quiet: bool):
     try:
         yield
     finally:
-        module.tqdm = original_tqdm
+        module.tqdm = original_tqdm  # type: ignore[attr-defined]
         logger.setLevel(previous_level)
         logger.disabled = previous_disabled
 
@@ -836,12 +860,12 @@ class FoldResult(dict):
             if value is not None:
                 self[name] = value
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Any:
         if name in self._FIELDS:
             return self.get(name)
         raise AttributeError(name)
 
-    def __setattr__(self, name: str, value) -> None:
+    def __setattr__(self, name: str, value: Any) -> None:
         if name in self._FIELDS:
             if value is None:
                 self.pop(name, None)
@@ -882,9 +906,9 @@ class FoldResult(dict):
         if render_settings.get("line_width", "auto") == "auto" and self.CP is not None:
             render_settings["line_width"] = CairoRenderer.auto_line_width(self.CP)
 
-        graphs: list = []
-        titles: list[str] = []
-        per_subplot: list[dict] = []
+        graphs: list[Any] = []
+        titles: list[str | None] = []
+        per_subplot: list[dict[str, Any]] = []
 
         if self.CP is not None:
             graphs.append(self.CP)
@@ -934,20 +958,20 @@ class FoldResult(dict):
             **render_settings,
         )
 
-    def save(self, path: str, **save_results_kwargs):
+    def save(self, path: str, **save_results_kwargs: Any) -> None:
         """Convenience wrapper around :func:`save_results`."""
         save_results(self, path=path, **save_results_kwargs)
 
 
 def save_results(
-    results,
+    results: Any,
     path: str = "results",
-    render_settings: dict | None = None,
+    render_settings: dict[str, Any] | None = None,
     min_foldable_length: float | None = None,
     bbox: tuple[float, float] | None = None,
-    extra_info: str = None,
+    extra_info: str | None = None,
     opacity: float = 0.15,
-):
+) -> None:
     """Save rendered crease pattern, folded views, and a plotter-ready SVG to a directory.
 
     The plotter SVG is scaled to fit within bbox (in cm) or so that the shortest
@@ -1040,7 +1064,9 @@ def save_results(
     logger.info(text)
 
 
-def remove_duplicates(G: "EuclideanPositionHEG", eps: float = 1e-6, exclude_edges=()) -> "EuclideanPositionHEG":
+def remove_duplicates(
+    G: "EuclideanPositionHEG", eps: float = 1e-6, exclude_edges: Iterable["HalfEdge"] = ()
+) -> "EuclideanPositionHEG":
     """Merge duplicate vertices and edges within eps distance, returning a clean graph.
 
     The faces of the resulting graph are built from scratch based on the new edges, so this only works for planar graphs.
@@ -1053,15 +1079,13 @@ def remove_duplicates(G: "EuclideanPositionHEG", eps: float = 1e-6, exclude_edge
     node_mapping = {i: j for i, j in enumerate(index[inverse])}
     v_index = {v: node_mapping[i] for i, v in enumerate(vs)}
 
-    nxG = nx.Graph()
+    nxG: nx.Graph = nx.Graph()
     nxG.add_nodes_from(v_index.values())
     nx_positions = {i: pos[i] for i in node_mapping.values()}
+    exclude_set = set(exclude_edges)
+    exclude_set_with_rev = exclude_set.union({e.rev for e in exclude_set})
     nxG.add_edges_from(
-        [
-            (v_index[e.orig], v_index[e.dest])
-            for e in G.halfedges_representing_edges()
-            if e not in set(exclude_edges).union({e.rev for e in exclude_edges})
-        ]
+        [(v_index[e.orig], v_index[e.dest]) for e in G.halfedges_representing_edges() if e not in exclude_set_with_rev]
     )
 
     G2 = EHEG_from_nx(nxG, nx_positions)

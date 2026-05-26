@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from .half import HalfEdge, HalfEdgeGraph
     from .prototiles import ProtoTile
 
 
-def attatch_tile_instruction(proto_tile: "ProtoTile", label: object = None) -> "callable":
+def attatch_tile_instruction(proto_tile: ProtoTile, label: object = None) -> Callable[[HalfEdgeGraph, HalfEdge], None]:
     """Return a callable that builds a fresh tile graph from ``proto_tile`` and glues it to a given edge.
 
     The newly created tile graph may itself carry instructions on its border

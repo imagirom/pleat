@@ -28,6 +28,8 @@ exploring the parameter space is :class:`ShrinkRotateExplorer`.
 
 from __future__ import annotations
 
+from typing import Any
+
 from .crease_orientation import (
     THIS_WAY,
     assign_this_way_by_distance,
@@ -61,7 +63,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str):
+def __getattr__(name: str) -> Any:
     """Lazily expose :class:`ShrinkRotateExplorer` (avoids importing matplotlib eagerly)."""
     if name == "ShrinkRotateExplorer":
         from .widgets import ShrinkRotateExplorer

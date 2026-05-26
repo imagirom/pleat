@@ -6,7 +6,7 @@ parameter, and :func:`make_intersecting_cylinders` for the main entry point.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import numpy as np
 
@@ -16,18 +16,21 @@ from .profiles import Profile
 if TYPE_CHECKING:
     from ..half import EuclideanPositionHEG
 
+_K = TypeVar("_K")
+_V = TypeVar("_V")
+
 # RGB tuples used throughout the pipeline as ``color_key`` values.
 _BLACK = (0.0, 0.0, 0.0)
 _BLUE = (0.0, 0.0, 1.0)
 _RED = (1.0, 0.0, 0.0)
 
 
-def _reverse_mapping(d: dict) -> dict:
+def _reverse_mapping(d: dict[_K, _V]) -> dict[_V, _K]:
     """Return ``{v: k for k, v in d.items()}``."""
     return {value: key for key, value in d.items()}
 
 
-def _from_pre(obj) -> bool:
+def _from_pre(obj: Any) -> bool:
     """True iff ``obj`` carries a ``pre_conway`` attribute (set by Conway operators)."""
     return "pre_conway" in obj.attributes
 
@@ -82,14 +85,18 @@ def make_intersecting_cylinders(
 
     if r != 1:
         expand_t = (1 - r) * shrink_factor / (1 - (1 - r) * (1 - shrink_factor))
-        G = conway.expand_graph(expand_t)(G, delete_on_border=False, copy_graph=True)
+        G = cast("EuclideanPositionHEG", conway.expand_graph(expand_t)(G, delete_on_border=False, copy_graph=True))
         fs = [f for f in G.faces if "pre_conway" in f]
         for f in fs:
             f["midpoint"] = f.pseudo_incenter()
     else:
         fs = list(G.faces)
 
-    G, (v_map_f, h_map_f, f_map_f) = G.copy(return_mappings=True)
+    G_copy, (v_map_f, h_map_f, f_map_f) = cast(
+        "tuple[EuclideanPositionHEG, tuple[dict[half.Vertex, half.Vertex], dict[half.HalfEdge, half.HalfEdge], dict[half.Face, half.Face]]]",
+        G.copy(return_mappings=True),
+    )
+    G = G_copy
 
     v_map = _reverse_mapping(v_map_f)
     h_map = _reverse_mapping(h_map_f)
@@ -98,12 +105,15 @@ def make_intersecting_cylinders(
 
     vertex_pairs_to_halfedges = {(h.orig, h.dest): h_map[h] for h in G.halfedges}
 
-    G = conway.lace_graph(0.5, join=True)(
-        G,
-        faces=[f_map_f[f] for f in fs],
-        delete_inner_border=True,
-        delete_on_border=False,
-        copy_graph=False,
+    G = cast(
+        "EuclideanPositionHEG",
+        conway.lace_graph(0.5, join=True)(
+            G,
+            faces=[f_map_f[f] for f in fs],
+            delete_inner_border=True,
+            delete_on_border=False,
+            copy_graph=False,
+        ),
     )
     G.delete_subset([f for f in G.faces if f.any_side not in G.halfedges])
     G.check_consistency()
@@ -128,6 +138,7 @@ def make_intersecting_cylinders(
             p = v["pos"]
             p2 = v2["pos"]
 
+            assert h_orig.face is not None
             c = h_orig.face.midpoint()
             hc = base.project_to_line(np.stack([p, p2]), c)
 
@@ -178,13 +189,13 @@ def top_view(G: "EuclideanPositionHEG", r: float = 1.0) -> "EuclideanPositionHEG
     if not 0.0 < r <= 1.0:
         raise ValueError("r must lie in (0, 1]")
 
-    G = G.copy()
+    G = cast("EuclideanPositionHEG", G.copy())
     for f in G.faces:
         f["midpoint"] = f.pseudo_incenter()
 
     if r == 1.0:
-        return conway.join_graph()(G, delete_on_border=False)
+        return cast("EuclideanPositionHEG", conway.join_graph()(G, delete_on_border=False))
 
     # FIXME: this is not the correct top view. Revisit in detail how the crease pattern is generated and accordingly how the top view should be constructed. For now, this is a placeholder which is somewhat similar, at least in the central part of the pattern.
-    G = conway.dual_graph()(G, delete_on_border=False)
-    return conway.chamfer_graph(r)(G, delete_on_border=False)
+    G = cast("EuclideanPositionHEG", conway.dual_graph()(G, delete_on_border=False))
+    return cast("EuclideanPositionHEG", conway.chamfer_graph(r)(G, delete_on_border=False))

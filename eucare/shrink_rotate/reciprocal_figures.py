@@ -15,13 +15,15 @@ from __future__ import annotations
 
 import logging
 from copy import copy
+from typing import cast
 
 import numpy as np
+from numpy.typing import NDArray
 import scipy as sc
 
 from ..base import rotation_matrix
 from ..conway import dual_graph
-from ..half import GeometricHEG
+from ..half import Face, GeometricHEG, HalfEdge, HalfEdgeGraph, Vertex
 from ..utils import invert_mapping, random_directed_set
 
 logger = logging.getLogger(__name__)
@@ -31,7 +33,7 @@ def reciprocal_figure(
     G: GeometricHEG,
     reciprocal_pos_key: str = "reciprocal_pos",
     rcond: float = 1e-7,
-):
+) -> GeometricHEG:
     """Compute the reciprocal figure of *G* and return it as a face graph.
 
     Stores reciprocal positions on faces of *G* under
@@ -73,13 +75,15 @@ def reciprocal_figure(
     # vertices approximate primal face centroids.
     to_process = set(G.faces)
     anchor = to_process.pop()
-    coefficients = {anchor: np.zeros(n_edges, dtype=np.float32)}
-    border = {anchor}
+    coefficients: dict[Face, NDArray[np.float32]] = {anchor: np.zeros(n_edges, dtype=np.float32)}
+    border: set[Face] = {anchor}
     while border:
-        new_border = set()
+        new_border: set[Face] = set()
         for f in border:
             for e in f.halfedge_iter():
                 f2 = e.rev.face
+                if f2 is None:
+                    continue
                 if f2 not in coefficients:
                     if e in directed_edges:
                         coefficients[f2] = copy(coefficients[f])
@@ -123,7 +127,10 @@ def reciprocal_figure(
             f[reciprocal_pos_key] = dual_vertices[i]
 
     # Step 5: Make the reciprocal figure into a face graph.
-    D, (v_map, e_map, f_map) = G.copy(return_mappings=True)
+    D, (v_map, e_map, f_map) = cast(
+        tuple[GeometricHEG, tuple[dict[Vertex, Vertex], dict[HalfEdge, HalfEdge], dict[Face, Face]]],
+        G.copy(return_mappings=True),
+    )
     face2reciprocalpos = {f_map[f]: dual_vertices[i] for i, f in enumerate(faces)}
 
     D = dual_graph()(D)

@@ -8,12 +8,17 @@ mean, and projecting back.
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import numpy as np
+from numpy.typing import NDArray
 
 from .base import Geometry
 
+ComplexPoint = complex | NDArray[Any]
 
-def apply_mobius(mat, points):
+
+def apply_mobius(mat: NDArray[Any], points: ComplexPoint) -> ComplexPoint:
     """Apply a Mobius transformation given by a 2x2 matrix to complex-valued points."""
     return (mat[0, 0] * points + mat[0, 1]) / (mat[1, 0] * points + mat[1, 1])
 
@@ -21,53 +26,53 @@ def apply_mobius(mat, points):
 class MobiusTransform:
     """A Mobius transformation represented as a 2x2 complex matrix."""
 
-    def __init__(self, mat):
+    def __init__(self, mat: NDArray[Any] | list[list[complex]]) -> None:
         if not isinstance(mat, np.ndarray):
             mat = np.array(mat)
         assert mat.shape == (2, 2), f"{mat.shape}"
-        self.mat = mat
+        self.mat: NDArray[Any] = mat
 
-    def __call__(self, points):
+    def __call__(self, points: ComplexPoint) -> ComplexPoint:
         return apply_mobius(self.mat, points)
 
-    def __matmul__(self, other):
+    def __matmul__(self, other: MobiusTransform) -> MobiusTransform:
         assert isinstance(other, MobiusTransform), f"{type(other)}"
         return MobiusTransform(self.mat @ other.mat)
 
-    def __pow__(self, exponent):
+    def __pow__(self, exponent: int) -> MobiusTransform:
         return MobiusTransform(np.linalg.matrix_power(self.mat, exponent))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"MobiusTransform({self.mat.tolist()})"
 
 
 # TODO: maybe have another class for the hyperboloid model
 
 
-def complex_to_real(z):
+def complex_to_real(z: NDArray[Any]) -> NDArray[Any]:
     """Convert complex numbers to real 2D coordinate arrays."""
     return np.stack([z.real, z.imag], axis=-1)
 
 
-def real_to_complex(x):
+def real_to_complex(x: NDArray[Any]) -> NDArray[Any]:
     """Convert real 2D coordinate arrays to complex numbers."""
     assert x.shape[-1] == 2
     return x[..., 0] + 1j * x[..., 1]
 
 
-def poincare_to_hyperboloid(z):
+def poincare_to_hyperboloid(z: NDArray[Any]) -> NDArray[Any]:
     """Map Poincare disk coordinates to the hyperboloid model."""
     pts = complex_to_real(z)
     squared_norm = (pts**2).sum(-1, keepdims=True)
     return np.concatenate([(1 + squared_norm), 2 * pts], axis=-1) / (1 - squared_norm)
 
 
-def hyperboloid_to_poincare(v):
+def hyperboloid_to_poincare(v: NDArray[Any]) -> NDArray[Any]:
     """Map hyperboloid model coordinates back to the Poincare disk."""
     return real_to_complex(v[..., 1:] / (1 + v[..., :1]))
 
 
-def hyperboloid_centroid(vs, ms=None, axis=None):
+def hyperboloid_centroid(vs: NDArray[Any], ms: NDArray[Any] | None = None, axis: int | None = None) -> NDArray[Any]:
     """Compute the centroid on the hyperboloid model, optionally weighted by masses."""
     if axis is None:
         assert len(vs.shape) == 2
@@ -78,7 +83,7 @@ def hyperboloid_centroid(vs, ms=None, axis=None):
     return mean
 
 
-def poincare_centroid(zs, ms=None, axis=None):
+def poincare_centroid(zs: NDArray[Any], ms: NDArray[Any] | None = None, axis: int | None = None) -> NDArray[Any]:
     """Compute the centroid of points in the Poincare disk via the hyperboloid model."""
     return hyperboloid_to_poincare(hyperboloid_centroid(poincare_to_hyperboloid(zs), ms, axis))
 
@@ -87,42 +92,42 @@ class PoincareDiskModel(Geometry):
     """Hyperbolic geometry using the Poincare disk model with complex coordinates."""
 
     @classmethod
-    def origin(cls):
+    def origin(cls) -> complex:
         return 0 + 0j
 
     @classmethod
-    def translation(cls, p1, p2):
+    def translation(cls, p1: complex, p2: complex) -> MobiusTransform:
         if p2 == 0:
             p1, p2 = 0, -p1
         if p1 == 0:
             return MobiusTransform([[1, p2], [p2.conjugate(), 1]])
         m1 = cls.translation(p2, 0)
-        m2 = cls.translation(0, -m1(p1))
+        m2 = cls.translation(0, -cast(complex, m1(p1)))
         m3 = cls.translation(0, p2)
         return m3 @ m2 @ m1
 
     @classmethod
-    def rotation(cls, p1, a1):
+    def rotation(cls, p1: complex, a1: float) -> MobiusTransform:
         if p1 == 0:
             return MobiusTransform([[np.exp(1j * a1), 0], [0, 1]])
         return cls.translation(p1, 0) @ cls.rotation(0, a1) @ cls.translation(0, p1)
 
     @classmethod
-    def center_of_mass(cls, points, masses=None):
+    def center_of_mass(cls, points: NDArray[Any], masses: NDArray[Any] | None = None) -> NDArray[Any]:
         return poincare_centroid(points, masses)
 
     @classmethod
-    def distance_to_origin(cls, p):
-        return 2 * np.arctanh(np.linalg.norm(p))
+    def distance_to_origin(cls, p: ComplexPoint) -> float:
+        return float(2 * np.arctanh(np.linalg.norm(p)))
 
     @classmethod
-    def angle_to_axis(cls, p):
-        return np.arctan2(p.imag, p.real)
+    def angle_to_axis(cls, p: ComplexPoint) -> float:
+        return float(np.arctan2(p.imag, p.real))
 
     @classmethod
-    def point_along_axis(cls, x):
-        return np.sign(x) * np.tanh(np.abs(x) / 2)
+    def point_along_axis(cls, x: float) -> complex:
+        return complex(np.sign(x) * np.tanh(np.abs(x) / 2))
 
     @classmethod
-    def to_euclidean(cls, pts):
+    def to_euclidean(cls, pts: NDArray[Any]) -> NDArray[Any]:
         return complex_to_real(pts)

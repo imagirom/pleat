@@ -6,13 +6,17 @@ Use inside a Jupyter notebook with ``%matplotlib widget``.
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
+
+from ..half import HalfEdgeGraph
 
 from .. import base
 from ..utils import random_directed_set
 
 
-def _require_notebook_deps():
+def _require_notebook_deps() -> None:
     try:
         import ipywidgets as widgets  # noqa: F401
         import matplotlib.pyplot as plt  # noqa: F401
@@ -56,7 +60,7 @@ class ShrinkRotateExplorer:
 
     def __init__(
         self,
-        SRG,
+        SRG: HalfEdgeGraph,
         *,
         alpha0: float = 1 / 6,
         factor0: float = 0.58,
@@ -79,8 +83,8 @@ class ShrinkRotateExplorer:
         # the plot reliably (and exactly once).
         with plt.ioff():
             fig = plt.figure(num=figure_id, figsize=figsize, clear=True)
-        fig.canvas.header_visible = False
-        fig.canvas.footer_visible = False
+        fig.canvas.header_visible = False  # type: ignore[attr-defined]
+        fig.canvas.footer_visible = False  # type: ignore[attr-defined]
         ax = fig.add_subplot(1, 1, 1)
         lc = LineCollection(self._segments(), antialiased=True, color="k", linewidth=1)
         pc = PolyCollection(self._polys(), antialiased=True, color="k", alpha=0.1)
@@ -131,7 +135,7 @@ class ShrinkRotateExplorer:
     # ------------------------------------------------------------------ state
 
     @staticmethod
-    def _build_state(SRG) -> dict:
+    def _build_state(SRG: HalfEdgeGraph) -> dict[str, Any]:
         """Precompute index arrays so each tick is one batched matmul."""
         vertex_list = list(SRG.vertices)
         vidx = {id(v): i for i, v in enumerate(vertex_list)}
@@ -171,18 +175,27 @@ class ShrinkRotateExplorer:
         for i, v in enumerate(s["vertex_list"]):
             v["pos"] = pos[i]
 
-    def _segments(self):
+    def _segments(self) -> Any:
         s = self._state
         return s["positions"][s["edge_idx"]]
 
-    def _polys(self):
+    def _polys(self) -> list[Any]:
         s = self._state
         pos = s["positions"]
         return [pos[idx] for idx in s["face_idx"]]
 
     # ----------------------------------------------------------------- update
 
-    def _update(self, alpha, factor, folded, reparametrized, scale_folded, show_lines, show_polys):
+    def _update(
+        self,
+        alpha: float,
+        factor: float,
+        folded: bool,
+        reparametrized: bool,
+        scale_folded: bool,
+        show_lines: bool,
+        show_polys: bool,
+    ) -> None:
         if self._in_update:
             return
         if factor <= 0:
@@ -238,7 +251,7 @@ class ShrinkRotateExplorer:
 
     # ----------------------------------------------------------------- public
 
-    def display(self):
+    def display(self) -> None:
         """Display the widget UI in a Jupyter notebook.
 
         Re-displays the figure canvas explicitly, so re-executing a cell

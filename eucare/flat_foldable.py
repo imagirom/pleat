@@ -14,6 +14,8 @@ Future additions (e.g. Maekawa's theorem, big-little-big, etc.) belong here.
 
 from __future__ import annotations
 
+from typing import Iterable
+
 import numpy as np
 
 from .half import HalfEdgeGraph, Vertex
@@ -35,12 +37,14 @@ def kawasaki_sum(v: Vertex) -> float:
     return np.sum(((angles + 2 * np.pi) % (2 * np.pi)) * (-1) ** np.arange(len(angles)))
 
 
-def max_kawasaki_sum(vertices) -> float:
+def max_kawasaki_sum(vertices: HalfEdgeGraph | Iterable[Vertex]) -> float:
     """Return the largest absolute Kawasaki sum over interior vertices.
 
     *vertices* may be a :class:`HalfEdgeGraph` (interior vertices are taken
     automatically) or any iterable of vertices.
     """
     if isinstance(vertices, HalfEdgeGraph):
-        vertices = [v for v in vertices.vertices if not v.on_border()]
-    return np.max([kawasaki_sum(v) for v in vertices])
+        vertex_list: Iterable[Vertex] = [v for v in vertices.vertices if not v.on_border()]
+    else:
+        vertex_list = vertices
+    return float(np.max([kawasaki_sum(v) for v in vertex_list]))

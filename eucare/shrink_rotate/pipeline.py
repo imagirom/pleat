@@ -15,13 +15,14 @@ The single public entry point is :func:`shrink_rotate_pattern`.
 from __future__ import annotations
 
 import logging
+from typing import Any, cast
 
 import numpy as np
 
 from ..base import rotation_matrix
 from ..conway import shrink_rotate_graph
 from ..flat_foldable import max_kawasaki_sum
-from ..half import EuclideanPositionHEG, GeometricHEG, HalfEdgeGraph
+from ..half import EuclideanPositionHEG, Face, GeometricHEG, HalfEdge, HalfEdgeGraph, Vertex
 from ..overlap import BORDER, CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
 from ..rendering import BORDER_COLOR, MOUNTAIN_COLOR, VALLEY_COLOR
 from ..utils import invert_mapping
@@ -38,7 +39,7 @@ def shrink_rotate_pattern(
     *,
     assign_creases: bool = True,
     simplify_boundary: bool = True,
-    **reciprocal_figure_kwargs,
+    **reciprocal_figure_kwargs: Any,
 ) -> EuclideanPositionHEG:
     """Build a shrink-rotate crease pattern from tiling *G*.
 
@@ -72,7 +73,10 @@ def shrink_rotate_pattern(
         _ = reciprocal_figure(G, **reciprocal_figure_kwargs)
         logger.info("Done with reciprocal figure.")
 
-    SRG, (_, _, f_map) = G.copy(return_mappings=True)
+    SRG, (_, _, f_map) = cast(
+        tuple[GeometricHEG, tuple[dict[Vertex, Vertex], dict[HalfEdge, HalfEdge], dict[Face, Face]]],
+        G.copy(return_mappings=True),
+    )
     inverse_f_map = invert_mapping(f_map)  # SRG-pre_conway → G
 
     SRG = shrink_rotate_graph()(SRG)
@@ -123,7 +127,7 @@ def shrink_rotate_pattern(
 
     logger.info("CP has %d edges", len(SRG.halfedges) // 2)
 
-    return SRG
+    return cast(EuclideanPositionHEG, SRG)
 
 
 def assign_shrink_rotate_creases(SRG: HalfEdgeGraph) -> None:
@@ -155,9 +159,11 @@ def assign_shrink_rotate_creases(SRG: HalfEdgeGraph) -> None:
         while e_twist.rev.on_border():
             e_twist = e_twist.nex
         # find the original-graph edge corresponding to e_twist.
-        e = None
+        e: HalfEdge | None = None
+        neighbor_face = e_twist.rev.nex.nex.rev.face
+        assert neighbor_face is not None
         for e_orig in f["pre_conway"].halfedge_iter():
-            if e_orig.rev in e_twist.rev.nex.nex.rev.face["pre_conway"].halfedge_iter():
+            if e_orig.rev in neighbor_face["pre_conway"].halfedge_iter():
                 e = e_orig
                 break
         assert e is not None

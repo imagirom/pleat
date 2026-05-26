@@ -21,7 +21,7 @@ the crease pattern in :mod:`eucare.intersecting_cylinders.pipeline`) and by the
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import Any, Callable
 
 import numpy as np
 from numpy.typing import NDArray
@@ -107,7 +107,7 @@ class Profile:
             shrink_factor=shrink_factor,
         )
 
-    def plot(self, ax=None) -> None:
+    def plot(self, ax: Any = None) -> None:
         """Plot the simplified ``(t, y)`` polyline."""
         import matplotlib.pyplot as plt
 
