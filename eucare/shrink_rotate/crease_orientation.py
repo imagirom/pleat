@@ -214,11 +214,11 @@ def assign_this_way_from_center(G: HalfEdgeGraph) -> None:
     """Convenience: BFS from the face nearest the geometric centroid of *G*.
 
     Equivalent to selecting the centermost face and calling
-    :func:`assign_this_way_by_face_bfs`. Skips already-assigned edges.
+    :func:`assign_this_way_by_bfs`. Skips already-assigned edges.
     """
     center = _graph_centroid(G)
     src = _face_nearest_to(G, center)
-    assign_this_way_by_face_bfs(G, src)
+    assign_this_way_by_bfs(G, src)
 
 
 def assign_this_way_by_distance(G: HalfEdgeGraph, point=None) -> None:

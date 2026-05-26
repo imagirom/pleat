@@ -114,14 +114,14 @@ def shrink_rotate_pattern(
         for e in SRG.halfedges:
             e["color_key"] = colors[e.attributes.get(CREASE_ASSIGNMENT, BORDER)]
 
-        if simplify_boundary:
-            SRG.join_order_2_boundary_vertices()
+    if simplify_boundary:
+        SRG.join_order_2_boundary_vertices()
 
-        mks = max_kawasaki_sum(SRG)
-        if mks > 1e-12:
-            logger.warning("High max Kawasaki sum: %s", mks)
+    mks = max_kawasaki_sum(SRG)
+    if mks > 1e-12:
+        logger.warning("High max Kawasaki sum: %s", mks)
 
-        logger.info("CP has %d edges", len(SRG.halfedges) // 2)
+    logger.info("CP has %d edges", len(SRG.halfedges) // 2)
 
     return SRG
 
