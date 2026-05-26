@@ -18,6 +18,7 @@ Public API
 * :func:`gjh_spec` — code → :data:`~eucare.tileset_spec.TilesetSpec`.
 * :func:`gjh_graph` — code → finite expanded :class:`~eucare.half.EuclideanPositionHEG`.
 * :data:`GJH_CODES` — ordered list of all codes in the cached library.
+* :func:`cached_spec` — strict cache-only lookup; raises :class:`KeyError` if the code is not in :data:`GJH_CODES`.
 * :func:`compile_gjh_spec` — bypass cache: always run the parser + distiller.
 
 Example::
@@ -45,6 +46,7 @@ __all__ = [
     "gjh_graph",
     "compile_gjh_spec",
     "GJH_CODES",
+    "cached_spec",
     # lower-level
     "polygon_placement",
     "apply_transform",

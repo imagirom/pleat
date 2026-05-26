@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import pytest
 
+from eucare.example_graphs import from_tiles
+from eucare.gjh import compile_gjh_spec, gjh, gjh_graph, gjh_spec
 from eucare.gjh.parser import compile_gjh_graph, polygon_placement
 from eucare.gjh.distill import spec_from_graph
 from eucare.gjh.library import CACHED_SPECS, GJH_CODES, cached_spec
@@ -83,11 +85,6 @@ def test_cached_spec_known_code():
 def test_cached_spec_missing_code_raises():
     with pytest.raises(KeyError):
         cached_spec("99-99-99")
-
-
-from eucare import gjh as gjh_module
-from eucare.example_graphs import from_tiles
-from eucare.gjh import GJH_CODES, compile_gjh_spec, gjh, gjh_graph, gjh_spec
 
 
 def test_gjh_returns_tiles_for_cached_code():
