@@ -1,0 +1,7 @@
+/* Widen the layout a bit so notebook image rows fit on one line at typical
+ * window widths. mkdocs-material's default `.md-grid` cap is 61rem; bump by
+ * 20% (61 * 1.2 = 73.2rem).
+ */
+.md-grid {
+  max-width: 73.2rem;
+}

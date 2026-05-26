@@ -2,6 +2,12 @@ site_name: Eucare
 site_description: Geometric tilings, Conway operators, and origami crease patterns
 repo_url: https://github.com/rremme/eucare
 
+# Render each page as `path/name.html` rather than `path/name/index.html`.
+# This keeps the built-doc relative paths aligned with the source layout (in
+# particular, image refs like `images/<sub>/foo.png` inside notebooks resolve
+# in both Jupyter and the built site without duplicating image trees).
+use_directory_urls: false
+
 theme:
   name: materialx
   palette:
@@ -47,6 +53,9 @@ plugins:
             merge_init_into_class: true
             members_order: source
 
+extra_css:
+  - stylesheets/extra.css
+
 markdown_extensions:
   - admonition
   - pymdownx.highlight:
@@ -59,11 +68,7 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Getting Started:
-      - Installation: getting-started/installation.md
-      - Quick Start: getting-started/quickstart.md
-  - Concepts:
-      - Architecture: concepts/architecture.md
+  - Installation: getting-started/installation.md
   - Notebooks:
       - Overview: notebooks/00_Overview.ipynb
       - Constructing tilings:
@@ -81,6 +86,7 @@ nav:
           - Alternating Flagstones: notebooks/Alternating Flagstones.ipynb
       # - 04 Folding and Overlap: notebooks/04_Folding_and_Overlap.ipynb #TODO: proper notebook walking through my layer-order algorithm: CP -> Overlap graph -> ILP -> layer-order -> top / bottom rendering
 
+  - Architecture: concepts/architecture.md
   - Contributing:
       - Docs Pipeline: contributing/docs-pipeline.md
   - API Reference: reference/
