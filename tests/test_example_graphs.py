@@ -130,3 +130,34 @@ def test_hyperbolic_square_graph_dual_smoke():
     G = from_tiles(curved_platonic(7, 3), rings=1)
     G_square = hyperbolic_square_graph(G, min_length=0.5, dual=True)
     G_square.check_consistency()
+
+
+import numpy as np
+
+from eucare.example_graphs import RectangleDomain, SquareDomain, fill_domain, from_tiles
+from eucare.example_tilesets import platonic
+
+
+def test_square_domain_contains():
+    d = SquareDomain(4.0)
+    inside = np.array([[0.0, 0.0], [1.0, 1.0], [-1.5, 1.5]])
+    outside = np.array([[3.0, 0.0], [0.0, 3.0]])
+    assert np.all(d.contains(inside))
+    assert not np.any(d.contains(outside))
+
+
+def test_fill_domain_fills_a_square_box_with_squares():
+    """A 5x5 box filled with unit squares contains roughly 25 faces."""
+    tiles = platonic(4)
+    G = fill_domain(tiles, SquareDomain(5.0))
+    # Expect ~25 faces; allow a small slack for boundary growth.
+    assert 20 <= len(G.faces) <= 36
+    assert all(f.order() == 4 for f in G.faces)
+
+
+def test_fill_domain_rectangle_with_hexagons():
+    """A wide rectangle filled with hexagons contains only hexagons."""
+    tiles = platonic(6)
+    G = fill_domain(tiles, RectangleDomain(10.0, 4.0))
+    assert all(f.order() == 6 for f in G.faces)
+    assert len(G.faces) > 3
