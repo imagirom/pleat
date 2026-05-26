@@ -26,7 +26,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libcairo2-dev pkg-config
 
       - name: Install project
-        run: uv sync --extra dev --python ${{ matrix.python-version }}
+        run: uv sync --extra dev --extra image --extra intersecting_cylinders --python ${{ matrix.python-version }}
 
       - name: Run tests
         run: uv run --no-sync pytest -q -m "not slow"
