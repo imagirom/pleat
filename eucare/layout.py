@@ -46,6 +46,7 @@ def optimal_rotation(G: "GeometricHEG", angle_offset: float = 0, steps: int = 10
 def rotate_graph(G: "GeometricHEG", angle: float) -> None:
     """Rotate every vertex of *G* by *angle* in place."""
     ps = G.get_position_view(return_vertices=False)
+    assert isinstance(ps, np.ndarray)
     ps[:] = ps @ np.array([[np.cos(angle), np.sin(angle)], [-np.sin(angle), np.cos(angle)]])
 
 

@@ -15,11 +15,12 @@ beneath the public API and are reused by other modules.
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numba
 import numpy as np
 from numba import jit, njit
+from numpy.typing import NDArray
 
 from eucare.half import rotate_by
 
@@ -34,7 +35,7 @@ from eucare.rendering import inset_poly
 
 
 @jit(nopython=True)
-def pointinpolygon(x: float, y: float, poly: np.ndarray) -> bool:
+def pointinpolygon(x: float, y: float, poly: NDArray[Any]) -> bool:
     """Numba-jitted point-in-polygon test (ray casting).
 
     Args:
@@ -66,7 +67,7 @@ def pointinpolygon(x: float, y: float, poly: np.ndarray) -> bool:
 
 
 @njit(parallel=True)
-def parallelpointinpolygon(points: np.ndarray, polygon: np.ndarray) -> np.ndarray:
+def parallelpointinpolygon(points: NDArray[Any], polygon: NDArray[Any]) -> NDArray[Any]:
     """Vectorised :func:`pointinpolygon` over a batch of query points."""
     D = np.empty(len(points), dtype=numba.boolean)
     for i in numba.prange(0, len(D)):
@@ -75,7 +76,7 @@ def parallelpointinpolygon(points: np.ndarray, polygon: np.ndarray) -> np.ndarra
 
 
 @numba.jit(nopython=True)
-def polygon_line_segment_intersections(poly: np.ndarray, line_segment: np.ndarray, eps: float = 1e-12) -> list:
+def polygon_line_segment_intersections(poly: NDArray[Any], line_segment: NDArray[Any], eps: float = 1e-12) -> list[Any]:
     """Return the list of intersections of *line_segment* with each edge of closed polygon *poly*."""
     intersections = []
     p1 = poly[-1]
@@ -86,7 +87,9 @@ def polygon_line_segment_intersections(poly: np.ndarray, line_segment: np.ndarra
     return intersections
 
 
-def get_potential_intersections_2(segments1: np.ndarray, segments2: np.ndarray, epsilon: float = 1e-12) -> list:
+def get_potential_intersections_2(
+    segments1: NDArray[Any], segments2: NDArray[Any], epsilon: float = 1e-12
+) -> list[tuple[int, int]]:
     """Bounding-box prefilter: return ``(i, j)`` pairs whose AABBs overlap.
 
     Used as a pre-pass before the expensive exact intersection test.  Sweep-line
@@ -107,22 +110,22 @@ def get_potential_intersections_2(segments1: np.ndarray, segments2: np.ndarray, 
     x_coords.sort(axis=1)
 
     # create tuples (position, index, is_start)
-    points = [(s[0][0] - epsilon, i, 1) for i, s in enumerate(segments)] + [
+    points_list: list[tuple[Any, int, int]] = [(s[0][0] - epsilon, i, 1) for i, s in enumerate(segments)] + [
         (s[1][0], i, 0) for i, s in enumerate(segments)
     ]
-    points = np.array(points, dtype=tuple)
+    points = np.array(points_list, dtype=tuple)
 
     # sort by first coordinate
     points = points[np.argsort(points[:, 0])]
-    active_labels_1 = set()
-    active_labels_2 = set()
-    possibly_intersecting = list()
+    active_labels_1: set[int] = set()
+    active_labels_2: set[int] = set()
+    possibly_intersecting: list[tuple[int, int]] = list()
     for i, is_start in points[:, 1:]:
 
         if i < ns1:  # segment in segments1
             if is_start:
                 for j in active_labels_2:
-                    if intervals_overlapping(segments[i, :, 1], segments[j, :, 1]):
+                    if intervals_overlapping(tuple(segments[i, :, 1]), tuple(segments[j, :, 1])):
                         possibly_intersecting.append((i, j - ns1))
                 active_labels_1.add(i)
             else:
@@ -130,7 +133,7 @@ def get_potential_intersections_2(segments1: np.ndarray, segments2: np.ndarray, 
         else:  # segment in segments1
             if is_start:
                 for j in active_labels_1:
-                    if intervals_overlapping(segments[i, :, 1], segments[j, :, 1]):
+                    if intervals_overlapping(tuple(segments[i, :, 1]), tuple(segments[j, :, 1])):
                         possibly_intersecting.append((j, i - ns1))
                 active_labels_2.add(i)
             else:
@@ -138,7 +141,9 @@ def get_potential_intersections_2(segments1: np.ndarray, segments2: np.ndarray, 
     return possibly_intersecting
 
 
-def get_ordered_crossings(segments1: np.ndarray, segments2: np.ndarray, eps: float = 1e-10) -> tuple:
+def get_ordered_crossings(
+    segments1: NDArray[Any], segments2: NDArray[Any], eps: float = 1e-10
+) -> tuple[NDArray[Any], list[Any], list[Any], list[set[int]], list[set[int]]]:
     """Compute exact intersections between two segment sets and group near-duplicates.
 
     Args:
@@ -154,26 +159,26 @@ def get_ordered_crossings(segments1: np.ndarray, segments2: np.ndarray, eps: flo
         ``crossings_to_segmentsX[k]`` is the set of segment indices in set X
         contributing to crossing ``k``.
     """
-    crossings = []
+    crossings_list: list[Any] = []
     # This will be a list mapping the index of a crossing to the pair (i, j) of indices of the corresponding edges.
-    crossings_to_edges = []
+    crossings_to_edges: list[tuple[int, int]] = []
 
     for i, j in get_potential_intersections_2(segments1, segments2, epsilon=eps):
         l1, l2 = segments1[i], segments2[j]
         intersections = line_segment_intersections(l1, l2, eps=eps)
         if not intersections:
             continue
-        crossings.extend(intersections)
+        crossings_list.extend(intersections)
         for _ in range(len(intersections)):
             crossings_to_edges.append((i, j))
-    crossings = np.array(crossings)
+    crossings = np.array(crossings_list)
     if len(crossings) == 0:
         return (
             np.zeros(0, dtype=np.int32),
             [],
             [],
-            [[] for _ in range(len(segments1))],
-            [[] for _ in range(len(segments2))],
+            [set() for _ in range(len(segments1))],
+            [set() for _ in range(len(segments2))],
         )
 
         # ------ group closeby crossings ------
@@ -185,10 +190,10 @@ def get_ordered_crossings(segments1: np.ndarray, segments2: np.ndarray, eps: flo
 
     # construct an array mapping crossings to all involved edges,
     # and on mapping edges to all crossings they are involved in.
-    filtered_crossings_to_segments1 = [set() for i in range(n_filtered_crossings)]
-    filtered_crossings_to_segments2 = [set() for i in range(n_filtered_crossings)]
-    segments1_to_crossings = [set() for i in range(len(segments1))]
-    segments2_to_crossings = [set() for i in range(len(segments2))]
+    filtered_crossings_to_segments1: list[set[int]] = [set() for i in range(n_filtered_crossings)]
+    filtered_crossings_to_segments2: list[set[int]] = [set() for i in range(n_filtered_crossings)]
+    segments1_to_crossings: list[Any] = [set() for i in range(len(segments1))]
+    segments2_to_crossings: list[Any] = [set() for i in range(len(segments2))]
     for i, edge_ids in enumerate(crossings_to_edges):
         i_filtered = clustering[i]
         filtered_crossings_to_segments1[i_filtered].add(edge_ids[0])
@@ -197,7 +202,7 @@ def get_ordered_crossings(segments1: np.ndarray, segments2: np.ndarray, eps: flo
         segments2_to_crossings[edge_ids[1]].add(clustering[i])
 
     # ------ get crossing orders ------
-    def order_crossings(segments, segments_to_crossings):
+    def order_crossings(segments: NDArray[Any], segments_to_crossings: list[Any]) -> None:
         segments_dirs = segments[:, 1] - segments[:, 0]
         segments_dirs /= np.linalg.norm(segments_dirs, axis=1, keepdims=True)
         for i, crossing_ids in enumerate(segments_to_crossings):
@@ -266,7 +271,7 @@ def cut_out_poly(
     # numba-jit'd ``line_segment_intersections`` requires a uniform float64
     # dtype across both segment arrays; cast defensively here so that callers
     # that produced positions via float32 paths (e.g. torch optimisers) work.
-    poly_segments = np.stack(list(rotate_by(poly, (0, 1)))).astype(np.float64)
+    poly_segments = np.stack(list(rotate_by(list(poly), (0, 1)))).astype(np.float64)
     es = list(G.halfedges_representing_edges())
     edge_segments = np.array([[e.orig["pos"], e.dest["pos"]] for e in es], dtype=np.float64)
     (
@@ -337,7 +342,7 @@ def cut_out_poly(
                             or np.all(
                                 parallelpointinpolygon(
                                     np.array(corners),
-                                    np.asarray(inset_poly(np.stack([vf["pos"] for vf in f.vertex_iter()]), -eps)),
+                                    np.asarray(inset_poly([vf["pos"] for vf in f.vertex_iter()], -eps)),
                                 )
                             )
                         )
@@ -397,11 +402,7 @@ def cut_out_poly(
                             or np.all(
                                 parallelpointinpolygon(
                                     np.array(corners),
-                                    np.asarray(
-                                        inset_poly(
-                                            np.stack([vf["pos"] for vf in reversed(list(f.vertex_iter()))]), -eps
-                                        )
-                                    ),
+                                    np.asarray(inset_poly([vf["pos"] for vf in reversed(list(f.vertex_iter()))], -eps)),
                                 )
                             )
                         )

@@ -14,7 +14,7 @@ def dual_graph() -> GeometricConwayOperator:
     vf = (1, 0)
     v2 = (0, 1)
     ve = (0, 0)
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v1, vf, v2, ve], delete=True)
     G.add_nodes_from([v1, v2], delete=True)
     G.add_nodes_from([ve], join=True)
@@ -32,7 +32,7 @@ def kis_graph() -> GeometricConwayOperator:
     vf = (1, 0)
     v2 = (0, 1)
     # construct nx graph with delete and join attributes
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v1, vf, v2])
 
     # construct EHEG and ConwayOperator
@@ -47,7 +47,7 @@ def join_graph() -> GeometricConwayOperator:
     vf = (1, 0)
     v2 = (0, 1)
     # construct nx graph with delete and join attributes
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v1, vf, v2])
     G.add_edge(v2, v1, delete=True)
     # construct EHEG and ConwayOperator
@@ -61,7 +61,7 @@ def meta_graph() -> GeometricConwayOperator:
     vf = (1, 0)
     v2 = (0, 1)
     ve = (0, 0)
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v1, vf, v2, ve])
     G.add_nodes_from([v1, v2])
     G.add_nodes_from([ve])
@@ -78,7 +78,7 @@ def ortho_graph() -> GeometricConwayOperator:
     vf = (1, 0)
     v2 = (0, 1)
     ve = (0, 0)
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v1, vf, v2, ve])
     G.add_edge(ve, vf)
     G.edges[v1, vf]["delete"] = True
@@ -99,11 +99,11 @@ def ambo_graph() -> GeometricConwayOperator:
     v1f = (1 / 2, -1 / 2)
     v2f = (1 / 2, 1 / 2)
     # construct nx graph with delete and join attributes
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v1, v1f, vf, v2f, v2, v12], delete=True)
     G.add_nodes_from([v1, vf, v2], delete=True)
     G.add_nodes_from([v1f, v2f], join=True)
-    G.add_edges_from([[v12, v1f], [v12, v2f]])
+    G.add_edges_from([(v12, v1f), (v12, v2f)])
 
     # construct EHEG and ConwayOperator
     heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
@@ -120,13 +120,13 @@ def goldberg2_graph() -> GeometricConwayOperator:
     v1f = (1 / 2, -1 / 2)
     v2f = (1 / 2, 1 / 2)
     # construct nx graph with delete and join attributes
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v1, v1f, vf, v2f, v2, v12], delete=True)
     del G.edges[v1, v12]["delete"]
     del G.edges[v12, v2]["delete"]
     G.add_nodes_from([vf], delete=True)
     G.add_nodes_from([v1f, v2f], join=True)
-    G.add_edges_from([[v12, v1f], [v12, v2f]])
+    G.add_edges_from([(v12, v1f), (v12, v2f)])
 
     # construct EHEG and ConwayOperator
     heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
@@ -142,12 +142,12 @@ def truncate_graph(t: float = 1 / 2) -> GeometricConwayOperator:
     v1ft = (t / 2, -1 + t / 2)
     v21t = (0, 1 - t)
     v2ft = (t / 2, 1 - t / 2)
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v1, v1ft, vf, v2ft, v2, v21t, v12t], delete=True)
     del G.edges[v12t, v21t]["delete"]
     G.add_nodes_from([v1, vf, v2], delete=True)
     G.add_nodes_from([v1ft, v2ft], join=True)
-    G.add_edges_from([[v12t, v1ft], [v21t, v2ft]])
+    G.add_edges_from([(v12t, v1ft), (v21t, v2ft)])
 
     # construct EHEG and ConwayOperator
     heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
@@ -160,9 +160,9 @@ def gyro_graph(g: tuple[float, float] = (1 / 4, -1 / 4)) -> GeometricConwayOpera
     vf = (1, 0)
     v2 = (0, 1)
     ve = (0, 0)
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v1, vf, v2, ve], delete=True)
-    G.add_edges_from([[g, ve], [g, v1], [g, vf]])
+    G.add_edges_from([(g, ve), (g, v1), (g, vf)])
     G.add_node(ve, join=True)
 
     # construct EHEG and ConwayOperator
@@ -178,10 +178,10 @@ def starify_graph(t: float = 1 / 3) -> GeometricConwayOperator:
     v0 = (0, 0)
     v1f = (t, -1 + t)
     v2f = (t, 1 - t)
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v1, v1f, vf, v2f, v2, v0], delete="True")
     G.add_nodes_from([v0], join=True)
-    G.add_edges_from([[v0, v2f], [v2f, v1f]])
+    G.add_edges_from([(v0, v2f), (v2f, v1f)])
 
     # construct EHEG and ConwayOperator
     heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
@@ -196,14 +196,14 @@ def alternating_flagstone_graph(t: float = 1 / 3) -> GeometricConwayOperator:
     v0 = (0, 0)
     v1f = (t, -1 + t)
     v2f = (t, 1 - t)
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v1, v1f, vf, v2f, v2, v0], delete=True)
     del G.edges[v1, v1f]["delete"]
     del G.edges[v2, v2f]["delete"]
     G.add_edge(v2f, v1, color_key=(1, 0, 0))
     G.add_nodes_from([v0], join=True)
     G.add_nodes_from([vf], delete=True)
-    G.add_edges_from([[v0, v2f], [v2f, v1f]])
+    G.add_edges_from([(v0, v2f), (v2f, v1f)])
 
     # construct EHEG and ConwayOperator
     heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
@@ -227,15 +227,17 @@ def shrink_rotate_graph(t: float = 1 / 2) -> GeometricConwayOperator:
     v1ft = (t, -1 + t)
     v21t = (0, 1 - t)
     v2ft = (t, 1 - t)
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v1, v1ft, vf, v2ft, v2, v21t, v12t], delete=True)
     G.add_nodes_from([v1, vf, v2], delete=True)
     G.add_nodes_from([v12t, v21t], join=True)
-    G.add_edges_from([[v12t, v1ft], [v21t, v2ft], [v1ft, v2ft]])
+    G.add_edges_from([(v12t, v1ft), (v21t, v2ft), (v1ft, v2ft)])
 
     # construct EHEG and ConwayOperator
     heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
-    v_lookup[vf].get_outgoing_border().rev.face["shrink_rotate"] = True
+    inner_face = v_lookup[vf].get_outgoing_border().rev.face
+    assert inner_face is not None
+    inner_face["shrink_rotate"] = True
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 
 
@@ -247,10 +249,10 @@ def loft_graph(t: float = 1 / 2) -> GeometricConwayOperator:
     v2 = (0, 1)
     v1ft = (t, -1 + t)
     v2ft = (t, 1 - t)
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v1, v1ft, v2ft, v2])
     G.add_nodes_from([vf], delete=True)
-    G.add_edges_from([[v1ft, vf], [vf, v2ft]], delete=True)
+    G.add_edges_from([(v1ft, vf), (vf, v2ft)], delete=True)
 
     # construct EHEG and ConwayOperator
     heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
@@ -267,12 +269,12 @@ def lace_graph(t: float = 1 / 2, join: bool = False) -> GeometricConwayOperator:
     v1f = (t, -1 + t)
     v2f = (t, 1 - t)
 
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v1, v1f, vf, v2f, v2], delete=True)
     if not join:
         del G.edges[v1, v2]["delete"]
 
-    G.add_edges_from([[vc, v1], [vc, v2], [vc, v1f], [vc, v2f]])
+    G.add_edges_from([(vc, v1), (vc, v2), (vc, v1f), (vc, v2f)])
     G.add_nodes_from([v1f, v2f], join=True)
     G.add_nodes_from([vf], delete=True)
 
@@ -292,10 +294,10 @@ def expand_graph(t: float = 1 / 2) -> GeometricConwayOperator:
     v1f = (t, -1 + t)
     v2f = (t, 1 - t)
 
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v2, v21, v12, v1, v1f, vf, v2f], delete=True)
 
-    G.add_edges_from([[v1f, v12], [v2f, v21], [v1f, v2f]])
+    G.add_edges_from([(v1f, v12), (v2f, v21), (v1f, v2f)])
     G.add_nodes_from([v12, v21, v1f, v2f], join=True)
     G.add_nodes_from([vf], delete=True)
 
@@ -321,10 +323,10 @@ def flagstone_pvitelli_graph(t: float = 1 / 4) -> GeometricConwayOperator:
     vN1e = (0, -1 + 3 / 2 * t)
     vN2e = (0, 1 - 3 / 2 * t)
 
-    G = nx.Graph()
+    G: nx.Graph = nx.Graph()
     nx.add_cycle(G, [v2, vL2, vN2e, vN1e, vL1, v1, vL1f, vV1, vf, vV2, vL2f], delete=True)
     nx.add_cycle(G, [vL2, vN2, vN1, vL1, vV1, vV2])
-    G.add_edges_from([[vL1f, vL1], [vL2f, vL2], [vN1e, vN1], [vN2e, vN2], [vN1, vV1], [vN2, vV2]])
+    G.add_edges_from([(vL1f, vL1), (vL2f, vL2), (vN1e, vN1), (vN2e, vN2), (vN1, vV1), (vN2, vV2)])
     G.add_nodes_from([vL1f, vL2f, vN1e, vN2e], join=True)
 
     # label the points which will be joined that are closer to v1
@@ -339,7 +341,9 @@ def flagstone_pvitelli_graph(t: float = 1 / 4) -> GeometricConwayOperator:
     # construct EHEG and ConwayOperator
     heg, v_lookup = EHEG_from_nx(G, return_v_lookup=True)
 
-    v_lookup[vf].get_outgoing_border().rev.face["is_central_polygon"] = True
+    central_face = v_lookup[vf].get_outgoing_border().rev.face
+    assert central_face is not None
+    central_face["is_central_polygon"] = True
 
     return GeometricConwayOperator(heg, *(v_lookup[v] for v in [v1, vf, v2]))
 

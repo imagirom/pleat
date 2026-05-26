@@ -56,13 +56,13 @@ def build_dual_circle_packings(G: "EuclideanPositionHEG") -> "EuclideanPositionH
 
     for v in G_ortho.vertices.union(G_ortho.faces):
         pre = v.get("pre_conway")
-        if isinstance(pre, half.Face):
+        if isinstance(pre, half.Face) and isinstance(v, half.Vertex):
             v["color_key"] = _FACE_COLOR
             v["vertex_radius"] = float(np.linalg.norm(v["pos"] - v.any_outgoing.dest["pos"]))
             for h in v.outgoing_iter():
                 h["line_width"] = 0.0
                 h.rev["line_width"] = 0.0
-        elif isinstance(pre, half.Vertex):
+        elif isinstance(pre, half.Vertex) and isinstance(v, half.Vertex):
             v["color_key"] = _VERTEX_COLOR
             v["vertex_radius"] = float(np.linalg.norm(v["pos"] - v.any_outgoing.dest["pos"]))
             for h in v.outgoing_iter():
@@ -78,7 +78,7 @@ def build_dual_circle_packings(G: "EuclideanPositionHEG") -> "EuclideanPositionH
     return G_ortho
 
 
-def show_dual_circle_packings(G: "EuclideanPositionHEG", **show_kwargs: Any):
+def show_dual_circle_packings(G: "EuclideanPositionHEG", **show_kwargs: Any) -> Any:
     """Render the two dual circle packings of a tiling.
 
     This is a thin convenience wrapper around :func:`build_dual_circle_packings`

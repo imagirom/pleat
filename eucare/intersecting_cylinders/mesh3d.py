@@ -72,7 +72,7 @@ from .. import base, conway, half
 from .profiles import Profile
 
 if TYPE_CHECKING:
-    from ..half import EuclideanPositionHEG
+    from ..half import EuclideanPositionHEG, Face
 
 
 def _spike_depth_from_profile(
@@ -196,12 +196,12 @@ def _build_ortho_with_tangent_points(
     return G_ortho
 
 
-def _vertex_circle_radii(G_ortho: "EuclideanPositionHEG") -> dict:
+def _vertex_circle_radii(G_ortho: "EuclideanPositionHEG") -> dict[half.Vertex, float]:
     """Return ``{original_vertex: r_v}`` where ``r_v = |v - t|`` is the radius
     of the blue circle centered at the original vertex (its distance to any of
     its incident edge-tangent points after the position fix).
     """
-    radii: dict = {}
+    radii: dict[half.Vertex, float] = {}
     for v_o in G_ortho.vertices:
         if "pre_conway" not in v_o.attributes:
             continue
@@ -220,7 +220,9 @@ def _vertex_circle_radii(G_ortho: "EuclideanPositionHEG") -> dict:
     return radii
 
 
-def _classify_ortho_quad(face) -> tuple | None:
+def _classify_ortho_quad(
+    face: "Face",
+) -> tuple[half.Vertex, half.Vertex, half.Vertex, half.Vertex] | None:
     """Return ``(v_corner, c_corner, t1_corner, t2_corner)`` for a 4-corner ortho
     quad, or ``None`` if it does not have the expected (V, E, F, E) structure.
 

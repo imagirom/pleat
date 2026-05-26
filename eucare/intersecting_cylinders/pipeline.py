@@ -6,7 +6,7 @@ parameter, and :func:`make_intersecting_cylinders` for the main entry point.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 
@@ -16,18 +16,21 @@ from .profiles import Profile
 if TYPE_CHECKING:
     from ..half import EuclideanPositionHEG
 
+_K = TypeVar("_K")
+_V = TypeVar("_V")
+
 # RGB tuples used throughout the pipeline as ``color_key`` values.
 _BLACK = (0.0, 0.0, 0.0)
 _BLUE = (0.0, 0.0, 1.0)
 _RED = (1.0, 0.0, 0.0)
 
 
-def _reverse_mapping(d: dict) -> dict:
+def _reverse_mapping(d: dict[_K, _V]) -> dict[_V, _K]:
     """Return ``{v: k for k, v in d.items()}``."""
     return {value: key for key, value in d.items()}
 
 
-def _from_pre(obj) -> bool:
+def _from_pre(obj: Any) -> bool:
     """True iff ``obj`` carries a ``pre_conway`` attribute (set by Conway operators)."""
     return "pre_conway" in obj.attributes
 
@@ -128,6 +131,7 @@ def make_intersecting_cylinders(
             p = v["pos"]
             p2 = v2["pos"]
 
+            assert h_orig.face is not None
             c = h_orig.face.midpoint()
             hc = base.project_to_line(np.stack([p, p2]), c)
 

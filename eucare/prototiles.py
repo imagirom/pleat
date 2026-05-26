@@ -2,18 +2,25 @@
 
 from __future__ import annotations
 
+from typing import Any, Callable
+
 import numpy as np
+from numpy.typing import NDArray
 
 from .base import angle_to_axis, unit_vector
 from .geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
-from .half import CyclicHalfedgeGraph, Face, HalfEdge, InAngleHEG, Vertex
+from .geometries.base import Geometry
+from .half import CyclicHalfedgeGraph, Face, HalfEdge, HalfEdgeGraph, InAngleHEG, Vertex
 from .instructions import attatch_tile_instruction
 
 
 class ProtoTile:
     """Abstract base class for tile prototypes that can produce half-edge graphs."""
 
-    def make_graph(self) -> tuple[InAngleHEG, dict]:
+    geometry: type[Geometry]
+    points: NDArray[Any]
+
+    def make_graph(self, add_positions: bool = False) -> tuple[CyclicHalfedgeGraph, dict[Any, HalfEdge]]:
         # return a HEG and a list of edges
         raise NotImplementedError
 
@@ -23,12 +30,12 @@ class PolygonalProtoTile(ProtoTile):
 
     def __init__(
         self,
-        in_angles: list[float],
-        edge_lengths: list[float],
-        edge_labels: list | None = None,
-        vertex_labels: list | None = None,
+        in_angles: list[float] | NDArray[Any],
+        edge_lengths: list[float] | NDArray[Any],
+        edge_labels: list[Any] | None = None,
+        vertex_labels: list[Any] | None = None,
         face_label: object = None,
-        edge_instructions: dict | None = None,
+        edge_instructions: dict[Any, Callable[[HalfEdgeGraph, HalfEdge], None]] | None = None,
     ) -> None:
         assert len(in_angles) == len(edge_lengths)
         self.order = len(in_angles)
@@ -41,9 +48,9 @@ class PolygonalProtoTile(ProtoTile):
         # edge_instructions can either be a list for all edges, or a dict, mapping a label to an instruction
         self.edge_instructions = edge_instructions if edge_instructions is not None else dict()
 
-    def make_graph(self, add_positions: bool = False) -> tuple[CyclicHalfedgeGraph, dict]:
+    def make_graph(self, add_positions: bool = False) -> tuple[CyclicHalfedgeGraph, dict[Any, HalfEdge]]:
         """Build a half-edge graph for this tile and return it with an edge label dict."""
-        outer_edge_dict = dict()
+        outer_edge_dict: dict[Any, HalfEdge] = dict()
 
         outer_edges = [HalfEdge() for _ in range(self.order)]
         for e, label in zip(outer_edges, self.edge_labels):
@@ -78,12 +85,12 @@ class PolygonalProtoTile(ProtoTile):
         graph = CyclicHalfedgeGraph(f=f, vs=vertices, inner_hs=inner_edges, outer_hs=outer_edges)
         return graph, outer_edge_dict
 
-    def attach_instruction(self, label=None):
+    def attach_instruction(self, label: object = None) -> Callable[[HalfEdgeGraph, HalfEdge], None]:
         """Return a glue instruction that attaches this tile at the given edge label."""
         assert label is None or label in self.edge_labels, f"{label}, {self.edge_labels}"
         return attatch_tile_instruction(self, label)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"PolygonalProtoTile("
             f"lenghts={self.edge_lengths}, "
@@ -97,7 +104,7 @@ class PolygonalProtoTile(ProtoTile):
 class RegularProtoTile(PolygonalProtoTile):
     """A regular polygon tile with uniform angles and edge lengths, supporting any geometry."""
 
-    def __init__(self, n: int, in_angle: float, edge_length: float, **super_kwargs) -> None:
+    def __init__(self, n: int, in_angle: float, edge_length: float, **super_kwargs: Any) -> None:
         super().__init__([in_angle] * n, [edge_length] * n, **super_kwargs)
         euclidean_angle_deficit = np.pi * (n - 2) - in_angle * n
         eps = 1e-6
@@ -108,14 +115,14 @@ class RegularProtoTile(PolygonalProtoTile):
         else:
             self.geometry = PoincareDiskModel
 
-        geo = self.geometry
+        geo: type[Geometry] = self.geometry
         # calculate points
-        points = [geo.origin(), geo.from_polar(edge_length, 0)]
+        points_list = [geo.origin(), geo.from_polar(edge_length, 0)]
         for _ in range(n - 2):
-            points.append(geo.construct_next_poly_point(points[-2], points[-1], in_angle, edge_length))
-        com = geo.center_of_mass(np.array(points))
+            points_list.append(geo.construct_next_poly_point(points_list[-2], points_list[-1], in_angle, edge_length))
+        com = geo.center_of_mass(np.array(points_list))
         translate = geo.translation(com, geo.origin())
-        points = np.array([translate(point) for point in points])
+        points = np.array([translate(point) for point in points_list])
         angle = -geo.angle_to_axis(points[0])
         rotate = geo.rotation(geo.origin(), angle)
         self.points = np.array([rotate(point) for point in points])
@@ -124,7 +131,7 @@ class RegularProtoTile(PolygonalProtoTile):
 class EuclideanProtoTile(PolygonalProtoTile):
     """A Euclidean tile defined by explicit 2D vertex positions."""
 
-    def __init__(self, points=None, **super_kwargs):
+    def __init__(self, points: NDArray[Any] | list[Any] | None = None, **super_kwargs: Any) -> None:
         self.geometry = EuclideanGeometry
         # points should have shape (n, 2)
         points = np.array(points)
@@ -141,7 +148,7 @@ class EuclideanProtoTile(PolygonalProtoTile):
 class RegularEuclideanTile(EuclideanProtoTile):
     """A regular n-gon in Euclidean geometry with unit edge length."""
 
-    def __init__(self, n, **super_kwargs):
+    def __init__(self, n: int, **super_kwargs: Any) -> None:
         points = unit_vector(np.linspace(0, 2 * np.pi, n, endpoint=False) + np.pi / n) / np.sin(np.pi / n) / 2
         super(RegularEuclideanTile, self).__init__(points=points, **super_kwargs)
 
@@ -149,7 +156,7 @@ class RegularEuclideanTile(EuclideanProtoTile):
 class RhombusTile(EuclideanProtoTile):
     """A rhombus tile with a given acute angle alpha (default pi/3)."""
 
-    def __init__(self, alpha=None, **super_kwargs):
+    def __init__(self, alpha: float | None = None, **super_kwargs: Any) -> None:
         alpha = np.pi / 3 if alpha is None else alpha
         pts = np.concatenate(
             [np.zeros((1, 2)), np.cumsum(unit_vector([-alpha / 2, alpha / 2, np.pi - alpha / 2]), axis=0)]
@@ -157,7 +164,7 @@ class RhombusTile(EuclideanProtoTile):
         super(RhombusTile, self).__init__(points=pts, **super_kwargs)
 
 
-def complete_vertex_with_rhombus(graph, vertex):
+def complete_vertex_with_rhombus(graph: InAngleHEG, vertex: Vertex) -> None:
     """Fill the remaining angle at a border vertex by gluing in a rhombus tile."""
     assert isinstance(graph, InAngleHEG)
     edge = vertex.get_outgoing_border()

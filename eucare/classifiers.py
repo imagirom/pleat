@@ -12,16 +12,22 @@ sequences up to cyclic rotation).  Used by :mod:`eucare.colorization`.
 
 from __future__ import annotations
 
+from typing import Any, Callable
+
 import numpy as np
+from numpy.typing import NDArray
 
 
 class Classifier:
     """Classify items by a hashable index, optionally tracking items and indices per class."""
 
+    saved_items: dict[Any, set[Any]] | None
+    saved_indices: dict[Any, Any] | None
+
     def __init__(self, save_items: bool = False, save_indices: bool = False) -> None:
         super(Classifier, self).__init__()
 
-        self.used_indices = set()
+        self.used_indices: set[Any] = set()
 
         # option to keep track of a dict mapping classes to items
         self.save_items = save_items
@@ -37,16 +43,18 @@ class Classifier:
         else:
             self.saved_indices = None
 
-    def _get_index(self, item):
+    def _get_index(self, item: Any) -> Any:
         # the returned 'index' can be any hashable
         raise NotImplementedError
 
-    def classify(self, item):
+    def classify(self, item: Any) -> Any:
         """Return the equivalence class index for ``item`` and update saved items/indices."""
         index = self._get_index(item)
         if self.save_items:
+            assert self.saved_items is not None
             self.saved_items[index] = self.saved_items.get(index, set()).union({item})
         if self.save_indices:
+            assert self.saved_indices is not None
             self.saved_indices[item] = index
         return index
 
@@ -54,13 +62,13 @@ class Classifier:
 class CountingClassifier(Classifier):
     """Wrap a classifier to remap its indices to consecutive natural numbers."""
 
-    def __init__(self, other, *super_args, **super_kwargs):
+    def __init__(self, other: Classifier, *super_args: Any, **super_kwargs: Any) -> None:
         super(CountingClassifier, self).__init__(*super_args, **super_kwargs)
         self.non_counting_classifier = other
         self.current_count = 0
-        self.index_to_count = dict()
+        self.index_to_count: dict[Any, int] = dict()
 
-    def _get_index(self, item):
+    def _get_index(self, item: Any) -> int:
         index = self.non_counting_classifier.classify(item)
         if index not in self.index_to_count:
             self.index_to_count[index] = self.current_count
@@ -71,22 +79,22 @@ class CountingClassifier(Classifier):
 class RepresentationClassifier(Classifier):
     """Classify items by computing a representation and comparing it against known classes."""
 
-    def __init__(self, *super_args, **super_kwargs):
+    def __init__(self, *super_args: Any, **super_kwargs: Any) -> None:
         super(RepresentationClassifier, self).__init__(*super_args, **super_kwargs)
         self.current_count = 0
-        self.count_to_repr = dict()
+        self.count_to_repr: dict[int, Any] = dict()
         self.represented_first = False
 
-    def _compare_representations(self, query_rep, saved_rep):
+    def _compare_representations(self, query_rep: Any, saved_rep: Any) -> Any:
         return query_rep == saved_rep
 
-    def _represent_item(self, item):
+    def _represent_item(self, item: Any) -> Any:
         return item
 
-    def _represent_query_item(self, item):
+    def _represent_query_item(self, item: Any) -> Any:
         return self._represent_item(item)
 
-    def _get_index(self, item):
+    def _get_index(self, item: Any) -> int:
         query_rep = self._represent_query_item(item)
         if (
             not self.represented_first and self.current_count == 1
@@ -107,17 +115,22 @@ class RepresentationClassifier(Classifier):
 class NestedClassifier(Classifier):
     """Chain multiple classifiers from coarse to fine, producing a tuple index."""
 
-    def __init__(self, coarse_to_fine, *super_args, **super_kwargs):
+    def __init__(
+        self,
+        coarse_to_fine: list[Callable[[], Classifier]],
+        *super_args: Any,
+        **super_kwargs: Any,
+    ) -> None:
         # coarse_to_fine should be a list of classifier classes
         super(NestedClassifier, self).__init__(*super_args, **super_kwargs)
         self.coarse_to_fine = coarse_to_fine
-        self.nested_classfier_dict = dict()
+        self.nested_classfier_dict: dict[Any, Any] = dict()
         self.base_classifier = self.coarse_to_fine[0]()
 
-    def _get_index(self, item):
+    def _get_index(self, item: Any) -> tuple[Any, ...]:
         current_dict = self.nested_classfier_dict
         current_index = self.base_classifier.classify(item)
-        result = (current_index,)
+        result: tuple[Any, ...] = (current_index,)
         for cls in self.coarse_to_fine[1:]:
             if current_index not in current_dict:
                 current_dict[current_index] = dict(classifier=cls(), index_mapping=dict())
@@ -129,13 +142,13 @@ class NestedClassifier(Classifier):
         return result
 
 
-def lambda_classifier(func):
+def lambda_classifier(func: Callable[[Any], Any]) -> type[Classifier]:
     """Create a Classifier class that uses the given function as its index."""
 
     class LambdaClassifier(Classifier):
         """Classifier whose index is computed by the wrapped function."""
 
-        def _get_index(self, item):
+        def _get_index(self, item: Any) -> Any:
             return func(item)
 
     return LambdaClassifier
@@ -144,7 +157,7 @@ def lambda_classifier(func):
 class LenClassifier(Classifier):
     """Classify items by their length."""
 
-    def _get_index(self, item):
+    def _get_index(self, item: Any) -> int:
         return len(item)
 
 
@@ -154,32 +167,38 @@ tol = 1e-4
 class SumClassifier(RepresentationClassifier):
     """Classify items by the sum of their elements (with tolerance)."""
 
-    def _compare_representations(self, query_rep, saved_rep):
+    def _compare_representations(self, query_rep: Any, saved_rep: Any) -> Any:
         return np.all(np.abs(query_rep - saved_rep) < tol)
 
-    def _represent_item(self, item):
+    def _represent_item(self, item: Any) -> Any:
         return np.sum(np.array(item))
 
 
 class UnorderedClassifier(RepresentationClassifier):
     """Classify items by their sorted elements, ignoring order."""
 
-    def _compare_representations(self, query_rep, saved_rep):
+    def _compare_representations(self, query_rep: Any, saved_rep: Any) -> Any:
         return np.all(query_rep == saved_rep)
 
-    def _represent_item(self, item):
+    def _represent_item(self, item: Any) -> NDArray[Any]:
         return np.sort(np.array(item))
 
 
 class CyclicClassifier(RepresentationClassifier):
     """Classify items up to cyclic permutation (and optionally reflection)."""
 
-    def __init__(self, tolerance=tol, allow_flip=False, *super_args, **super_kwargs):
+    def __init__(
+        self,
+        tolerance: float = tol,
+        allow_flip: bool = False,
+        *super_args: Any,
+        **super_kwargs: Any,
+    ) -> None:
         super(CyclicClassifier, self).__init__(*super_args, **super_kwargs)
         self.tolerance = tolerance
         self.allow_flip = allow_flip
 
-    def _compare_representations(self, query_rep, saved_rep):
+    def _compare_representations(self, query_rep: Any, saved_rep: Any) -> Any:
         if query_rep.shape != saved_rep.shape[1:]:
             return False
         if self.tolerance == 0:
@@ -190,7 +209,7 @@ class CyclicClassifier(RepresentationClassifier):
                 <= self.tolerance
             )
 
-    def _represent_item(self, item):
+    def _represent_item(self, item: Any) -> NDArray[Any]:
         pts = self._represent_query_item(item)
         if not self.allow_flip:
             return np.stack([np.roll(pts, i, axis=0) for i in np.arange(len(pts))])
@@ -203,35 +222,41 @@ class CyclicClassifier(RepresentationClassifier):
                 axis=0,
             )
 
-    def _represent_query_item(self, item):
+    def _represent_query_item(self, item: Any) -> NDArray[Any]:
         return np.array(item)
 
 
 class PreMapClassifier(Classifier):
     """Apply a function to each item before passing it to another classifier."""
 
-    def __init__(self, other, func, *super_args, **super_kwargs):
+    def __init__(
+        self,
+        other: Classifier,
+        func: Callable[[Any], Any],
+        *super_args: Any,
+        **super_kwargs: Any,
+    ) -> None:
         super(PreMapClassifier, self).__init__(*super_args, **super_kwargs)
         self.func = func
         self.other = other
 
-    def _get_index(self, item):
+    def _get_index(self, item: Any) -> Any:
         return self.other.classify(self.func(item))
 
 
-def _face_to_array(f) -> np.ndarray:
+def _face_to_array(f: Any) -> NDArray[Any]:
     """Represent a face as an (n, 2) array of (length, in_angle) pairs along its boundary."""
-    data = []
+    data: list[tuple[Any, Any]] = []
     for e in f.halfedge_iter():
         data.append((e["length"], e["in_angle"]))
         # data.append(np.array(e.orig['pos'], dtype=np.float32))
-    data = np.stack(data)
-    # data -= np.mean(data, axis=0, keepdims=True)
-    # print(data)
-    return data
+    arr = np.stack(data)
+    # arr -= np.mean(arr, axis=0, keepdims=True)
+    # print(arr)
+    return arr
 
 
-def congruency_classifier(allow_flip=False):
+def congruency_classifier(allow_flip: bool = False) -> CountingClassifier:
     """Return a classifier that groups faces by polygon congruence (edge lengths and angles)."""
     return CountingClassifier(
         PreMapClassifier(
@@ -244,9 +269,10 @@ def congruency_classifier(allow_flip=False):
 class AdjacencyClassifier(CyclicClassifier):
     """Classify faces by the cyclic sequence of a given attribute on their neighbors."""
 
-    def __init__(self, key, *super_args, **super_kwargs):
-        super(AdjacencyClassifier, self).__init__(tolerance=0, *super_args, **super_kwargs)
+    def __init__(self, key: str, *super_args: Any, **super_kwargs: Any) -> None:
+        super_kwargs.pop("tolerance", None)
+        super(AdjacencyClassifier, self).__init__(0, *super_args, **super_kwargs)
         self.key = key
 
-    def _represent_query_item(self, item):
+    def _represent_query_item(self, item: Any) -> NDArray[Any]:
         return np.array([(f[self.key] if f is not None else None, item[self.key]) for f in item.face_iter()])

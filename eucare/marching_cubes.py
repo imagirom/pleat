@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import logging
 from numbers import Number
+from typing import Any, Callable
 
 import numpy as np
 import sdf
+from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +34,12 @@ logger = logging.getLogger(__name__)
 class CartesianGrid:
     """Axis aligned cartesian grid in n-dimensional euclidean space"""
 
-    def __init__(self, ndim: int, origin: np.ndarray = None, cell_size: np.ndarray = None) -> None:
+    def __init__(
+        self,
+        ndim: int,
+        origin: NDArray[Any] | None = None,
+        cell_size: NDArray[Any] | None = None,
+    ) -> None:
         self.ndim = ndim
         self.origin = np.zeros(self.ndim) if origin is None else origin
         self.cell_size = np.ones(self.ndim, dtype=np.float32) if cell_size is None else cell_size
@@ -131,8 +138,10 @@ class CartesianGrid:
 
 
 def oct_tree_marching_cubes(
-    f: callable, step: np.ndarray, bounds: np.ndarray | None = None
-) -> tuple[np.ndarray, CartesianGrid]:
+    f: Callable[[NDArray[Any]], NDArray[Any]],
+    step: NDArray[Any],
+    bounds: NDArray[Any] | None = None,
+) -> tuple[NDArray[Any], CartesianGrid]:
     """Locate boundary cells of an SDF using an oct-tree refinement strategy.
 
     Builds successively coarser grids until the bounding box fits in one
@@ -170,8 +179,8 @@ def oct_tree_marching_cubes(
     level = 0
     block_indices = [np.arange(n) for n in box_size // step]
 
-    def block_indices_n_cells(block_indices):
-        return np.product([len(indices) for indices in block_indices])
+    def block_indices_n_cells(block_indices: list[NDArray[Any]]) -> int:
+        return int(np.prod([len(indices) for indices in block_indices]))
 
     n_cells_naive = block_indices_n_cells(block_indices)
     logger.info("n_cells_naive=%d", n_cells_naive)

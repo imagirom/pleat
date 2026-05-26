@@ -24,6 +24,7 @@ and Jupyter's ``G.truncate?`` show the full signature.
 from __future__ import annotations
 
 import inspect
+from typing import Any, Callable
 
 from ..half import GeometricHEG
 from . import factories
@@ -43,7 +44,7 @@ _CALL_PARAMS = (
 _CALL_PARAM_NAMES = frozenset(p.name for p in _CALL_PARAMS)
 
 
-def _shorthand(factory):
+def _shorthand(factory: Callable[..., Any]) -> Callable[..., GeometricHEG]:
     """Build a ``GeometricHEG`` method that applies ``factory(...)`` to ``self``.
 
     The returned method exposes a synthesized signature ``(self, *factory_params,
@@ -52,7 +53,7 @@ def _shorthand(factory):
     ``help()`` and ``?`` even though the method body is only one line.
     """
 
-    def method(self, *args, **kwargs):
+    def method(self: GeometricHEG, *args: Any, **kwargs: Any) -> GeometricHEG:
         call_kwargs = {k: kwargs.pop(k) for k in _CALL_PARAM_NAMES if k in kwargs}
         return factory(*args, **kwargs)(self, **call_kwargs)
 

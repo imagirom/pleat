@@ -15,13 +15,14 @@ The single public entry point is :func:`shrink_rotate_pattern`.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import numpy as np
 
 from ..base import rotation_matrix
 from ..conway import shrink_rotate_graph
 from ..flat_foldable import max_kawasaki_sum
-from ..half import EuclideanPositionHEG, GeometricHEG, HalfEdgeGraph
+from ..half import EuclideanPositionHEG, Face, GeometricHEG, HalfEdge, HalfEdgeGraph, Vertex
 from ..overlap import BORDER, CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
 from ..rendering import BORDER_COLOR, MOUNTAIN_COLOR, VALLEY_COLOR
 from ..utils import invert_mapping
@@ -38,8 +39,8 @@ def shrink_rotate_pattern(
     *,
     assign_creases: bool = True,
     simplify_boundary: bool = True,
-    **reciprocal_figure_kwargs,
-) -> EuclideanPositionHEG:
+    **reciprocal_figure_kwargs: Any,
+) -> GeometricHEG:
     """Build a shrink-rotate crease pattern from tiling *G*.
 
     Each face of *G* is subdivided by the shrink-rotate Conway operator;
@@ -155,9 +156,11 @@ def assign_shrink_rotate_creases(SRG: HalfEdgeGraph) -> None:
         while e_twist.rev.on_border():
             e_twist = e_twist.nex
         # find the original-graph edge corresponding to e_twist.
-        e = None
+        e: HalfEdge | None = None
+        neighbor_face = e_twist.rev.nex.nex.rev.face
+        assert neighbor_face is not None
         for e_orig in f["pre_conway"].halfedge_iter():
-            if e_orig.rev in e_twist.rev.nex.nex.rev.face["pre_conway"].halfedge_iter():
+            if e_orig.rev in neighbor_face["pre_conway"].halfedge_iter():
                 e = e_orig
                 break
         assert e is not None

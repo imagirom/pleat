@@ -7,11 +7,14 @@ counter-clockwise; :func:`signed_area` is positive for CCW polygons.
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 from numba import jit
 from numpy.typing import ArrayLike, NDArray
+
+if TYPE_CHECKING:
+    from .geometries.base import Geometry
 
 pi = np.pi
 tau = 2 * np.pi
@@ -54,7 +57,7 @@ def edge_lengths(points: NDArray) -> NDArray:
     return np.linalg.norm(edge_vectors, axis=1)
 
 
-def edge_lengths_and_in_angles(points: NDArray, geometry) -> tuple[list[float], list[float]]:
+def edge_lengths_and_in_angles(points: NDArray, geometry: type[Geometry]) -> tuple[list[float], list[float]]:
     """Return ``(edge_lengths, interior_angles)`` for a polygon under *geometry*.
 
     *geometry* must expose ``distance(p, q)`` and ``angle(p, q, r)`` (see
@@ -128,7 +131,7 @@ def find_affine(line0: NDArray, line1: NDArray) -> NDArray:
     return np.concatenate([linear, offset[None]])
 
 
-def nearest_neighbor(data: NDArray, query: NDArray, return_index: bool = True):
+def nearest_neighbor(data: NDArray, query: NDArray, return_index: bool = True) -> NDArray | tuple[NDArray, int]:
     """Return the nearest point in *data* to *query* (brute-force).
 
     Args:
@@ -138,12 +141,14 @@ def nearest_neighbor(data: NDArray, query: NDArray, return_index: bool = True):
     """
     if len(data.shape) > len(query.shape):
         query = query[None]
-    index = np.argmin(np.linalg.norm(data - query, axis=-1))
-    return data[index], index if return_index else data[index]
+    index = int(np.argmin(np.linalg.norm(data - query, axis=-1)))
+    if return_index:
+        return data[index], index
+    return data[index]
 
 
 @jit(nopython=True)
-def signed_area(pts):
+def signed_area(pts: NDArray) -> float:
     """Signed area of a polygon (positive = CCW). Numba-accelerated.
 
     *pts* must have shape ``(n, 2)``; the polygon is closed implicitly.
@@ -154,7 +159,7 @@ def signed_area(pts):
 
 
 @jit(nopython=True)
-def orientation(pts, eps=0):
+def orientation(pts: NDArray, eps: float = 0) -> int:
     """Return ``+1`` (CCW), ``-1`` (CW), or ``0`` (degenerate) for a polygon.
 
     Numba-accelerated.  *eps* is the absolute-area threshold for degeneracy.
@@ -172,7 +177,7 @@ def euclidean_to_barycentric_map(tri: NDArray) -> Callable[[NDArray], NDArray]:
     """
     tri = np.array(tri, dtype=np.float32)
 
-    def inner(point):
+    def inner(point: NDArray) -> NDArray:
         mat = np.repeat(tri[None, :], 3, axis=0)
         mat[np.eye(3, dtype=bool)] = point
         coords = np.array([signed_area(pts) for pts in mat], dtype=np.float32)
@@ -184,7 +189,7 @@ def euclidean_to_barycentric_map(tri: NDArray) -> Callable[[NDArray], NDArray]:
 def barycentric_to_euclidean_map(tri: NDArray) -> Callable[[NDArray], NDArray]:
     """Return a function converting barycentric coords back to 2D points w.r.t. *tri*."""
 
-    def inner(barycentric_coords):
+    def inner(barycentric_coords: NDArray) -> NDArray:
         return tri.T @ barycentric_coords
 
     return inner

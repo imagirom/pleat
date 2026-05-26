@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from .geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
+from .geometries.base import Geometry
 from .prototiles import PolygonalProtoTile, ProtoTile, RegularEuclideanTile, RegularProtoTile
 
 
@@ -21,7 +22,7 @@ from .prototiles import PolygonalProtoTile, ProtoTile, RegularEuclideanTile, Reg
 #         raise NotImplementedError
 
 
-def align_tiles(tile1: PolygonalProtoTile, label1, tile2: PolygonalProtoTile, label2) -> None:
+def align_tiles(tile1: PolygonalProtoTile, label1: object, tile2: PolygonalProtoTile, label2: object) -> None:
     """Set mutual gluing instructions between two tiles along the given edge labels."""
     tile1.edge_instructions[label1] = tile2.attach_instruction(label2)
     tile2.edge_instructions[label2] = tile1.attach_instruction(label1)
@@ -150,7 +151,7 @@ def u2_4_6_12__3_4_6_4() -> tuple[RegularEuclideanTile, ...]:
 # cairo_sq_B.edge_instructions['a'] = attatch_tile_instruction(cairo_tri, 1)
 
 
-def archimedean_vertex_to_geometry(face_orders: "list[int] | tuple[int, ...]") -> type:
+def archimedean_vertex_to_geometry(face_orders: "list[int] | tuple[int, ...]") -> type[Geometry]:
     """Determine the geometry (Euclidean, spherical, or hyperbolic) from vertex face orders.
 
     Args:

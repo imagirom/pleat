@@ -3,19 +3,20 @@
 from __future__ import annotations
 
 import os
+from typing import Any, Callable
 
 import numpy as np
 import yaml
 
 import eucare as ec
 
-from .half import Face, HalfEdge, HalfEdgeGraph, Vertex
+from .half import AttributeObject, Face, HalfEdge, HalfEdgeGraph, Vertex
 
 
 def graph_to_dict(
     G: HalfEdgeGraph,
     attributes_to_save: tuple[str, ...] = ("pos", "length", "in_angle", "color_key"),
-) -> dict:
+) -> dict[str, Any]:
     """Serialise a half-edge graph to a JSON/YAML-friendly nested dict.
 
     Vertices, half-edges, and faces are each given an opaque string label
@@ -36,25 +37,27 @@ def graph_to_dict(
     halfedge_labels = {h: f"h{i}" for i, h in enumerate(G.halfedges)}
     face_labels = {f: f"f{i}" for i, f in enumerate(G.faces)}
 
-    labels = {None: None}
+    labels: dict[Any, str | None] = {None: None}
     labels.update(vertex_labels)
     labels.update(halfedge_labels)
     labels.update(face_labels)
 
-    def represent_attributes(obj):
-        result = {}
+    def represent_attributes(obj: AttributeObject) -> dict[str, Any]:
+        result: dict[str, Any] = {}
         for attr in attributes_to_save:
             if attr in obj.attributes:
-                value = obj[attr]
+                value: Any = obj[attr]
                 if isinstance(value, np.ndarray):
                     value = value.tolist()
-                if np.isscalar(value):
+                if isinstance(value, (int, float, np.floating, np.integer)):
                     value = float(value)
                 result[attr] = value
         return result
 
-    def add_attributes(func):
-        def wrapped(obj):
+    def add_attributes(
+        func: Callable[[Any], dict[str, Any]],
+    ) -> Callable[[Any], dict[str, Any]]:
+        def wrapped(obj: Any) -> dict[str, Any]:
             result = func(obj)
             attrs = represent_attributes(obj)
             if attrs:
@@ -64,11 +67,11 @@ def graph_to_dict(
         return wrapped
 
     @add_attributes
-    def represent_vertex(v):
+    def represent_vertex(v: Vertex) -> dict[str, Any]:
         return dict(any_outgoing=labels[v.any_outgoing])
 
     @add_attributes
-    def represent_halfedge(h):
+    def represent_halfedge(h: HalfEdge) -> dict[str, Any]:
         return dict(
             orig=labels[h.orig],
             dest=labels[h.dest],
@@ -79,7 +82,7 @@ def graph_to_dict(
         )
 
     @add_attributes
-    def represent_face(f):
+    def represent_face(f: Face) -> dict[str, Any]:
         return dict(any_side=labels[f.any_side])
 
     vertex_dict = {label: represent_vertex(v) for v, label in vertex_labels.items()}
@@ -90,15 +93,15 @@ def graph_to_dict(
     return graph_dict
 
 
-def dict_to_graph(graph_dict: dict) -> ec.half.EuclideanPositionHEG:
+def dict_to_graph(graph_dict: dict[str, Any]) -> ec.half.EuclideanPositionHEG:
     """Inverse of :func:`graph_to_dict`: reconstruct a graph from its serialised dict.
 
     The returned graph is always an :class:`EuclideanPositionHEG` regardless of
     the source graph's class (TODO: persist the class).
     """
 
-    def unwrap_attributes(obj_dict):
-        result = {}
+    def unwrap_attributes(obj_dict: dict[str, Any]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
         for key, value in obj_dict.pop("attributes", {}).items():
             if isinstance(value, list):
                 try:
@@ -108,12 +111,12 @@ def dict_to_graph(graph_dict: dict) -> ec.half.EuclideanPositionHEG:
             result[key] = value
         return result
 
-    lookup = {None: None}
+    lookup: dict[str | None, Any] = {None: None}
     # create the halfedges
     for label in graph_dict["halfedges"]:
         lookup[label] = HalfEdge()
 
-    vs = set()
+    vs: set[Vertex] = set()
     for label, v_dict in graph_dict["vertices"].items():
         attrs = unwrap_attributes(v_dict)
         v_dict["any_outgoing"] = lookup[v_dict["any_outgoing"]]
@@ -122,7 +125,7 @@ def dict_to_graph(graph_dict: dict) -> ec.half.EuclideanPositionHEG:
         lookup[label] = v
         vs.add(v)
 
-    fs = set()
+    fs: set[Face] = set()
     for label, f_dict in graph_dict["faces"].items():
         attrs = unwrap_attributes(f_dict)
         f_dict["any_side"] = lookup[f_dict["any_side"]]
@@ -131,7 +134,7 @@ def dict_to_graph(graph_dict: dict) -> ec.half.EuclideanPositionHEG:
         lookup[label] = f
         fs.add(f)
 
-    hs = set()
+    hs: set[HalfEdge] = set()
     for label, h_dict in graph_dict["halfedges"].items():
         attrs = unwrap_attributes(h_dict)
         h = lookup[label]

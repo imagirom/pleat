@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 from copy import copy
+from typing import Any, Literal, overload
 
 import networkx as nx
 import numpy as np
@@ -36,11 +37,28 @@ def _delete_dangling_edges_nx(nx_graph: nx.Graph) -> int:
     return n_deleted
 
 
+@overload
 def EHEG_from_nx(
     nxg: nx.Graph,
-    positions: dict | None = None,
+    positions: dict[Any, Any] | None = ...,
+    *,
+    return_v_lookup: Literal[True],
+) -> tuple[EuclideanPositionHEG, dict[Any, Vertex]]: ...
+
+
+@overload
+def EHEG_from_nx(
+    nxg: nx.Graph,
+    positions: dict[Any, Any] | None = ...,
+    return_v_lookup: Literal[False] = ...,
+) -> EuclideanPositionHEG: ...
+
+
+def EHEG_from_nx(
+    nxg: nx.Graph,
+    positions: dict[Any, Any] | None = None,
     return_v_lookup: bool = False,
-) -> "EuclideanPositionHEG | tuple[EuclideanPositionHEG, dict]":
+) -> EuclideanPositionHEG | tuple[EuclideanPositionHEG, dict[Any, Vertex]]:
     """Convert a planar undirected :class:`networkx.Graph` to an :class:`EuclideanPositionHEG`.
 
     Args:
@@ -71,7 +89,7 @@ def EHEG_from_nx(
         v["pos"] = positions[n]
         v_lookup[n] = v
     result.add_vertices(v_lookup.values())
-    h_lookup = dict()
+    h_lookup: dict[Vertex, dict[Vertex, HalfEdge]] = dict()
     # orig, dest
     for n in nxg.nodes():
         v = v_lookup[n]
@@ -116,8 +134,8 @@ def EHEG_from_nx(
     # detect 'outside' faces which should be None by their orientation
     # it is selected as the one with maximal negative area
     # (area 0 faces might have slightly negative areas due to numerical issues)
-    outside_face = None
-    current_min_area = 0
+    outside_face: Face | None = None
+    current_min_area: float = 0.0
     for f in frozenset(result.faces):
         area = f.area()
         if area < current_min_area:

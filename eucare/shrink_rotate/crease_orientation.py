@@ -50,6 +50,7 @@ from collections import deque
 from typing import Iterable
 
 import numpy as np
+from numpy.typing import NDArray
 
 from .. import base
 from ..half import Face, HalfEdgeGraph, Vertex
@@ -145,10 +146,13 @@ def assign_this_way_by_bfs(G: HalfEdgeGraph, source: Vertex | Face | set[Vertex]
 
     Skips edges that already have THIS_WAY assigned on either side.
     """
+    source_set: set[Vertex | Face]
     if not isinstance(source, set):
-        source = {source}
-    source_faces = {f for s in source for f in (s.true_face_iter() if isinstance(s, Vertex) else [s])}
-    source_vertices = {v for s in source for v in (s.vertex_iter() if isinstance(s, Face) else [s])}
+        source_set = {source}
+    else:
+        source_set = set(source)
+    source_faces: set[Face] = {f for s in source_set for f in (s.true_face_iter() if isinstance(s, Vertex) else [s])}
+    source_vertices: set[Vertex] = {v for s in source_set for v in (s.vertex_iter() if isinstance(s, Face) else [s])}
 
     assign_this_way_by_face_bfs(G, source_faces)  # primary: face BFS
     assign_this_way_by_vertex_bfs(G, source_vertices)  # tiebreaker: vertex BFS
@@ -221,7 +225,7 @@ def assign_this_way_from_center(G: HalfEdgeGraph) -> None:
     assign_this_way_by_bfs(G, src)
 
 
-def assign_this_way_by_distance(G: HalfEdgeGraph, point=None) -> None:
+def assign_this_way_by_distance(G: HalfEdgeGraph, point: NDArray[np.floating] | None = None) -> None:
     """Orient interior edges by distance of face midpoints from *point*.
 
     The face whose midpoint is *farther* from *point* lies below (gets

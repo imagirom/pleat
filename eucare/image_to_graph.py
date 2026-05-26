@@ -9,11 +9,13 @@ Intended for digitising hand-drawn or otherwise genereated images of line drawin
 from __future__ import annotations
 
 import colorsys
+from typing import Any
 
 import mahotas as mh
 import networkx as nx
 import numpy as np
 from matplotlib import pyplot as plt
+from numpy.typing import NDArray
 from scipy import ndimage as ndi
 from skimage import color, io
 from skimage.transform import downscale_local_mean
@@ -23,11 +25,11 @@ import eucare as ec
 from .overlap import group_closeby
 
 
-def hsv_to_rgb(h, s, v):
+def hsv_to_rgb(h: float, s: float, v: float) -> NDArray[np.float32]:
     return np.array(colorsys.hsv_to_rgb(h, s, v), dtype=np.float32)
 
 
-def get_distinct_colors(n, min_sat=0.5, min_val=0.5):
+def get_distinct_colors(n: int, min_sat: float = 0.5, min_val: float = 0.5) -> NDArray[np.float32]:
     huePartition = 1.0 / (n + 1)
     hues = np.arange(0, n) * huePartition
     saturations = np.random.rand(n) * (1 - min_sat) + min_sat
@@ -35,7 +37,11 @@ def get_distinct_colors(n, min_sat=0.5, min_val=0.5):
     return np.stack([hsv_to_rgb(h, s, v) for h, s, v in zip(hues, saturations, values)], axis=0)
 
 
-def colorize_segmentation(seg, ignore_label=None, ignore_color=(0, 0, 0)):
+def colorize_segmentation(
+    seg: NDArray[Any],
+    ignore_label: int | None = None,
+    ignore_color: tuple[float, float, float] = (0, 0, 0),
+) -> NDArray[Any]:
     assert isinstance(seg, np.ndarray)
     assert seg.dtype.kind in ("u", "i")
     if ignore_label is not None:
@@ -49,7 +55,13 @@ def colorize_segmentation(seg, ignore_label=None, ignore_color=(0, 0, 0)):
     return result
 
 
-def plot_image(image, figheight=5, title=None, colorbar=False, **kwargs):
+def plot_image(
+    image: NDArray[Any],
+    figheight: float = 5,
+    title: str | None = None,
+    colorbar: bool = False,
+    **kwargs: Any,
+) -> None:
     plt.figure(figsize=(figheight * image.shape[1] / image.shape[0], figheight))
     im = plt.imshow(image, **kwargs)
     if colorbar:
@@ -117,7 +129,7 @@ def endPoints(skel: np.ndarray) -> np.ndarray:
     return ep
 
 
-def pruning(skeleton, size=None):
+def pruning(skeleton: NDArray[Any], size: int | None = None) -> NDArray[Any]:
     """remove iteratively end points "size"
     times from the skeleton
     """
@@ -203,14 +215,14 @@ def image_to_graph(
     edge_labels, n_edges = ndi.label(skeleton ^ branching_points)
 
     plot_image(
-        colorize_segmentation(ndi.grey_dilation(edge_labels, size=3).astype(np.int32), ignore_label=0),
+        colorize_segmentation(ndi.grey_dilation(edge_labels, size=(3, 3)).astype(np.int32), ignore_label=0),
         figheight=5,
         title="edges",
     )
     plt.show()
 
     # construct the graph: for every branching point, find the edges connected to it
-    edge_dict = {}
+    edge_dict: dict[int, set[int]] = {}
     for bp in range(1, n_branch_points + 1):
         adjacent_edges = np.unique(edge_labels[ndi.binary_dilation(branch_point_labels == bp)])
         adjacent_edges = adjacent_edges[adjacent_edges > 0]
@@ -251,7 +263,7 @@ def image_to_graph(
         (new_bp_labels[i - 1], new_bp_labels[j - 1]) for i, j in edges if new_bp_labels[i - 1] != new_bp_labels[j - 1]
     )
 
-    graph = nx.Graph()
+    graph: nx.Graph = nx.Graph()
     graph.add_edges_from(new_edges)
 
     # convert to eucare graph

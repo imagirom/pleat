@@ -20,14 +20,16 @@ import logging
 from copy import copy, deepcopy
 from itertools import chain
 from math import pi
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Literal, TypeVar, overload
 
 if TYPE_CHECKING:
+    from .geometries.base import Geometry
     from .rendering import Rendering
 
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
+from numpy.typing import NDArray
 
 from .base import edge_lengths_and_in_angles, signed_area
 from .geometries import EuclideanGeometry
@@ -40,40 +42,40 @@ class AttributeObject:
 
     def __init__(self) -> None:
         super(AttributeObject, self).__init__()
-        self.attributes: dict = dict()
+        self.attributes: dict[str, Any] = dict()
 
     def has_attributes(self) -> bool:
         """Return True if this object has any attributes set."""
         return bool(self.attributes)
 
-    def __getitem__(self, attr):
+    def __getitem__(self, attr: str) -> Any:
         return self.attributes[attr]
 
-    def __setitem__(self, attr, value) -> None:
+    def __setitem__(self, attr: str, value: Any) -> None:
         self.attributes[attr] = value
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self.attributes)
 
-    def __delitem__(self, key) -> None:
+    def __delitem__(self, key: str) -> None:
         del self.attributes[key]
 
-    def __contains__(self, item) -> bool:
+    def __contains__(self, item: object) -> bool:
         return item in self.attributes
 
-    def get(self, attr, *args, **kwargs):
+    def get(self, attr: str, *args: Any, **kwargs: Any) -> Any:
         """Return ``self.attributes.get(attr, *args, **kwargs)``."""
         return self.attributes.get(attr, *args, **kwargs)
 
-    def keys(self):
+    def keys(self) -> Iterable[str]:
         """Return a view of the attribute keys."""
         return self.attributes.keys()
 
-    def values(self):
+    def values(self) -> Iterable[Any]:
         """Return a view of the attribute values."""
         return self.attributes.values()
 
-    def items(self):
+    def items(self) -> Iterable[tuple[str, Any]]:
         """Return a view of the (key, value) attribute items."""
         return self.attributes.items()
 
@@ -85,7 +87,7 @@ class IdObject(AttributeObject):
     independent test runs).
     """
 
-    current_ids: dict = dict()
+    current_ids: dict[type, int] = dict()
 
     def __init__(self) -> None:
         super(IdObject, self).__init__()
@@ -107,9 +109,9 @@ class IdObject(AttributeObject):
             IdObject.current_ids[cls] = 0
 
 
-def check_cyclic_iterator_consistency(iterator) -> None:
+def check_cyclic_iterator_consistency(iterator: Iterable[Any]) -> None:
     """Assert that every item yielded by ``iterator`` is unique (no cycles repeat)."""
-    items = set()
+    items: set[Any] = set()
     for item in iterator:
         assert item not in items, f"{iterator}, {item}, {items}"
         items.add(item)
@@ -128,9 +130,24 @@ class HalfEdge(IdObject):
         orig: The origin vertex.
         dest: The destination vertex.
         face: The face to the left, or ``None`` for border edges.
+
+    Note:
+        ``rev``/``nex``/``pre``/``orig``/``dest`` are typed as non-optional
+        because the data structure invariant requires them to be set once the
+        graph is fully constructed.  The constructor accepts ``None`` to
+        support incremental graph building; in that case the corresponding
+        attribute is simply left unset and reading it before it is assigned
+        raises :class:`AttributeError`.
     """
 
     printname = "HE"
+
+    rev: HalfEdge
+    nex: HalfEdge
+    pre: HalfEdge
+    orig: Vertex
+    dest: Vertex
+    face: Face | None
 
     def __init__(
         self,
@@ -142,22 +159,23 @@ class HalfEdge(IdObject):
         face: Face | None = None,
     ) -> None:
         super(HalfEdge, self).__init__()
-        # HalfEdge references
-        self.rev = rev
-        self.nex = nex
-        self.pre = pre
-
-        # Vertex references
-        self.orig = orig
-        self.dest = dest
-
-        # Face reference
+        if rev is not None:
+            self.rev = rev
+        if nex is not None:
+            self.nex = nex
+        if pre is not None:
+            self.pre = pre
+        if orig is not None:
+            self.orig = orig
+        if dest is not None:
+            self.dest = dest
+        # Face is genuinely optional: None on border edges.
         self.face = face
 
     # def __repr__(self):
     #    return f'{self}({self.orig},{self.dest})'
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'H{self["id"]}'
 
     def on_border(self) -> bool:
@@ -168,7 +186,7 @@ class HalfEdge(IdObject):
         """Assert that ``self.rev.rev is self``."""
         assert self.rev.rev is self, f"{self}, {self.rev}, {self.rev.rev}"
 
-    def midpoint(self) -> np.ndarray:
+    def midpoint(self) -> NDArray:
         """Return the midpoint of the underlying edge in Euclidean position space."""
         return np.mean([v["pos"] for v in (self.orig, self.dest)], axis=0)
 
@@ -179,15 +197,24 @@ class Vertex(IdObject):
     Links to one arbitrary outgoing half-edge (``any_outgoing``).  All incident
     half-edges and faces are reachable via ``outgoing_iter()`` and
     ``face_iter()``.
+
+    Note:
+        ``any_outgoing`` is typed as non-optional because every fully
+        constructed vertex points to some outgoing half-edge.  The constructor
+        accepts ``None`` to support incremental graph building; in that case
+        the attribute is left unset until assigned.
     """
 
     printname = "V"
 
+    any_outgoing: HalfEdge
+
     def __init__(self, any_outgoing: HalfEdge | None = None) -> None:
         super(Vertex, self).__init__()
-        self.any_outgoing = any_outgoing
+        if any_outgoing is not None:
+            self.any_outgoing = any_outgoing
 
-    def outgoing_iter(self):
+    def outgoing_iter(self) -> Iterator[HalfEdge]:
         """Yield outgoing half-edges in counter-clockwise order around this vertex."""
         initial = self.any_outgoing
         current = initial
@@ -197,7 +224,7 @@ class Vertex(IdObject):
             if current is initial:
                 break
 
-    def reverse_outgoing_iter(self):
+    def reverse_outgoing_iter(self) -> Iterator[HalfEdge]:
         """Yield outgoing half-edges in clockwise order around this vertex."""
         initial = self.any_outgoing
         current = initial
@@ -211,28 +238,28 @@ class Vertex(IdObject):
         """Return the number of edges incident to this vertex (its degree)."""
         return len(list(self.outgoing_iter()))
 
-    def incoming_iter(self):
+    def incoming_iter(self) -> Iterator[HalfEdge]:
         """Yield incoming half-edges in counter-clockwise order around this vertex."""
         for h in self.outgoing_iter():
             yield h.rev
 
-    def face_iter(self):
+    def face_iter(self) -> Iterator[Face | None]:
         """Yield adjacent faces (including ``None`` for border) in CCW order."""
         for h in self.outgoing_iter():
             yield h.face
 
-    def true_face_iter(self):
+    def true_face_iter(self) -> Iterator[Face]:
         """Yield only the non-``None`` adjacent faces."""
         for f in self.face_iter():
             if f is not None:
                 yield f
 
-    def vertex_iter(self):
+    def vertex_iter(self) -> Iterator[Vertex]:
         """Yield neighbouring vertices in counter-clockwise order around this vertex."""
         for h in self.outgoing_iter():
             yield h.dest
 
-    def common_faces_iter(self, other: "Vertex"):
+    def common_faces_iter(self, other: Vertex) -> Iterator[Face]:
         """Yield faces incident to both this vertex and ``other``."""
         fs = set(other.face_iter())
         for f in self.face_iter():
@@ -281,13 +308,22 @@ class Face(IdObject):
     Links to one arbitrary bounding half-edge (``any_side``).  Iterate
     over boundary half-edges with ``halfedge_iter()`` and vertices with
     ``vertex_iter()``.
+
+    Note:
+        ``any_side`` is typed as non-optional because every fully constructed
+        face references one of its boundary half-edges.  The constructor
+        accepts ``None`` to support incremental graph building; in that case
+        the attribute is left unset until assigned.
     """
+
+    any_side: HalfEdge
 
     def __init__(self, any_side: HalfEdge | None = None) -> None:
         super(Face, self).__init__()
-        self.any_side = any_side
+        if any_side is not None:
+            self.any_side = any_side
 
-    def halfedge_iter(self):
+    def halfedge_iter(self) -> Iterator[HalfEdge]:
         """Yield boundary half-edges in counter-clockwise order around this face."""
         initial = self.any_side
         current = initial
@@ -297,7 +333,7 @@ class Face(IdObject):
             if current is initial:
                 break
 
-    def reverse_halfedge_iter(self):
+    def reverse_halfedge_iter(self) -> Iterator[HalfEdge]:
         """Yield the reverse of each boundary half-edge (i.e. those facing outward)."""
         for h in self.halfedge_iter():
             yield h.rev
@@ -306,17 +342,17 @@ class Face(IdObject):
         """Return the number of edges (= sides) of this polygonal face."""
         return len(list(self.halfedge_iter()))
 
-    def vertex_iter(self):
+    def vertex_iter(self) -> Iterator[Vertex]:
         """Yield boundary vertices in counter-clockwise order around this face."""
         for h in self.halfedge_iter():
             yield h.orig
 
-    def face_iter(self):
+    def face_iter(self) -> Iterator[Face | None]:
         """Yield neighbouring faces (including ``None`` for border) in CCW order."""
         for h in self.halfedge_iter():
             yield h.rev.face
 
-    def true_face_iter(self):
+    def true_face_iter(self) -> Iterator[Face]:
         """Yield only the non-``None`` neighbouring faces."""
         for f in self.face_iter():
             if f is not None:
@@ -326,15 +362,15 @@ class Face(IdObject):
         """Return True if any boundary half-edge of this face is adjacent to a border edge."""
         return any(h.rev.on_border() for h in self.halfedge_iter())
 
-    def outgoing_edge_at(self, v: "Vertex") -> HalfEdge:
+    def outgoing_edge_at(self, v: Vertex) -> HalfEdge:
         """Return the boundary half-edge of this face originating at vertex ``v``."""
         return next(h for h in self.halfedge_iter() if h.orig is v)
 
-    def incoming_edge_at(self, v: "Vertex") -> HalfEdge:
+    def incoming_edge_at(self, v: Vertex) -> HalfEdge:
         """Return the boundary half-edge of this face ending at vertex ``v``."""
         return next(h for h in self.halfedge_iter() if h.dest is v)
 
-    def common_halfedge_iter(self, other: "Face"):
+    def common_halfedge_iter(self, other: Face) -> Iterator[HalfEdge]:
         """Yield half-edges of this face whose reverse lies on ``other``."""
         assert isinstance(other, Face)
         hs = set(h.rev for h in other.halfedge_iter())
@@ -342,29 +378,32 @@ class Face(IdObject):
             if h in hs:
                 yield h
 
-    def common_vertex_iter(self, other: "Face"):
+    def common_vertex_iter(self, other: Face) -> Iterator[Vertex]:
         """Yield vertices shared with ``other``."""
         vs = set(other.vertex_iter())
         for v in self.vertex_iter():
             if v in vs:
                 yield v
 
-    def common_face_iter(self, other: "Face"):
+    def common_face_iter(self, other: Face) -> Iterator[Face | None]:
         """Yield faces neighbouring both this face and ``other``."""
         fs = set(other.face_iter())
         for f in self.face_iter():
             if f in fs:
                 yield f
 
-    def midpoint(self) -> np.ndarray:
+    def midpoint(self) -> NDArray:
         """Return the (cached) face midpoint, falling back to the vertex centroid."""
-        return self.attributes.get("midpoint", np.mean([v["pos"] for v in self.vertex_iter()], axis=0))
+        cached = self.attributes.get("midpoint")
+        if cached is not None:
+            return cached
+        return np.mean([v["pos"] for v in self.vertex_iter()], axis=0)
 
-    def pseudo_incenter(self) -> np.ndarray:
+    def pseudo_incenter(self) -> NDArray:
         """Return the pseudo-incenter (true incenter for tangential polygons)."""
         return pseudo_incenter(self)
 
-    def recompute_lengths_and_angles(self, geometry) -> None:
+    def recompute_lengths_and_angles(self, geometry: type[Geometry]) -> None:
         """Recompute the ``length`` and ``in_angle`` attributes from current vertex positions."""
         points = np.stack([v["pos"] for v in self.vertex_iter()])
         lengths, angles = edge_lengths_and_in_angles(points, geometry)
@@ -401,7 +440,7 @@ def pseudo_incenter(f: Face | np.ndarray) -> np.ndarray:
     return incenter
 
 
-def pseudo_circumcenter(ps, return_radius=False) -> np.ndarray | tuple[np.ndarray, float]:
+def pseudo_circumcenter(ps: NDArray, return_radius: bool = False) -> NDArray | tuple[NDArray, float]:
     """Compute the "best fit" circumcenter of a polygon.
 
     Finds the interior point that minimizes the standard deviation of
@@ -444,6 +483,9 @@ def pseudo_circumcenter(ps, return_radius=False) -> np.ndarray | tuple[np.ndarra
     return center
 
 
+G = TypeVar("G", bound="HalfEdgeGraph")
+
+
 class HalfEdgeGraph:
     """Topology-only half-edge graph (DCEL).
 
@@ -453,7 +495,13 @@ class HalfEdgeGraph:
     ``.copy()`` first if you need the original.
     """
 
-    def __init__(self, other: "HalfEdgeGraph | None" = None) -> None:
+    halfedges: set[HalfEdge]
+    vertices: set[Vertex]
+    faces: set[Face]
+    _any_border: HalfEdge | None
+    simply_connected: bool
+
+    def __init__(self, other: HalfEdgeGraph | None = None) -> None:
         if other is not None:
             self.halfedges = copy(other.halfedges)
             self.vertices = copy(other.vertices)
@@ -488,7 +536,7 @@ class HalfEdgeGraph:
         """Register vertex ``v`` with this graph."""
         self.vertices.add(v)
 
-    def add_vertices(self, vs) -> None:
+    def add_vertices(self, vs: Iterable[Vertex]) -> None:
         """Register an iterable of vertices with this graph."""
         self.vertices.update(vs)
 
@@ -496,7 +544,7 @@ class HalfEdgeGraph:
         """Register face ``f`` with this graph."""
         self.faces.add(f)
 
-    def add_faces(self, fs) -> None:
+    def add_faces(self, fs: Iterable[Face]) -> None:
         """Register an iterable of faces with this graph."""
         self.faces.update(fs)
 
@@ -504,7 +552,7 @@ class HalfEdgeGraph:
         """Register half-edge ``h`` with this graph."""
         self.halfedges.add(h)
 
-    def add_halfedges(self, hs) -> None:
+    def add_halfedges(self, hs: Iterable[HalfEdge]) -> None:
         """Register an iterable of half-edges with this graph."""
         self.halfedges.update(hs)
 
@@ -512,11 +560,11 @@ class HalfEdgeGraph:
         """Remove a single face (and any newly-orphaned edges/vertices)."""
         self.delete_faces({f})
 
-    def fill_holes(self):
+    def fill_holes(self) -> None:
         """Fill all 'holes' inside the graph: Add faces to enclosed areas which are not yet a face"""
         raise NotImplementedError
 
-    def delete_faces(self, fs) -> None:
+    def delete_faces(self, fs: Iterable[Face]) -> None:
         """Delete all faces in ``fs`` and any half-edges/vertices they leave dangling."""
         self.faces.difference_update(set(fs))
         # 1. Determine edges that have to be deleted, remove them and their rev's from Graph
@@ -558,7 +606,7 @@ class HalfEdgeGraph:
                 if v.any_outgoing not in self.halfedges:  # no outgoing edge is still in graph
                     self.vertices.remove(v)
 
-    def delete_subset(self, *items) -> None:
+    def delete_subset(self, *items: Face | HalfEdge | Vertex | Iterable[Face | HalfEdge | Vertex]) -> None:
         """Delete a mixed collection of faces, half-edges, and vertices, repairing topology.
 
         Accepts individual ``Face``/``HalfEdge``/``Vertex`` objects or iterables
@@ -670,6 +718,7 @@ class HalfEdgeGraph:
         """
         if h.on_border():
             raise NotImplementedError
+        assert h.face is not None and h.rev.face is not None
         if h.face is h.rev.face:
             assert (
                 h.orig.order() == 1 or h.dest.order() == 1
@@ -711,6 +760,7 @@ class HalfEdgeGraph:
             h.pre = h.pre.pre
             h.pre.nex = h
             if not h.on_border():
+                assert h.face is not None
                 h.face.any_side = h
         self.vertices.remove(v)
 
@@ -722,6 +772,12 @@ class HalfEdgeGraph:
                 to_join.append(v)
         for v in to_join:
             self.join_vertex(v)
+        # InAngleHEG and subclasses have ``recompute_lengths_and_angles``;
+        # plain HalfEdgeGraph does not, so this method only makes sense when
+        # called on a subclass that recomputes angles.
+        assert hasattr(
+            self, "recompute_lengths_and_angles"
+        ), "join_order_2_boundary_vertices requires an InAngleHEG subclass"
         self.recompute_lengths_and_angles()
 
     def join_edge(self, h: HalfEdge) -> Vertex:
@@ -733,8 +789,8 @@ class HalfEdgeGraph:
         Returns:
             The remaining vertex (originally ``h.orig``); ``h.dest`` is removed.
         """
-        assert h.on_border() or h.face.order() > 1
-        assert h.rev.on_border() or h.rev.face.order() > 1
+        assert h.on_border() or (h.face is not None and h.face.order() > 1)
+        assert h.rev.on_border() or (h.rev.face is not None and h.rev.face.order() > 1)
 
         v1, v2 = h.orig, h.dest
 
@@ -751,6 +807,7 @@ class HalfEdgeGraph:
             h2.pre.nex = h2.nex
             h2.nex.pre = h2.pre
             if not h2.on_border():
+                assert h2.face is not None
                 h2.face.any_side = h2.nex
             h2.dest.any_outgoing = h2.nex
 
@@ -803,7 +860,9 @@ class HalfEdgeGraph:
 
         return h2, v
 
-    def subdivide_face(self, f: Face, v1: Vertex, v2: Vertex, **halfedge_attributes: object) -> tuple[HalfEdge, Face]:
+    def subdivide_face(
+        self, f: Face | None, v1: Vertex, v2: Vertex, **halfedge_attributes: object
+    ) -> tuple[HalfEdge, Face]:
         """Subdivide face ``f`` along a new edge from ``v1`` to ``v2``.
 
         Two new half-edges ``h12`` (``v1 -> v2``) and ``h21`` (``v2 -> v1``)
@@ -853,7 +912,7 @@ class HalfEdgeGraph:
             A set containing exactly one of ``{h, h.rev}`` for every
             undirected edge of the graph.
         """
-        result = set()
+        result: set[HalfEdge] = set()
         for h in self.halfedges:
             if h.rev not in result:
                 result.add(h)
@@ -861,7 +920,7 @@ class HalfEdgeGraph:
 
     def to_networkx_undirected(self) -> nx.Graph:
         """Return a :class:`networkx.Graph` of this graph's underlying undirected topology."""
-        result = nx.Graph()
+        result: nx.Graph = nx.Graph()
         result.add_edges_from([(h.orig, h.dest) for h in self.halfedges])
         return result
 
@@ -875,7 +934,7 @@ class HalfEdgeGraph:
                 return h
         raise LookupError("No border found.")
 
-    def border_edge_iter(self):
+    def border_edge_iter(self) -> Iterator[HalfEdge]:
         """Yield border half-edges. For simply connected graphs, in cyclic order."""
         if self.simply_connected:
             initial = self.get_any_border()
@@ -894,7 +953,7 @@ class HalfEdgeGraph:
         """Return all border half-edges as a list."""
         return list(self.border_edge_iter())
 
-    def border_vertex_iter(self):
+    def border_vertex_iter(self) -> Iterator[Vertex]:
         """Yield vertices lying on a border edge."""
         for h in self.border_edge_iter():
             yield h.orig
@@ -967,14 +1026,16 @@ class HalfEdgeGraph:
             # handle face stuff now
             if e1.face is e2.face is None:
                 pass
-            elif e1.nex is e2 and e2.nex is e1:
-                self.faces.remove(e1.face)
-            elif e1.nex is e2:
-                e1.face.any_side = e2.nex
-            elif e2.nex is e1:
-                e1.face.any_side = e1.nex
             else:
-                raise ValueError(f"Cannot glue: Edges {[e1, e2]} of face {e1.face} are not adjacent.")
+                assert e1.face is not None
+                if e1.nex is e2 and e2.nex is e1:
+                    self.faces.remove(e1.face)
+                elif e1.nex is e2:
+                    e1.face.any_side = e2.nex
+                elif e2.nex is e1:
+                    e1.face.any_side = e1.nex
+                else:
+                    raise ValueError(f"Cannot glue: Edges {[e1, e2]} of face {e1.face} are not adjacent.")
 
         # glue vertices
         for v1_out, v2_out in ((e1, e2.nex), (e1.nex, e2)):
@@ -994,12 +1055,21 @@ class HalfEdgeGraph:
         self.add_graph(graph)
         self.glue_e2e(e1, e2)
 
-    def close_vertex(self, v: Vertex) -> None:
-        """Close a boundary corner at ``v`` by gluing its two incident border edges."""
+    def close_vertex(self, v: Vertex, reverse: bool = False) -> Vertex:
+        """Close a boundary corner at ``v`` by gluing its two incident border edges.
+
+        Args:
+            v: Boundary vertex whose two adjacent border edges are to be sewn.
+            reverse: Swaps which side's vertex is kept (overridden by subclasses).
+
+        Returns:
+            The remaining vertex after gluing.
+        """
         # get edges to be glued
         e1 = v.get_outgoing_border()
         e2 = e1.pre
         self.glue_e2e(e1, e2)
+        return e1.rev.orig
 
     def twocolorable(self) -> bool:
         """Return True if every interior vertex has even order (necessary for face 2-coloring)."""
@@ -1019,7 +1089,7 @@ class HalfEdgeGraph:
         if initial_face is None:
             initial_face = next(iter(self.faces))
         yet_to_color = copy(self.faces)
-        frontier = {(initial_face, False)}
+        frontier: set[tuple[Face, bool]] = {(initial_face, False)}
         while frontier:
             face, label = frontier.pop()
             if face not in yet_to_color:
@@ -1027,10 +1097,16 @@ class HalfEdgeGraph:
             yet_to_color.remove(face)
             face[key] = label
             for f in face.face_iter():
-                frontier.add((f, not label))
+                if f is not None:
+                    frontier.add((f, not label))
         assert not yet_to_color, "Graph is not connected!"
 
-    def execute_edge_instruction(self, h: HalfEdge, instruction=None, key: str | None = None) -> None:
+    def execute_edge_instruction(
+        self,
+        h: HalfEdge,
+        instruction: Callable[[HalfEdgeGraph, HalfEdge], None] | None = None,
+        key: str | None = None,
+    ) -> None:
         """Run a tile-gluing or growth ``instruction`` on the border half-edge ``h``.
 
         If ``instruction`` is omitted, it is read from ``h[key]`` (default key
@@ -1043,12 +1119,20 @@ class HalfEdgeGraph:
             assert key is None, "Please specify not more than one of [key, instruction]."
         instruction(self, h)
 
-    def execute_all_edge_instructions(self, instruction=None, key: str | None = None) -> None:
+    def execute_all_edge_instructions(
+        self,
+        instruction: Callable[[HalfEdgeGraph, HalfEdge], None] | None = None,
+        key: str | None = None,
+    ) -> None:
         """Execute :meth:`execute_edge_instruction` on every border half-edge."""
         for h in self.border_edges():
             self.execute_edge_instruction(h, instruction, key)
 
-    def show_spring_layout(self, figsize: tuple[float, float] = (15, 15), emph_func: "callable | None" = None) -> None:
+    def show_spring_layout(
+        self,
+        figsize: tuple[float, float] = (15, 15),
+        emph_func: Callable[[HalfEdge], bool] | None = None,
+    ) -> None:
         """Display the underlying undirected graph using NetworkX's spring layout.
 
         Args:
@@ -1057,12 +1141,12 @@ class HalfEdgeGraph:
                 Defaults to highlighting edges flagged with the ``'delete'`` attribute.
         """
 
-        G = nx.Graph()
+        G: nx.Graph = nx.Graph()
         G.add_edges_from([(h.orig, h.dest) for h in self.halfedges])
 
         if emph_func is None:
 
-            def emph_func(h):
+            def emph_func(h: HalfEdge) -> bool:
                 return h.attributes.get("delete", False)
 
         G.add_edges_from([(h.orig, h.dest) for h in self.halfedges if emph_func(h)], color="r")
@@ -1133,7 +1217,7 @@ class HalfEdgeGraph:
                 "faces: %s, %s", referenced_faces.difference(self.faces), self.faces.difference(referenced_faces)
             )
 
-            reference_dict = {
+            reference_dict: dict[object, set[tuple[object, str]]] = {
                 obj: set()
                 for obj in referenced_halfedges.union(referenced_vertices).union(referenced_faces).union([None])
             }
@@ -1154,9 +1238,24 @@ class HalfEdgeGraph:
                 logger.error("%s referenced by %s.", obj, reference_dict[obj])
             raise RuntimeError("Graph consistency check failed. See log for details.")
 
+    @overload
+    def copy(
+        self: G,
+        deepcopy_attributes: bool = ...,
+        *,
+        return_mappings: Literal[True],
+    ) -> tuple[G, tuple[dict[Vertex, Vertex], dict[HalfEdge, HalfEdge], dict[Face, Face]]]: ...
+
+    @overload
+    def copy(
+        self: G,
+        deepcopy_attributes: bool = ...,
+        return_mappings: Literal[False] = ...,
+    ) -> G: ...
+
     def copy(
         self, deepcopy_attributes: bool = False, return_mappings: bool = False
-    ) -> "HalfEdgeGraph | tuple[HalfEdgeGraph, tuple[dict, dict, dict]]":
+    ) -> HalfEdgeGraph | tuple[HalfEdgeGraph, tuple[dict[Vertex, Vertex], dict[HalfEdge, HalfEdge], dict[Face, Face]]]:
         """Return an independent copy of this graph.
 
         Args:
@@ -1169,24 +1268,24 @@ class HalfEdgeGraph:
             The copied graph -- a tuple ``(graph, (v_map, e_map, f_map))`` when ``return_mappings`` is True.
         """
 
-        def copy_with_attributes(obj):
+        def copy_with_attributes(obj: Any) -> Any:
             cls = type(obj)
-            new = cls.__new__(cls)
+            new = cls.__new__(cls)  # type: ignore[call-overload]
             new.attributes = copy(obj.attributes)
             return new
 
-        def copy_with_attributes_deep(obj):
+        def copy_with_attributes_deep(obj: Any) -> Any:
             cls = type(obj)
-            new = cls.__new__(cls)
+            new = cls.__new__(cls)  # type: ignore[call-overload]
             new.attributes = deepcopy(obj.attributes)
             return new
 
         copy_func = copy_with_attributes_deep if deepcopy_attributes else copy_with_attributes
 
         # init mappings from old to new vertex/halfedge/face objects
-        v_map, e_map, f_map = [
-            {obj: copy_func(obj) for obj in container} for container in (self.vertices, self.halfedges, self.faces)
-        ]
+        v_map: dict[Vertex, Vertex] = {v: copy_func(v) for v in self.vertices}
+        e_map: dict[HalfEdge, HalfEdge] = {e: copy_func(e) for e in self.halfedges}
+        f_map: dict[Face, Face] = {f: copy_func(f) for f in self.faces}
 
         # copy other potential attributes of graph (e.g. tau for InAngleHEG)
         cls = type(self)
@@ -1203,14 +1302,16 @@ class HalfEdgeGraph:
         for f, f_new in f_map.items():
             f_new.any_side = e_map[f.any_side]
 
-        f_map[None] = None  # to handle border
+        # face map extended with None for border edges
+        face_map_with_border: dict[Face | None, Face | None] = dict(f_map.items())
+        face_map_with_border[None] = None
         for e, e_new in e_map.items():
             e_new.orig = v_map[e.orig]
             e_new.dest = v_map[e.dest]
             e_new.nex = e_map[e.nex]
             e_new.pre = e_map[e.pre]
             e_new.rev = e_map[e.rev]
-            e_new.face = f_map[e.face]
+            e_new.face = face_map_with_border[e.face]
 
         if not return_mappings:
             return result
@@ -1349,21 +1450,31 @@ class GeometricHEG(InAngleHEG):
     used for position recomputation and length/angle calculations.
     """
 
-    def __init__(self, geometry: object = EuclideanGeometry, **super_kwargs: object) -> None:
+    geometry: type[Geometry]
+
+    def __init__(
+        self,
+        geometry: type[Geometry] = EuclideanGeometry,
+        angle_sum: float | None = None,
+        eps: float | None = None,
+        other: HalfEdgeGraph | None = None,
+    ) -> None:
         """Create a graph backed by the given geometry.
 
         Args:
             geometry: A geometry backend exposing ``distance``, ``angle``,
                 ``construct_next_poly_point``, and ``to_euclidean``. Defaults
                 to :class:`EuclideanGeometry`.
-            **super_kwargs: Forwarded to :class:`InAngleHEG`.
+            angle_sum: Forwarded to :class:`InAngleHEG`.
+            eps: Forwarded to :class:`InAngleHEG`.
+            other: Forwarded to :class:`InAngleHEG`.
         """
-        super(GeometricHEG, self).__init__(**super_kwargs)
+        super().__init__(angle_sum=angle_sum, eps=eps, other=other)
         self.geometry = geometry
 
-    def positions_coincide(self, p1: np.ndarray, p2: np.ndarray) -> bool:
+    def positions_coincide(self, p1: NDArray, p2: NDArray) -> bool:
         """Return True if positions ``p1`` and ``p2`` are within ``eps``."""
-        return np.linalg.norm(p1 - p2) < self.eps
+        return bool(np.linalg.norm(p1 - p2) < self.eps)
 
     def lengths_equal(self, l1: float, l2: float) -> bool:
         """Return True if lengths ``l1`` and ``l2`` differ by at most ``eps``."""
@@ -1383,7 +1494,7 @@ class GeometricHEG(InAngleHEG):
         v["pos"] = new_pos
         return v
 
-    def recompute_positions(self, edge_to_start: HalfEdge | None = None, faces: "set[Face] | None" = None) -> None:
+    def recompute_positions(self, edge_to_start: HalfEdge | None = None, faces: Iterable[Face] | None = None) -> None:
         """Recompute vertex positions from edge lengths and interior angles.
 
         Performs a heap-ordered BFS over ``faces``, propagating positions
@@ -1397,31 +1508,34 @@ class GeometricHEG(InAngleHEG):
                 computation. Defaults to the longest interior edge.
             faces: Iterable of faces to process. Defaults to all faces.
         """
-        if faces is None:
-            faces = self.faces
-        if len(faces) == 0:
+        face_set: set[Face] = self.faces if faces is None else set(faces)
+        if len(face_set) == 0:
             return  # nothing to do
         if edge_to_start is None:
             # select longest edge
             hs = [h for h in self.halfedges if not h.on_border()]
             lengths = [h["length"] for h in hs]
-            edge_to_start = hs[np.argmax(lengths)]
+            edge_to_start = hs[int(np.argmax(lengths))]
         if edge_to_start.on_border():
             raise ValueError(f"edge_to_start must not be on border, got {edge_to_start}")
+        assert edge_to_start.face is not None
 
         # delete old positions
-        vertices = set.union(set(), *(f.vertex_iter() for f in faces)).difference(
-            {edge_to_start.orig, edge_to_start.dest}
-        )
+        face_vertices: set[Vertex] = set()
+        for f in face_set:
+            face_vertices.update(f.vertex_iter())
+        vertices = face_vertices.difference({edge_to_start.orig, edge_to_start.dest})
         for v in vertices:
             if "pos" in v.attributes:
                 del v["pos"]
 
         # compute positions for new vertices, face by face
-        yet_to_process = [(0, 0, (edge_to_start.face, edge_to_start.nex))]  # (error, iteration, (face, edge))
+        yet_to_process: list[tuple[int, int, tuple[Face, HalfEdge]]] = [
+            (0, 0, (edge_to_start.face, edge_to_start.nex))
+        ]  # (error, iteration, (face, edge))
         heapq.heapify(yet_to_process)
-        processed_faces = set()
-        err_dict = {edge_to_start.orig: 0, edge_to_start.dest: 0}
+        processed_faces: set[Face] = set()
+        err_dict: dict[Vertex, int] = {edge_to_start.orig: 0, edge_to_start.dest: 0}
         i = 0
         while yet_to_process:
             err, _, (f, initial) = heapq.heappop(yet_to_process)
@@ -1441,7 +1555,8 @@ class GeometricHEG(InAngleHEG):
                     )
                     err_dict[e.dest] = err_dict[e.orig] + 1
                 opposite_face = e.rev.face
-                if opposite_face in faces and opposite_face not in processed_faces:
+                if opposite_face in face_set and opposite_face not in processed_faces:
+                    assert opposite_face is not None
                     i += 1
                     heapq.heappush(
                         yet_to_process, (max(err_dict[e.orig], err_dict[e.dest]), i, (opposite_face, e.rev.nex))
@@ -1450,7 +1565,7 @@ class GeometricHEG(InAngleHEG):
                 if e is initial:
                     break
 
-    def construct_next_point(self, a: np.ndarray, b: np.ndarray, angle: float, length: float) -> np.ndarray:
+    def construct_next_point(self, a: NDArray, b: NDArray, angle: float, length: float) -> NDArray:
         """Construct the point ``c`` such that ``angle(a, b, c) == angle`` and ``|bc| == length``."""
         return self.geometry.construct_next_poly_point(a, b, angle, length)
         # next_angle = angle_to_axis(b - a) + np.pi - angle
@@ -1464,12 +1579,30 @@ class GeometricHEG(InAngleHEG):
         for h in self.border_edges():
             h["length"] = h.rev["length"]
 
+    @overload
+    def get_position_view(
+        self,
+        vertices: list[Vertex] | None = ...,
+        *,
+        return_vertices: Literal[True] = ...,
+        position_key: str = ...,
+    ) -> tuple[NDArray, list[Vertex]]: ...
+
+    @overload
+    def get_position_view(
+        self,
+        vertices: list[Vertex] | None = ...,
+        *,
+        return_vertices: Literal[False],
+        position_key: str = ...,
+    ) -> NDArray: ...
+
     def get_position_view(
         self,
         vertices: list[Vertex] | None = None,
         return_vertices: bool = True,
         position_key: str = "pos",
-    ) -> "np.ndarray | tuple[np.ndarray, list[Vertex]]":
+    ) -> NDArray | tuple[NDArray, list[Vertex]]:
         """Return a single ``(N, d)`` array view of all vertex (and curve) positions.
 
         Mutating the returned array updates the underlying vertex/curve
@@ -1571,8 +1704,8 @@ class GeometricHEG(InAngleHEG):
         render_edges: bool = True,
         render_vertices: bool = True,
         for_cutting: bool = False,
-        **renderer_kwargs: object,
-    ) -> "Rendering":
+        **renderer_kwargs: Any,
+    ) -> Rendering:
         """Render the graph with Cairo and return an in-memory :class:`Rendering`.
 
         Args:
@@ -1605,7 +1738,7 @@ class GeometricHEG(InAngleHEG):
             for_cutting=for_cutting,
         )
 
-    def show(self, **style: object) -> None:
+    def show(self, **style: Any) -> None:
         """Render and display the graph (inline in Jupyter, a window in scripts).
 
         Args:
@@ -1613,7 +1746,7 @@ class GeometricHEG(InAngleHEG):
         """
         self.render(**style).show()
 
-    def save(self, path: str, **style: object) -> None:
+    def save(self, path: str, **style: Any) -> None:
         """Render the graph and write it to *path*.
 
         ``path`` with no extension writes both ``path.svg`` and ``path.png``.
@@ -1629,14 +1762,14 @@ class GeometricHEG(InAngleHEG):
         if self.geometry is not EuclideanGeometry:
             raise NotImplementedError
         fs = list(self.faces)
-        return fs[np.argmin([np.linalg.norm(f.midpoint()) for f in fs])]
+        return fs[int(np.argmin([np.linalg.norm(f.midpoint()) for f in fs]))]
 
     def central_vertex(self) -> Vertex:
         """Return the vertex closest to the origin (Euclidean only)."""
         if self.geometry is not EuclideanGeometry:
             raise NotImplementedError
         vs = list(self.vertices)
-        return vs[np.argmin([np.linalg.norm(v["pos"]) for v in vs])]
+        return vs[int(np.argmin([np.linalg.norm(v["pos"]) for v in vs]))]
 
 
 class EuclideanPositionHEG(GeometricHEG):
@@ -1645,7 +1778,7 @@ class EuclideanPositionHEG(GeometricHEG):
     Vertices carry ``pos`` attributes (numpy arrays of shape (2,)).  Provides epsilon-based vertex merging and position-aware graph operations.
     """
 
-    def __init__(self, **super_kwargs: object) -> None:
+    def __init__(self, **super_kwargs: Any) -> None:
         """Create a Euclidean-geometry half-edge graph."""
         super().__init__(geometry=EuclideanGeometry, **super_kwargs)
 
@@ -1653,7 +1786,7 @@ class EuclideanPositionHEG(GeometricHEG):
 # ------------------------------------------------ cyclic graph example ------------------------------------------------
 
 
-def rotate_by(list_like: "list | tuple", offset: "int | tuple[int, ...]") -> "list | zip":
+def rotate_by(list_like: list[Any] | tuple[Any, ...], offset: int | tuple[int, ...]) -> list[Any] | zip[Any]:
     """Cyclically rotate ``list_like`` by ``offset`` positions.
 
     Args:
@@ -1672,7 +1805,7 @@ def rotate_by(list_like: "list | tuple", offset: "int | tuple[int, ...]") -> "li
         return zip(*(rotate_by(list_like, off) for off in offset))
 
 
-def any_element(s):
+def any_element(s: Iterable[Any]) -> Any:
     """Return an arbitrary element from the iterable ``s``."""
     return next(iter(s))
 
@@ -1755,19 +1888,18 @@ def make_polygon_graph(positions: np.ndarray) -> "EuclideanPositionHEG":
         A :class:`EuclideanPositionHEG` whose only inner face is the polygon.
     """
     vs = [Vertex() for _ in range(len(positions))]
-    G = CyclicHalfedgeGraph(vs)
+    cyclic = CyclicHalfedgeGraph(vs)
     for v, p in zip(vs, positions):
         v["pos"] = p
-    G = EuclideanPositionHEG(other=G)
-    return G
+    return EuclideanPositionHEG(other=cyclic)
 
 
 class RegularNGon(CyclicHalfedgeGraph, InAngleHEG):
     """A regular *n*-gon as a half-edge graph with positions and angles."""
 
-    def __init__(self, n: int, *super_args: object, **super_kwargs: object) -> None:
+    def __init__(self, n: int, **super_kwargs: Any) -> None:
         """Construct a regular ``n``-gon with interior angle ``(n-2)/n * pi``."""
-        super(RegularNGon, self).__init__(vs=[Vertex() for _ in range(n)], *super_args, **super_kwargs)
+        super(RegularNGon, self).__init__(vs=[Vertex() for _ in range(n)], **super_kwargs)
         f = any_element(self.faces)
         for e in f.halfedge_iter():
             e["in_angle"] = (n - 2) / n * pi

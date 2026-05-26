@@ -6,10 +6,12 @@ import logging
 import operator
 import re
 from collections import defaultdict
+from typing import Any
 
 import networkx as nx
 import numpy as np
 import svgpathtools as spt
+from numpy.typing import NDArray
 
 import eucare as ec
 from eucare.overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
@@ -37,28 +39,29 @@ def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
         crease assignments stored on each half-edge under :data:`CREASE_ASSIGNMENT`.
     """
 
-    def get_stroke(attrs: dict) -> str | None:
+    def get_stroke(attrs: dict[str, Any]) -> str | None:
         """Extract the ``stroke:...;`` colour from an SVG ``style`` attribute string."""
         # hits = re.search('stroke:(#.{6})', attrs['style'])
-        hits = re.search("stroke:(.*?);", attrs["style"])
-        if hits is not None:
-            hits = hits.groups()
-        if not hits:
+        match = re.search("stroke:(.*?);", attrs["style"])
+        if match is None:
             return None
-        elif len(hits) == 1:
-            return hits[0]
+        groups = match.groups()
+        if not groups:
+            return None
+        elif len(groups) == 1:
+            return groups[0]
         else:
-            raise ValueError(f"Found multiple strokes: {list(hits)}")
+            raise ValueError(f"Found multiple strokes: {list(groups)}")
 
     paths, attributes = spt.svg2paths(filepath, convert_rectangles_to_paths=False)
 
-    counts_by_stroke = defaultdict(int)
-    counts_by_style = defaultdict(int)
+    counts_by_stroke: dict[str | None, int] = defaultdict(int)
+    counts_by_style: dict[str, int] = defaultdict(int)
 
     # step 1:
 
-    points = []
-    edges = []
+    points_list: list[NDArray[np.float32]] = []
+    edges: list[tuple[int, int, dict[str, Any]]] = []
 
     for path, attrs in zip(paths, attributes):
         for line in path:
@@ -67,7 +70,7 @@ def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
             start = np.array([line.start.real, line.start.imag], dtype=np.float32)
             end = np.array([line.end.real, line.end.imag], dtype=np.float32)
             # print(start, end)
-            crease_type = None
+            crease_type: int | None = None
             # this works for cps exported from oripa
             if "style" in attrs:
                 if "red" in attrs["style"]:
@@ -76,7 +79,7 @@ def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
                     crease_type = VALLEY
                 elif "gray" in attrs["style"]:
                     continue
-            edge_attrs = dict() if crease_type is None else {CREASE_ASSIGNMENT: crease_type}
+            edge_attrs: dict[str, Any] = dict() if crease_type is None else {CREASE_ASSIGNMENT: crease_type}
 
             # this is e.g. for robert langs cps
             if len(path) == 1:
@@ -89,9 +92,9 @@ def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
                     counts_by_stroke[attrs["stroke"]] += 1
                     edge_attrs["svg_stroke"] = attrs["stroke"]
 
-            edges.append((len(points), len(points) + 1, edge_attrs))
-            points.extend([start, end])
-    points = np.stack(points)
+            edges.append((len(points_list), len(points_list) + 1, edge_attrs))
+            points_list.extend([start, end])
+    points: NDArray[np.float32] = np.stack(points_list)
     points -= np.mean(points, axis=0)
     points /= 2 * np.max(np.abs(points))
     points += [[0.5, 0.5]]
@@ -100,12 +103,14 @@ def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
     first_occurences = np.argmax(clustering[None] == np.arange(np.max(clustering) + 1)[:, None], axis=1)
     merged_points = points[first_occurences]
 
-    G = nx.Graph()
-    G.add_edges_from(
+    nxG: nx.Graph[Any] = nx.Graph()
+    nxG.add_edges_from(
         [(tuple(merged_points[clustering[i]]), tuple(merged_points[clustering[j]]), attrs) for i, j, attrs in edges]
     )
 
-    G = ec.conversions.EHEG_from_nx(G)
+    result = ec.conversions.EHEG_from_nx(nxG)
+    assert isinstance(result, ec.half.EuclideanPositionHEG)
+    G: ec.half.EuclideanPositionHEG = result
 
     if len(counts_by_stroke) not in (2, 3):
         logger.warning(
@@ -113,17 +118,18 @@ def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
         )
         pass
     else:
+        crease_strokes: list[str]
         if len(counts_by_stroke) == 3:  # assume one is the border stroke
-            on_border_counts = {key: 0 for key in list(counts_by_stroke.keys()) + [None]}
+            on_border_counts: dict[str | None, int] = {key: 0 for key in list(counts_by_stroke.keys()) + [None]}
             for e in G.border_edges():
                 on_border_counts[e.attributes.get("svg_stroke", None)] += 1
                 on_border_counts[e.rev.attributes.get("svg_stroke", None)] += 1
             del on_border_counts[None]
             border_stroke = max(on_border_counts.items(), key=operator.itemgetter(1))[0]
             del on_border_counts[border_stroke]
-            crease_strokes = sorted(on_border_counts)
+            crease_strokes = sorted(k for k in on_border_counts if k is not None)
         else:  # 2 strokes
-            crease_strokes = sorted(counts_by_stroke)
+            crease_strokes = sorted(k for k in counts_by_stroke if k is not None)
         for e in G.halfedges:
             stroke = e.attributes.get("svg_stroke", None)
             if stroke in crease_strokes:
