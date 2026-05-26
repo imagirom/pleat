@@ -78,7 +78,7 @@ def build_dual_circle_packings(G: "EuclideanPositionHEG") -> "EuclideanPositionH
     return G_ortho
 
 
-def show_dual_circle_packings(G: "EuclideanPositionHEG", **show_kwargs: Any):
+def show_dual_circle_packings(G: "EuclideanPositionHEG", **show_kwargs: Any) -> None:
     """Render the two dual circle packings of a tiling.
 
     This is a thin convenience wrapper around :func:`build_dual_circle_packings`
@@ -90,10 +90,7 @@ def show_dual_circle_packings(G: "EuclideanPositionHEG", **show_kwargs: Any):
             the requirements on ``G``.
         **show_kwargs: Forwarded to :meth:`HalfEdgeGraph.show`. ``render_faces``
             defaults to ``False`` but can be overridden.
-
-    Returns:
-        Whatever :meth:`HalfEdgeGraph.show` returns.
     """
     show_kwargs.setdefault("render_faces", False)
     G_ortho = build_dual_circle_packings(G)
-    return G_ortho.show(**show_kwargs)
+    G_ortho.show(**show_kwargs)

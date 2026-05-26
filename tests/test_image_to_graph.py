@@ -1,11 +1,13 @@
 from pathlib import Path
 
 import matplotlib
+import pytest
 
 matplotlib.use("Agg")
 
 from matplotlib import pyplot as plt
 
+pytest.importorskip("mahotas", reason="image_to_graph requires the [image] extra")
 from eucare.image_to_graph import image_to_graph
 
 
