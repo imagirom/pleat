@@ -42,9 +42,8 @@ uv pip install -e ".[dev,docs,notebook]"
 
 Keeping focused extras is normal practice: it keeps installs smaller and makes feature-specific requirements explicit. The `all` extra is the convenience path when you do want everything available in one environment.
 
-## External dependencies
+## Optional External dependencies
 
 These are not available on PyPI and must be installed separately:
 
-- **[fancy](https://github.com/imagirom/fancy)** — configuration library (optional)
-- **[CPLEX](https://www.ibm.com/products/ilog-cplex-optimization-studio)** — ILP solver for face ordering in folded states (optional; PuLP falls back to GLPK)
+- **[CPLEX](https://www.ibm.com/products/ilog-cplex-optimization-studio)** — ILP solver for face ordering in folded states. Free licenses for students and academics. (optional; PuLP has fallback solvers which work well enough for most crease patterns)

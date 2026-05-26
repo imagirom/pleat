@@ -2,7 +2,7 @@
 
 ## Core data structure: Half-edge graph
 
-Eucare is built around the **half-edge data structure** (also known as DCEL — doubly-connected edge list). Every undirected edge is stored as a pair of directed half-edges linked via `rev`. Navigation around a face uses `nex`/`pre`; navigation around a vertex uses `orig.outgoing_iter()`.
+Eucare is built around the **half-edge data structure** (also known as DCEL — doubly-connected edge list). Every undirected edge is stored as a pair of directed half-edges linked via `rev`. Navigation around a face uses `nex`/`pre`; navigation around a vertex uses `v.outgoing_iter()`.
 
 ```
 HalfEdgeGraph          Topology only (vertices, halfedges, faces as sets)
@@ -43,17 +43,6 @@ Three pluggable backends in `eucare.geometries`:
 | `PoincareDiskModel` | Hyperbolic disk | Hyperbolic tilings ({7,3}, {5,4}, ...) |
 | `SphereModel` | Unit sphere (stereographic) | Platonic solids, spherical tilings |
 
-## Origami pipeline
+## Origami pipelines
 
-1. **Reciprocal figure**: dual crease pattern via rotated edge vectors
-2. **Shrink-rotate**: parameterized crease pattern from a tiling
-3. **Crease assignment**: mountain/valley via face or vertex z-order
-4. **Folding**: compute overlap graph, solve face stacking via ILP
-5. **Output**: top/bottom views, crease pattern rendering
-
-## Rendering
-
-- **Cairo** (`rendering.py`): high-quality PNG with face coloring and edge styles
-- **SVG** (`svg.py`): vector output via svgwrite
-- **Matplotlib** (`plotting.py`): quick line/polygon plots
-- **3D** (`marching_cubes.py`): mesh generation for STL export
+Multiple pipelines for turning tilings into origami tesselations are implemented, see the example notebooks for details.

@@ -22,9 +22,6 @@ DISABLE_MKDOCS_2_WARNING=true mkdocs serve
 DISABLE_MKDOCS_2_WARNING=true mkdocs build
 ```
 
-The `DISABLE_MKDOCS_2_WARNING=true` flag suppresses a spurious deprecation warning
-injected by `properdocs`, a transitive dependency that is a fork of MkDocs.
-
 Notebook pages are executed during the build, so the published docs do not rely on committed cell outputs.
 
 ## How API Reference Pages Are Generated
@@ -39,8 +36,7 @@ The `literate-nav` plugin reads `SUMMARY.md` and builds the **API Reference** na
 from it automatically. The nav entry must point to the directory (`reference/`), not to a file,
 so literate-nav can find and expand the generated summary.
 
-Docstrings use **Google style**. mkdocstrings extracts them and renders sections
-(`Args:`, `Returns:`, `Raises:`, `Example:`) as formatted HTML.
+Docstrings use **Google style**.
 
 ## Adding Example Notebooks
 

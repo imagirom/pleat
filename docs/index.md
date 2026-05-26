@@ -1,35 +1,17 @@
 # Eucare
 
-**Geometric tilings, Conway operators, and origami crease patterns.**
+<!-- TODO: example pipeline in images: Tiling -> Crease Pattern -> rendering of folded model -> photo of folded model (maybe link instagram post) -->
+
+Welcome to **eucare**, a Python library for constructing [geometric tilings](https://en.wikipedia.org/wiki/Tessellation) and turning them into [crease patterns](https://en.wikipedia.org/wiki/Crease_pattern) which can be folded into [origami tesselations](https://origamiusa.org/thefold/article/tessellations-brief-theory-warping-paper).
 
 Eucare is a Python library for constructing, manipulating, and visualizing geometric tilings. It supports Euclidean, hyperbolic, and spherical geometries, provides a suite of Conway topological operators, and can generate origami crease patterns with computed folded states.
 
-## Features
+The heart of this documentation are the notebooks, which guide you through many of the features. Start with the [Overview notebook](notebooks/00_Overview.ipynb) for a quick tour of the complete pipeline from tiling to origami tesselation.
 
-- **Half-edge data structure** — efficient DCEL representation for planar graphs
-- **Tiling construction** — all Archimedean tilings, Platonic solids, hyperbolic tilings
-- **Conway operators** — dual, ambo, truncate, kis, join, gyro, starify, and more
-- **Three geometries** — Euclidean, Poincaré disk (hyperbolic), sphere
-- **Origami pipeline** — reciprocal figures, shrink-rotate, crease assignment, folding with ILP face ordering
-- **Multiple renderers** — Cairo (PNG), SVG, Matplotlib, 3D mesh (STL)
+## Personal release note
 
-## Quick example
+This codebase has grown organically over many years, and adding functionality to generate new origami tesselations has almost always taken priority over maintaining or improving code quality. Lately, I have made an attempt of at least somewhat cleaning the repository, and writing this documentation to finally share the project.
 
-```python
-from eucare.example_tilesets import platonic
-from eucare.example_graphs import from_tiles
-from eucare.conway import ambo_graph
+I hope that this project proves useful to members of the origami community! Feel free to contact me directly about. If you find a bug or other problem in the code, feel free to open an issue [here](https://github.com/imagirom/oritile/issues).
 
-# Build a hexagonal tiling and apply the ambo operator
-G = from_tiles(platonic(6), rings=4)
-G2 = ambo_graph()(G, delete_on_border=True)
-G2.recompute_lengths_and_angles()
-G2.show()
-```
-
-## Getting started
-
-- [Installation](getting-started/installation.md)
-- [Quick Start](getting-started/quickstart.md)
-- [Architecture](concepts/architecture.md)
-- [API Reference](reference/index.md)
+<!-- I would love to see more geometric origami, especially based on so far lesser-used geometries. -->
