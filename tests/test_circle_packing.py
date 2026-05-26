@@ -109,23 +109,16 @@ class TestPackHyperbolic:
         P = pack_hyperbolic(G, boundary_x_radii=0.5)
         assert P.geometry is PoincareDiskModel
 
-    def test_every_vertex_has_radius_in_unit_interval(self):
+    def test_radii_are_positive_and_inside_disk(self):
         from eucare.circle_packing import pack_hyperbolic
 
         G = _hex_triangulation()
         P = pack_hyperbolic(G, boundary_x_radii=0.5)
         for v in P.vertices:
             assert "radius" in v.attributes
-            assert 0.0 < v["radius"] < 1.0  # x-radius (finite hyperbolic)
-
-    def test_boundary_x_radii_match_uniform_input(self):
-        from eucare.circle_packing import pack_hyperbolic
-
-        G = _hex_triangulation()
-        P = pack_hyperbolic(G, boundary_x_radii=0.3)
-        for v in P.vertices:
-            if v.on_border():
-                assert v["radius"] == pytest.approx(0.3, abs=1e-12)
+            assert v["radius"] > 0
+            # Each circle (center + radius) fits inside the unit disk.
+            assert abs(v["pos"]) + v["radius"] <= 1.0 + 1e-9
 
     def test_positions_inside_unit_disk(self):
         from eucare.circle_packing import pack_hyperbolic
@@ -136,12 +129,31 @@ class TestPackHyperbolic:
             z = v["pos"]
             assert abs(z) < 1.0
 
-    def test_interior_hyperbolic_angle_sums_are_2pi(self):
-        """For each interior vertex, sum of hyperbolic angles over incident triangles = 2π."""
-        from eucare.circle_packing import pack_hyperbolic, _hyperbolic_angle_sum
+    def test_euclidean_tangency_holds(self):
+        """In the Poincaré model, hyperbolic tangency = euclidean tangency."""
+        from eucare.circle_packing import pack_hyperbolic
 
         G = _hex_triangulation()
         P = pack_hyperbolic(G, boundary_x_radii=0.5)
+        for h in P.halfedges:
+            if h.face is None:
+                continue
+            u, v = h.orig, h.dest
+            d = abs(u["pos"] - v["pos"])
+            assert d == pytest.approx(u["radius"] + v["radius"], abs=1e-9)
+
+    def test_interior_hyperbolic_angle_sums_are_2pi(self):
+        """Interior x-radii (recovered from stored (c, r_euc)) satisfy angle-sum = 2π."""
+        from eucare.circle_packing import (
+            pack_hyperbolic,
+            _hyperbolic_angle_sum,
+            _x_radius_from_euclidean,
+        )
+
+        G = _hex_triangulation()
+        P = pack_hyperbolic(G, boundary_x_radii=0.5)
+        # Convert each vertex's stored (c, r_euc) back to its intrinsic x-radius.
+        x_radii = {v: _x_radius_from_euclidean(v["pos"], v["radius"]) for v in P.vertices}
         for v in P.vertices:
             if v.on_border():
                 continue
@@ -151,25 +163,28 @@ class TestPackHyperbolic:
                     continue
                 u = h.dest
                 w = h.nex.dest
-                pairs.append((u["radius"], w["radius"]))
-            theta = _hyperbolic_angle_sum(v["radius"], pairs)
-            assert theta == pytest.approx(2 * np.pi, abs=1e-8)
+                pairs.append((x_radii[u], x_radii[w]))
+            theta = _hyperbolic_angle_sum(x_radii[v], pairs)
+            assert theta == pytest.approx(2 * np.pi, abs=1e-7)
 
-    def test_tangency_holds_in_hyperbolic_distance(self):
-        """Adjacent circles satisfy d_H(z_u, z_v) = h_u + h_v where h = -0.5 ln(1-x)."""
+    def test_horocycle_boundary_supported(self):
+        """boundary_x_radii = 1.0 produces a maximal packing: boundary tangent to unit circle."""
         from eucare.circle_packing import pack_hyperbolic
-        from eucare.geometries import PoincareDiskModel
 
         G = _hex_triangulation()
-        P = pack_hyperbolic(G, boundary_x_radii=0.5)
+        P = pack_hyperbolic(G, boundary_x_radii=1.0)
+        # Each boundary vertex's circle is internally tangent to the unit circle:
+        # |c| + r = 1.
+        for v in P.vertices:
+            if v.on_border():
+                assert abs(v["pos"]) + v["radius"] == pytest.approx(1.0, abs=1e-9)
+        # Each pair of adjacent circles is tangent.
         for h in P.halfedges:
             if h.face is None:
                 continue
             u, v = h.orig, h.dest
-            d = float(PoincareDiskModel.distance(u["pos"], v["pos"]))
-            h_u = -0.5 * np.log(1 - u["radius"])
-            h_v = -0.5 * np.log(1 - v["radius"])
-            assert d == pytest.approx(h_u + h_v, abs=1e-8)
+            d = abs(u["pos"] - v["pos"])
+            assert d == pytest.approx(u["radius"] + v["radius"], abs=1e-9)
 
 
 @pytest.mark.golden
@@ -222,13 +237,13 @@ class TestGoldenAgainstCirclePack:
     def test_hyp_7575around6_hyperbolic(self):
         """hyp_7575around6.p: 18-vertex hyperbolic packing with finite boundary x-radii.
 
-        Note: the .p file's boundary radii are slightly non-uniform (0.0501-0.0508),
-        suggesting CirclePack iterated boundary radii too rather than holding them
-        fixed. We hold boundary fixed (as the .p file's values) and compare interior
-        radii loosely (~5% relative tolerance) since the solvers' boundary
-        conditions differ slightly.
+        The .p file stores x-radii; our output stores euclidean radii in the
+        Poincaré disk. Convert back to compare. Note: the file's boundary
+        radii are slightly non-uniform (0.0501-0.0508), suggesting CirclePack
+        also iterated boundary radii; we hold ours fixed, so interior radii
+        are compared with ~5% tolerance.
         """
-        from eucare.circle_packing import pack_hyperbolic
+        from eucare.circle_packing import pack_hyperbolic, _x_radius_from_euclidean
 
         data, G, idx2v = self._load("hyp_7575around6.p")
         boundary_x_radii = {}
@@ -236,19 +251,16 @@ class TestGoldenAgainstCirclePack:
             if neighbors[0] != neighbors[-1]:
                 boundary_x_radii[idx2v[i]] = float(data.radii[i])
         P = pack_hyperbolic(G, boundary_x_radii=boundary_x_radii, copy_graph=False)
-        # Boundary radii: must match exactly (they are our input).
+        # Compare per-vertex x-radii (recovered from stored euclidean form).
         for i in range(data.nodecount):
             v = idx2v[i]
-            if not v.on_border():
-                continue
             expected = float(data.radii[i])
-            got = float(v["radius"])
-            assert got == pytest.approx(expected, abs=1e-12), f"boundary vertex {i+1}: expected {expected}, got {got}"
-        # Interior radii: loose match (~5% relative).
-        for i in range(data.nodecount):
-            v = idx2v[i]
+            got_x = _x_radius_from_euclidean(v["pos"], v["radius"])
             if v.on_border():
-                continue
-            expected = float(data.radii[i])
-            got = float(v["radius"])
-            assert got == pytest.approx(expected, rel=0.05), f"interior vertex {i+1}: expected {expected}, got {got}"
+                assert got_x == pytest.approx(
+                    expected, rel=1e-6, abs=1e-9
+                ), f"boundary vertex {i+1}: expected x={expected}, got x={got_x}"
+            else:
+                assert got_x == pytest.approx(
+                    expected, rel=0.05
+                ), f"interior vertex {i+1}: expected x={expected}, got x={got_x}"

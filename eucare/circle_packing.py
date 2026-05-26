@@ -451,15 +451,100 @@ def _solve_x_for_target_angle(neighbor_pairs: list[tuple[float, float]], target:
 
 
 # ---------------------------------------------------------------------------
-# Hyperbolic layout (Poincare disk via Mobius constructions)
+# Hyperbolic layout in euclidean Poincaré-disk coordinates
 # ---------------------------------------------------------------------------
 
 
-def _hyperbolic_angle_at_anchor(x_anchor: float, x_arm: float, x_target: float) -> float:
-    """Angle at the anchor in a triangle (anchor, arm, target) of tangent hyperbolic disks."""
-    pair_at_anchor = [(x_arm, x_target)]
-    # _hyperbolic_angle_sum returns sum over a list; with one pair, it's just that angle.
-    return _hyperbolic_angle_sum(x_anchor, pair_at_anchor)
+def _x_radius_from_euclidean(c: complex, r_e: float) -> float:
+    """Recover the x-radius of a Poincaré-disk circle from (euc center, euc radius).
+
+    Inverse of the standard (z, x) → (c, r_e) map. Derived from
+    ``h = arctanh(2 r_e / (1 - |c|^2 + r_e^2))`` and ``x = 1 - exp(-2h)``::
+
+        x = 4 r_e / ((1 + r_e)^2 - |c|^2)
+
+    For a horocycle (|c| = 1 - r_e), this returns 1.0 exactly.
+    """
+    abs_c2 = float(c.real * c.real + c.imag * c.imag)
+    return 4.0 * r_e / ((1.0 + r_e) ** 2 - abs_c2)
+
+
+def _eucl_radius_at_origin(x: float) -> float:
+    """Euclidean radius of a Poincaré-disk circle with x-radius ``x`` centered at origin."""
+    if x >= 1.0:
+        raise ValueError("Cannot place a horocycle at the Poincaré disk origin.")
+    s = np.sqrt(1.0 - x)
+    return float((1.0 - s) / (1.0 + s))
+
+
+def _eucl_radius_tangent_to_origin(x: float, r_origin: float) -> float:
+    """Euclidean radius of a circle with x-radius ``x`` placed tangent to a circle at origin.
+
+    The new circle's euclidean center is at distance ``r_origin + r_new`` from the origin.
+    Solved in closed form from x = 4r / ((1+r)^2 - |c|^2) with |c| = r_origin + r.
+    For x = 1 (horocycle): r = (1 - r_origin) / 2.
+    """
+    if x >= 1.0:
+        return (1.0 - r_origin) / 2.0
+    # x (1 - r_origin^2) = (4 - 2 x (1 - r_origin)) r
+    num = x * (1.0 - r_origin * r_origin)
+    den = 4.0 - 2.0 * x * (1.0 - r_origin)
+    return float(num / den)
+
+
+def _place_third_circle(c_a: complex, r_a: float, c_b: complex, r_b: float, x_c: float) -> tuple[complex, float]:
+    """Solve for (c_C, r_C) given two placed circles and the target x-radius.
+
+    Constraints: euclidean tangency to A and B, and the Poincaré-disk coupling
+    between (c_C, r_C) and x_C. Returns the CCW-side solution (i.e., c_C is
+    to the left of the directed segment c_A -> c_B).
+
+    For horocycles (x_c = 1.0), the coupling becomes |c_C| + r_C = 1.
+    """
+    d_ab = float(abs(c_b - c_a))
+
+    def c_of_r(r: float) -> complex:
+        d_A = r_a + r
+        d_B = r_b + r
+        # Angle at c_a in triangle (c_a, c_b, c_c) by euclidean law of cosines.
+        cos_alpha = (d_ab * d_ab + d_A * d_A - d_B * d_B) / (2.0 * d_ab * d_A)
+        cos_alpha = max(-1.0, min(1.0, cos_alpha))
+        sin_alpha = float(np.sqrt(max(0.0, 1.0 - cos_alpha * cos_alpha)))
+        u = (c_b - c_a) / d_ab  # unit vector along c_a -> c_b
+        # Rotate by +alpha (CCW) to get unit direction c_a -> c_c.
+        v = u * complex(cos_alpha, sin_alpha)
+        return c_a + d_A * v
+
+    if x_c >= 1.0:
+        # Horocycle: solve |c(r)| + r = 1.
+        def f(r: float) -> float:
+            return abs(c_of_r(r)) + r - 1.0
+
+    else:
+        # Interior: solve 4 r / ((1+r)^2 - |c|^2) = x_c.
+        def f(r: float) -> float:
+            c = c_of_r(r)
+            abs_c2 = float(c.real * c.real + c.imag * c.imag)
+            denom = (1.0 + r) ** 2 - abs_c2
+            if denom <= 0.0:
+                # |c| + r >= 1 — outside Poincaré-valid range; signal "too far".
+                return 1.0 - x_c
+            return 4.0 * r / denom - x_c
+
+    # Bracket. f(lo) is negative (tiny r → tiny x or |c|+r < 1); f(hi) becomes
+    # positive once r is large enough. As r → ∞, f → (2 - x_c) > 0 for x_c <= 1.
+    lo = 1e-14
+    hi = 1.0
+    f_lo = f(lo)
+    if f_lo > 0:
+        # Tangency-point T already outside what x_c allows — degenerate config.
+        raise ValueError(f"_place_third_circle: degenerate configuration (f(lo)={f_lo}, x_c={x_c}).")
+    while f(hi) <= 0:
+        hi *= 2.0
+        if hi > 1e8:
+            raise RuntimeError("Failed to bracket the root in _place_third_circle.")
+    r = float(brentq(f, lo, hi, xtol=1e-15, rtol=1e-14))
+    return c_of_r(r), r
 
 
 def _layout_hyperbolic(
@@ -467,29 +552,25 @@ def _layout_hyperbolic(
     x_radii: dict[Vertex, float],
     alpha: Vertex,
     beta: Vertex,
-) -> dict[Vertex, complex]:
-    """Place hyperbolic centers in the Poincare disk via BFS over triangle faces.
+) -> tuple[dict[Vertex, complex], dict[Vertex, float]]:
+    """Place each circle's euclidean (center, radius) in the Poincaré disk.
 
-    Returns a dict {Vertex: complex} of hyperbolic centers inside the unit disk.
-    Boundary x-radii must be < 1 (horocycles not supported in v1).
+    Returns ``(centers, radii)`` mappings from Vertex to complex euclidean
+    centers and float euclidean radii. Handles both interior (0 < x < 1) and
+    horocycle (x = 1) circles uniformly.
     """
-    # Convert x-radii to hyperbolic radii.
-    h_radii: dict[Vertex, float] = {}
-    for v in G.vertices:
-        x = x_radii[v]
-        if x >= 1.0 - 1e-15:
-            raise NotImplementedError(
-                "pack_hyperbolic: horocycle boundary (x_radius >= 1) is not yet "
-                "supported. Use boundary_x_radii close to but less than 1.0."
-            )
-        h_radii[v] = -0.5 * float(np.log(1.0 - x))
+    centers: dict[Vertex, complex] = {}
+    radii: dict[Vertex, float] = {}
 
-    pos: dict[Vertex, complex] = {}
-    pos[alpha] = complex(0.0, 0.0)
-    d_alpha_beta = h_radii[alpha] + h_radii[beta]
-    pos[beta] = complex(np.tanh(d_alpha_beta / 2.0), 0.0)
+    if x_radii[alpha] >= 1.0:
+        raise ValueError("alpha must be an interior vertex (x_radius < 1).")
+    centers[alpha] = complex(0.0, 0.0)
+    radii[alpha] = _eucl_radius_at_origin(x_radii[alpha])
 
-    # Find seed half-edge alpha -> beta
+    r_beta = _eucl_radius_tangent_to_origin(x_radii[beta], radii[alpha])
+    centers[beta] = complex(radii[alpha] + r_beta, 0.0)
+    radii[beta] = r_beta
+
     seed_h: HalfEdge | None = None
     for h in alpha.outgoing_iter():
         if h.dest is beta:
@@ -518,19 +599,17 @@ def _layout_hyperbolic(
         a = h.orig
         b = h.dest
         c = h.nex.dest
-        if c not in pos:
-            angle_at_a = _hyperbolic_angle_at_anchor(x_radii[a], x_radii[b], x_radii[c])
-            length_ac = h_radii[a] + h_radii[c]
-            # construct_next_poly_point(p_arm, p_anchor, angle, length) → place point
-            # such that angle(p_arm, p_anchor, c) == angle and dist(p_anchor, c) == length.
-            pos[c] = complex(PoincareDiskModel.construct_next_poly_point(pos[b], pos[a], angle_at_a, length_ac))
+        if c not in centers:
+            c_c, r_c = _place_third_circle(centers[a], radii[a], centers[b], radii[b], x_radii[c])
+            centers[c] = c_c
+            radii[c] = r_c
         for h_other in (h.nex, h.nex.nex):
             enqueue(h_other.rev)
 
-    if len(pos) != len(list(G.vertices)):
-        missing = [v for v in G.vertices if v not in pos]
+    if len(centers) != len(list(G.vertices)):
+        missing = [v for v in G.vertices if v not in centers]
         raise RuntimeError(f"Hyperbolic layout did not reach all vertices ({len(missing)} unplaced).")
-    return pos
+    return centers, radii
 
 
 # ---------------------------------------------------------------------------
@@ -540,7 +619,7 @@ def _layout_hyperbolic(
 
 def pack_hyperbolic(
     G,
-    boundary_x_radii: float | Mapping[Vertex, float] | Callable[[Vertex], float] = 0.5,
+    boundary_x_radii: float | Mapping[Vertex, float] | Callable[[Vertex], float] = 1.0,
     *,
     alpha: Vertex | None = None,
     beta: Vertex | None = None,
@@ -548,32 +627,39 @@ def pack_hyperbolic(
     max_iter: int = 10_000,
     copy_graph: bool = True,
 ) -> EuclideanPositionHEG:
-    """Compute a hyperbolic circle packing in the Poincare disk.
+    """Compute a hyperbolic circle packing in the Poincaré disk.
 
     Boundary vertices are assigned the prescribed x-radii (where x = 1 - exp(-2h),
-    h being the hyperbolic radius); interior radii are iterated via
-    Collins-Stephenson to satisfy hyperbolic angle sum = 2*pi.
+    h being the hyperbolic radius); interior x-radii are iterated via
+    Collins-Stephenson to satisfy hyperbolic angle sum = 2*pi. Setting
+    ``boundary_x_radii = 1.0`` produces a maximal packing (boundary horocycles).
 
-    Note: v1 supports finite boundary x-radii only (x < 1). True maximal
-    packings (with boundary horocycles, x = 1) require additional Mobius
-    handling at the unit-circle boundary and are deferred to a follow-up.
-    Boundary x-radii close to 1 approximate maximal behavior.
+    The output stores the **euclidean** (Poincaré-disk) representation::
+
+        v['pos']    — euclidean center of the circle (complex, inside unit disk)
+        v['radius'] — euclidean radius of the circle (float)
+
+    Two hyperbolic disks are hyperbolically tangent iff their euclidean
+    representations are euclidean tangent, so adjacent circles satisfy
+    ``|c_u − c_v| = r_u + r_v``. The intrinsic x-radius of each vertex is
+    recoverable via :func:`_x_radius_from_euclidean` (and equals 1 for
+    boundary horocycles).
 
     Args:
         G: Triangulated, simply-connected disk EuclideanPositionHEG.
-        boundary_x_radii: Per-vertex boundary x-radii in (0, 1). Accepts a
-            scalar (uniform), Mapping, or callable. Defaults to 0.5.
-        alpha: Optional anchor vertex (placed at Poincare disk origin).
-            Defaults to interior vertex with max graph-distance to boundary.
+        boundary_x_radii: Per-vertex boundary x-radii in (0, 1]. Accepts a
+            scalar (uniform), Mapping, or callable. Defaults to 0.5; pass
+            ``1.0`` for the maximal packing.
+        alpha: Optional anchor vertex (placed at Poincaré disk origin).
+            Must be interior. Defaults to the interior vertex with max
+            graph-distance to the boundary.
         beta: Optional second anchor (placed on +x axis through alpha).
         tol: Max angle defect over interior vertices.
         max_iter: Max Collins-Stephenson iterations.
         copy_graph: If True (default), return a new EHEG; otherwise mutate.
 
     Returns:
-        EuclideanPositionHEG with PoincareDiskModel geometry, ``v['pos']``
-        as complex hyperbolic centers in the open unit disk, and
-        ``v['radius']`` as x-radii in (0, 1).
+        EuclideanPositionHEG with PoincareDiskModel geometry.
     """
     _validate_triangulated_disk(G)
 
@@ -582,11 +668,8 @@ def pack_hyperbolic(
     boundary_verts = P.border_vertices()
     radii_spec = _resolve_boundary_radii(boundary_x_radii, boundary_verts)
     for v, x in radii_spec.items():
-        if not (0.0 < x < 1.0):
-            raise ValueError(
-                f"pack_hyperbolic v1: boundary x-radius must be in (0, 1); "
-                f"got {x} for vertex {v}. Horocycles (x=1) not yet supported."
-            )
+        if not (0.0 < x <= 1.0):
+            raise ValueError(f"pack_hyperbolic: boundary x-radius must be in (0, 1]; got {x} for vertex {v}.")
     boundary_set = set(boundary_verts)
 
     # Init: boundary at spec, interior uniformly at 0.5 (mid-range)
@@ -628,11 +711,11 @@ def pack_hyperbolic(
     if beta is None:
         beta = _choose_beta(alpha)
 
-    pos = _layout_hyperbolic(P, x_radii, alpha, beta)
+    centers, eucl_radii = _layout_hyperbolic(P, x_radii, alpha, beta)
 
     for v in P.vertices:
-        v["pos"] = pos[v]
-        v["radius"] = x_radii[v]
+        v["pos"] = centers[v]
+        v["radius"] = eucl_radii[v]
     P.geometry = PoincareDiskModel
     P.recompute_lengths_and_angles()
     return P
