@@ -2,19 +2,23 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from eucare.example_graphs import (
+    RectangleDomain,
+    SquareDomain,
     add_vertex_ring,
     complete_closest_vertices,
     complete_vertex,
+    fill_domain,
     from_tiles,
     get_edge_with,
     get_vertex_with,
     pgg_2x_tiling,
     rosette,
 )
-from eucare.example_tilesets import curved_platonic, t_3_12_12
+from eucare.example_tilesets import curved_platonic, platonic, t_3_12_12
 from eucare.half import EuclideanPositionHEG, RegularNGon
 
 
@@ -130,12 +134,6 @@ def test_hyperbolic_square_graph_dual_smoke():
     G = from_tiles(curved_platonic(7, 3), rings=1)
     G_square = hyperbolic_square_graph(G, min_length=0.5, dual=True)
     G_square.check_consistency()
-
-
-import numpy as np
-
-from eucare.example_graphs import RectangleDomain, SquareDomain, fill_domain, from_tiles
-from eucare.example_tilesets import platonic
 
 
 def test_square_domain_contains():

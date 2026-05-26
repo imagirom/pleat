@@ -206,8 +206,10 @@ def fill_domain(
         max_steps: Maximum number of expansion rings to attempt.
 
     Returns:
-        The grown :class:`EuclideanPositionHEG`, containing only faces whose
-        positions lie within ``domain``.
+        The grown :class:`EuclideanPositionHEG`. Growth stops when no border
+        vertex inside ``domain`` can be expanded further, so some faces at the
+        boundary may extend slightly past it (because vertices inside the
+        domain spawn faces whose other vertices need not be).
     """
     G = from_tiles(tiles, rings=0)
     if offset is not None:
