@@ -13,6 +13,7 @@ Pipeline:
 from __future__ import annotations
 
 import itertools
+import warnings
 
 import networkx as nx
 import numpy as np
@@ -116,7 +117,14 @@ def polygon_placement(code: str) -> EuclideanPositionHEG:
 # --- Stage 2+: affine transforms --------------------------------------------
 
 
-def _U(alpha: float) -> np.ndarray:
+def _unit_vector_from_y(alpha: float) -> np.ndarray:
+    """Return a 2D unit vector at angle ``alpha`` measured *clockwise from the +y axis*.
+
+    Distinct from :func:`eucare.base.unit_vector`, which measures counter-clockwise
+    from the +x axis. The clockwise-from-+y convention matches the angle ordering
+    used by :func:`_order_points` and the GJH transform code (e.g. ``"m30"`` mirrors
+    across a line 30° clockwise from north).
+    """
     return np.stack([np.sin(alpha), np.cos(alpha)])
 
 
@@ -226,7 +234,7 @@ def apply_transform(G: EuclideanPositionHEG, code: str) -> list[np.ndarray]:
         while 2 * angles[-1] < 2 * np.pi:
             angles.append(angles[-1] * 2)
         if mode == "m":
-            return [_mirror_mat_line(np.stack([np.zeros(2), _U(a)])) for a in angles]
+            return [_mirror_mat_line(np.stack([np.zeros(2), _unit_vector_from_y(a)])) for a in angles]
         return [_rotation_mat(a) for a in angles]
 
     if angle is not None:
@@ -341,11 +349,19 @@ def compile_gjh_graph(code: str, bbox_size: float = 20.0) -> EuclideanPositionHE
         if len(tiles) > len(G.faces):
             G = _tiles_to_graph(tiles)
 
+    _MAX_EXPANSION_ITERS = 1000
     for i in itertools.count():
         n_before = len(tiles)
         for m in mats:
             tiles = _add_transformed_tiles(tiles, m, center_filter=lambda c: np.max(np.abs(c)) < bbox_size / 2)
-        if len(tiles) == n_before or i > 1000:
+        if len(tiles) == n_before:
+            break
+        if i >= _MAX_EXPANSION_ITERS:
+            warnings.warn(
+                f"compile_gjh_graph hit the {_MAX_EXPANSION_ITERS}-iteration expansion cap "
+                f"for code {code!r} at bbox_size={bbox_size}; tiling may be incomplete.",
+                stacklevel=2,
+            )
             break
 
     return _tiles_to_graph(tiles)
