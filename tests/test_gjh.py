@@ -145,3 +145,13 @@ def test_compile_matches_cache_structurally(code):
     assert fresh_orders == cached_orders, (
         f"Tile-order multisets differ for {code}:\n" f"  fresh  = {fresh_orders}\n  cached = {cached_orders}"
     )
+
+
+def test_gjh_raises_for_stage_one_only_code():
+    """Stage-1-only codes (no transforms) should raise a clear error, not return an empty spec."""
+    with pytest.raises(ValueError, match="transform stage"):
+        compile_gjh_spec("6-3-3")
+    with pytest.raises(ValueError, match="transform stage"):
+        gjh_spec("6-3-3")  # falls through to compile_gjh_spec since not cached
+    with pytest.raises(ValueError, match="transform stage"):
+        gjh("6-3-3")

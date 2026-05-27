@@ -88,6 +88,20 @@ def gjh_graph(code: str, bbox_size: float = 20.0) -> EuclideanPositionHEG:
 
 
 def compile_gjh_spec(code: str, bbox_size: float = 20.0) -> TilesetSpec:
-    """Run the parser + distiller pipeline, bypassing the cached library."""
+    """Run the parser + distiller pipeline, bypassing the cached library.
+
+    Raises:
+        ValueError: If ``code`` has no transform stage (e.g. ``"6-3-3"``);
+            without at least one ``/m…`` or ``/r…`` stage the seed graph has no
+            interior faces, so distillation produces an empty spec. A full GJH
+            code always includes one or more transform stages, e.g.
+            ``"6-3-3/r60/r(h5)"``.
+    """
+    code = code.replace(" ", "")
+    if "/" not in code:
+        raise ValueError(
+            f"GJH code {code!r} has no transform stage. "
+            f"Add at least one '/m…' or '/r…' stage, e.g. '{code}/m30' or '{code}/r(h1)'."
+        )
     G = compile_gjh_graph(code, bbox_size=bbox_size)
     return spec_from_graph(G)
