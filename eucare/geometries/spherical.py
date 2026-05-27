@@ -91,6 +91,15 @@ class SphereModel(Geometry):
         return np.array([np.cos(x), np.sin(x), 0])
 
     @classmethod
+    def platonic_side_length_to_radius(cls, n, l):
+        # Spherical law of cosines: cos(l) = cos²(r) + sin²(r) cos(2π/n).
+        # At l = 2π/n the polygon lies on a great circle (r = π/2); the base-class
+        # secant solver is FP-fragile near that asymptote, so use the closed form.
+        c = np.cos(2 * np.pi / n)
+        cos_sq = (np.cos(l) - c) / (1 - c)
+        return np.arccos(np.sqrt(np.clip(cos_sq, 0.0, 1.0)))
+
+    @classmethod
     def archimedean_side_length(cls, faces_around_corner):
         return super().archimedean_side_length(faces_around_corner, bracket=[0.1, 2 * np.pi / max(faces_around_corner)])
 
