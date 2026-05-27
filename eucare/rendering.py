@@ -171,27 +171,16 @@ def inset_poly(pts: list, dist: float) -> list:
     return [inset_corner(a, b, c, dist) for a, b, c in rotate_by(pts, (0, 1, 2))]
 
 
-_seed_offset = np.random.randint(2**16)
-
-
-def random_color(seed: object = None) -> np.ndarray:
-    """Return a random RGB triple in ``[0, 1]^3``, optionally seeded by a hashable."""
-    if seed is not None:
-        np.random.seed((hash(seed) + _seed_offset) % 2**32)
-    return np.random.uniform(0, 1, 3)
-
-
-def is_color(obj: object) -> bool:
-    """Return True if *obj* looks like an RGB(A) tuple/list of numbers or a #RRGGBB string."""
-    if isinstance(obj, str):
-        if obj.startswith("#") and len(obj) == 7:
-            try:
-                int(obj[1:], 16)
-                return True
-            except ValueError:
-                return False
-        return False
-    return isinstance(obj, Iterable) and len(obj) in (3, 4) and all([isinstance(c, (int, float)) for c in obj])
+from .colorization import (
+    DEFAULT_EDGE_CMAP,
+    DEFAULT_FACE_CMAP,
+    DEFAULT_VERTEX_CMAP,
+    EDGE_PRESETS,
+    FACE_PRESETS,
+    VERTEX_PRESETS,
+    is_color,
+    resolve_colors,
+)
 
 
 def multi_show(
@@ -292,6 +281,12 @@ class CairoRenderer:
         face_inset: float | None = None,
         position_key: str = "pos",
         curve_position_key: str = "curve_pos",
+        face_color_by: object = None,
+        edge_color_by: object = None,
+        vertex_color_by: object = None,
+        face_cmap: object = None,
+        edge_cmap: object = None,
+        vertex_cmap: object = None,
     ) -> None:
         """Configure a renderer. Construction does no I/O; call ``render_graph``.
 
@@ -307,6 +302,21 @@ class CairoRenderer:
             position_key: Vertex attribute holding the 2D position.
             curve_position_key: Half-edge attribute holding curved-fold polylines
                 (overrides the straight ``orig -> dest`` line).
+            face_color_by: Auto-colour faces by a preset name (``"congruency"``,
+                ``"order"``), a :class:`~eucare.classifiers.Classifier`, or any
+                callable ``face -> hashable``.  Pre-existing ``face['color_key']``
+                attributes are honoured: literal colours pass through unchanged,
+                non-colour hashables fold into palette indexing.
+            edge_color_by: Same idea for edges; presets are ``"length"`` and
+                ``"orientation"``.
+            vertex_color_by: Same idea for vertices; preset is ``"order"``.
+            face_cmap: Matplotlib colormap name, ``Colormap`` instance, or list
+                of colours.  Defaults to
+                :data:`~eucare.colorization.DEFAULT_FACE_CMAP`.
+            edge_cmap: Same for edges; defaults to
+                :data:`~eucare.colorization.DEFAULT_EDGE_CMAP`.
+            vertex_cmap: Same for vertices; defaults to
+                :data:`~eucare.colorization.DEFAULT_VERTEX_CMAP`.
         """
         if width is None and height is None:
             width, height = 512, 512
@@ -318,8 +328,18 @@ class CairoRenderer:
         self.face_inset = face_inset
         self.position_key = position_key
         self.curve_position_key = curve_position_key
+        self.face_color_by = face_color_by
+        self.edge_color_by = edge_color_by
+        self.vertex_color_by = vertex_color_by
+        self.face_cmap = face_cmap if face_cmap is not None else DEFAULT_FACE_CMAP
+        self.edge_cmap = edge_cmap if edge_cmap is not None else DEFAULT_EDGE_CMAP
+        self.vertex_cmap = vertex_cmap if vertex_cmap is not None else DEFAULT_VERTEX_CMAP
         self.surface = None
         self.dc = None
+        # Filled by render_graph before each render loop.
+        self._face_colors: dict = {}
+        self._edge_colors: dict = {}
+        self._vertex_colors: dict = {}
 
     def render_face(self, face, color_key: str = "color_key"):
         """Draw a single face's filled polygon, honouring ``face[color_key]``."""
@@ -336,16 +356,9 @@ class CairoRenderer:
         dc.move_to(*points[-1])
         for point in points:
             dc.line_to(*point)
-        if color_key in face.attributes:
-            color = face.attributes.get(color_key, None)
-            if not is_color(color):
-                color = random_color(color)
-            # stroke_color = color #* 0.5
-        else:
+        color = self._face_colors.get(face)
+        if color is None:
             color = np.array((0.0, 0.0, 1.0, 0.15))
-            # color = np.array((0.0, 0.0, 0.0, 0.2))
-            # stroke_color = np.array((0.0, 0.0, 0.0, 0.0))
-
         self.set_source_color(color)
         dc.fill_preserve()
         dc.set_line_width(0)
@@ -353,9 +366,7 @@ class CairoRenderer:
         return self.surface
 
     def set_source_color(self, color) -> None:
-        """Set the current cairo source colour, accepting RGB/RGBA tuples or any hashable seed."""
-        if not is_color(color):
-            color = random_color(color)
+        """Set the current cairo source colour from an RGB/RGBA tuple, ndarray, or ``#RRGGBB`` string."""
         if isinstance(color, str):
             color = np.array([int(color[i : i + 2], 16) / 255 for i in (1, 3, 5)])
         if len(color) == 3:
@@ -390,7 +401,10 @@ class CairoRenderer:
             dc.move_to(*points[-1])
             for point in points:
                 dc.line_to(*point)
-            self.set_source_color(edge.attributes.get(color_key, edge.attributes.get(color_key, (0.5, 0.5, 1.0, 0.5))))
+            color = self._edge_colors.get(edge)
+            if color is None:
+                color = np.array((0.5, 0.5, 1.0, 0.5))
+            self.set_source_color(color)
             dc.fill_preserve()
         else:
 
@@ -403,12 +417,10 @@ class CairoRenderer:
                 dc.move_to(*curve[0])
                 for pos in curve[1:]:
                     dc.line_to(*pos)
-            # dc.set_source_rgb(0.0, 0.0, 0.0)
-            # set color. TODO: this interacts weirdly with delayed dc.stroke..
-            if color_key in edge.attributes:
-                self.set_source_color(edge.attributes.get(color_key, None))
-            else:
-                self.set_source_color((0.5, 0.5, 1.0))
+            color = self._edge_colors.get(edge)
+            if color is None:
+                color = np.array((0.5, 0.5, 1.0))
+            self.set_source_color(color)
 
             if edge.attributes.get("delete", False):
                 dc.set_dash([self.line_width * 2, self.line_width * 3])
@@ -427,8 +439,9 @@ class CairoRenderer:
         if radius == 0:
             return
         dc.arc(*vertex[self.position_key], vertex.get("vertex_radius", self.vertex_radius), 0, 2 * np.pi)
-        if color_key in vertex.attributes:
-            self.set_source_color(vertex[color_key])
+        color = self._vertex_colors.get(vertex)
+        if color is not None:
+            self.set_source_color(color)
         elif vertex.attributes.get("join", False):
             dc.set_source_rgb(0.0, 1.0, 0.0)
         elif vertex.attributes.get("delete", False):
@@ -501,8 +514,6 @@ class CairoRenderer:
         dc.paint()
         self.dc = dc
 
-        global _seed_offset
-        _seed_offset = np.random.randint(2**16)
         if self.scale == "auto":
             self.autocenterscale(graph)
         else:
@@ -515,6 +526,37 @@ class CairoRenderer:
             self.line_width = float(self.line_width[:-1]) / 100 * self.auto_line_width(graph)
         self.vertex_radius = self.vertex_radius if self.vertex_radius is not None else self.line_width
         self.face_inset = self.face_inset if self.face_inset is not None else self.line_width
+
+        # Pre-resolve per-element colours so each render_face/edge/vertex is a dict lookup.
+        # Edges only colour the half-edge actually drawn (one per pair); render_edge skips reverses.
+        rendered_halfedges = []
+        if render_edges and not for_cutting:
+            seen = set()
+            for h in graph.halfedges:
+                if h.rev in seen:
+                    continue
+                seen.add(h)
+                rendered_halfedges.append(h)
+        elif render_edges:
+            rendered_halfedges = list(graph.halfedges)
+        self._face_colors = resolve_colors(
+            graph.faces if render_faces else [],
+            self.face_color_by,
+            self.face_cmap,
+            FACE_PRESETS,
+        )
+        self._edge_colors = resolve_colors(
+            rendered_halfedges,
+            self.edge_color_by,
+            self.edge_cmap,
+            EDGE_PRESETS,
+        )
+        self._vertex_colors = resolve_colors(
+            graph.vertices if render_vertices else [],
+            self.vertex_color_by,
+            self.vertex_cmap,
+            VERTEX_PRESETS,
+        )
 
         if render_faces:
             for f in graph.faces:
