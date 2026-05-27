@@ -894,6 +894,27 @@ class HalfEdgeGraph:
         """Return all border half-edges as a list."""
         return list(self.border_edge_iter())
 
+    def boundary_cycle(self) -> list["HalfEdge"]:
+        """Return border half-edges of one boundary component in cyclic order.
+
+        Unlike :meth:`border_edge_iter`, this does not consult the
+        ``simply_connected`` flag — it always traverses ``h.nex`` from
+        :meth:`get_any_border`. The returned list contains exactly one
+        boundary component; if the graph has multiple, only the component
+        containing the seed edge is returned.
+
+        Raises :class:`LookupError` if the graph has no border.
+        """
+        initial = self.get_any_border()
+        cycle: list[HalfEdge] = []
+        current = initial
+        while True:
+            cycle.append(current)
+            current = current.nex
+            if current is initial:
+                break
+        return cycle
+
     def border_vertex_iter(self):
         """Yield vertices lying on a border edge."""
         for h in self.border_edge_iter():

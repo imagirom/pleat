@@ -8,6 +8,7 @@ pattern for interactive/notebook use).
 # Core data structures and geometry
 import eucare.alternating_flagstones
 import eucare.base
+import eucare.circle_packing
 import eucare.classifiers
 import eucare.colorization
 

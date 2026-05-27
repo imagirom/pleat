@@ -81,6 +81,7 @@ include = ["eucare/py.typed", "eucare/gjh/_data/*.yml"]
 testpaths = ["tests"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "golden: marks tests that compare against external CirclePack fixtures (opt-in)",
 ]
 
 [tool.coverage.run]

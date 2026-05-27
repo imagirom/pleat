@@ -39,6 +39,37 @@ class TestCyclicHalfedgeGraph:
         for e in border_edges:
             assert e.on_border()
 
+    def test_boundary_cycle_traverses_in_order(self):
+        G = CyclicHalfedgeGraph([Vertex() for _ in range(5)])
+        cycle = G.boundary_cycle()
+        assert len(cycle) == 5
+        for h in cycle:
+            assert h.on_border()
+        # consecutive entries are linked via .nex
+        for h_prev, h_next in zip(cycle, cycle[1:] + cycle[:1]):
+            assert h_prev.nex is h_next
+
+    def test_boundary_cycle_covers_all_border_halfedges(self):
+        G = CyclicHalfedgeGraph([Vertex() for _ in range(6)])
+        cycle = G.boundary_cycle()
+        assert set(cycle) == set(G.border_edges())
+
+    def test_boundary_cycle_raises_when_no_border(self):
+        from eucare.example_tilesets import curved_platonic
+        from eucare.example_graphs import from_tiles
+
+        # punctured icosahedron: 12 verts, 3 border halfedges = 1 missing tri face
+        G = from_tiles(curved_platonic(3, 5), rings=2)
+        # close the remaining triangular hole
+        hole = [h for h in G.halfedges if h.face is None]
+        f = Face(any_side=hole[0])
+        G.add_face(f)
+        for h in hole:
+            h.face = f
+
+        with pytest.raises(LookupError):
+            G.boundary_cycle()
+
 
 class TestRegularNGon:
     @pytest.mark.parametrize("n", [3, 4, 5, 6])
