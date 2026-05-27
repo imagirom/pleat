@@ -144,7 +144,7 @@ def _position_as_2d(p) -> np.ndarray:
     return np.asarray(p, dtype=float)
 
 
-def boundary_angles_from_positions(G) -> dict[Vertex, float]:
+def boundary_angles_from_positions(G: EuclideanPositionHEG) -> dict[Vertex, float]:
     """Sum the incident-triangle angles at each boundary vertex from ``v['pos']``.
 
     For a flat triangulated tiling these angles automatically satisfy
@@ -154,7 +154,7 @@ def boundary_angles_from_positions(G) -> dict[Vertex, float]:
 
     Args:
         G: Half-edge graph with ``v['pos']`` populated on boundary vertices
-           (and their interior triangle neighbors).
+            (and their interior triangle neighbors).
 
     Returns:
         Mapping from each boundary vertex to its total incident-triangle angle.
@@ -373,7 +373,7 @@ def _choose_beta(alpha: Vertex) -> Vertex:
 
 
 def pack_euclidean(
-    G,
+    G: EuclideanPositionHEG,
     boundary_radii: float | Mapping[Vertex, float] | Callable[[Vertex], float] | None = None,
     *,
     boundary_angles: float | Mapping[Vertex, float] | Callable[[Vertex], float] | str | None = None,
@@ -735,7 +735,7 @@ def _layout_hyperbolic(
 
 
 def pack_hyperbolic(
-    G,
+    G: EuclideanPositionHEG,
     boundary_x_radii: float | Mapping[Vertex, float] | Callable[[Vertex], float] = 1.0,
     *,
     alpha: Vertex | None = None,
