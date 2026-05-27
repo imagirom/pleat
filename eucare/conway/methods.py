@@ -8,8 +8,8 @@ to :class:`GeometricHEG`, enabling fluent chains like::
 Each method instantiates the operator with the factory parameters and applies
 it to the graph, forwarding the remaining keyword arguments to
 :meth:`TopologicalConwayOperator.__call__`. Like the operator call itself,
-each method mutates the graph in place (unless ``copy_graph=True``) and
-returns the (possibly copied) graph so the result is chainable either way.
+each method leaves the input untouched and returns a new graph by default;
+pass ``inplace=True`` to mutate the graph and return it.
 
 ``faces`` may be either a set of :class:`Face` or a callable
 ``face -> bool`` used as a face filter.
@@ -38,7 +38,7 @@ _CALL_PARAMS = (
     ),
     inspect.Parameter("delete_on_border", inspect.Parameter.KEYWORD_ONLY, default=True, annotation=bool),
     inspect.Parameter("delete_inner_border", inspect.Parameter.KEYWORD_ONLY, default=False, annotation=bool),
-    inspect.Parameter("copy_graph", inspect.Parameter.KEYWORD_ONLY, default=False, annotation=bool),
+    inspect.Parameter("inplace", inspect.Parameter.KEYWORD_ONLY, default=False, annotation=bool),
 )
 _CALL_PARAM_NAMES = frozenset(p.name for p in _CALL_PARAMS)
 
@@ -48,7 +48,7 @@ def _shorthand(factory):
 
     The returned method exposes a synthesized signature ``(self, *factory_params,
     *, faces=None, delete_on_border=True, delete_inner_border=False,
-    copy_graph=False)`` and the factory's docstring, so it is discoverable via
+    inplace=False)`` and the factory's docstring, so it is discoverable via
     ``help()`` and ``?`` even though the method body is only one line.
     """
 

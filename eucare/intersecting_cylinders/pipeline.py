@@ -82,7 +82,7 @@ def make_intersecting_cylinders(
 
     if r != 1:
         expand_t = (1 - r) * shrink_factor / (1 - (1 - r) * (1 - shrink_factor))
-        G = conway.expand_graph(expand_t)(G, delete_on_border=False, copy_graph=True)
+        G = conway.expand_graph(expand_t)(G, delete_on_border=False)
         fs = [f for f in G.faces if "pre_conway" in f]
         for f in fs:
             f["midpoint"] = f.pseudo_incenter()
@@ -103,7 +103,7 @@ def make_intersecting_cylinders(
         faces=[f_map_f[f] for f in fs],
         delete_inner_border=True,
         delete_on_border=False,
-        copy_graph=False,
+        inplace=True,
     )
     G.delete_subset([f for f in G.faces if f.any_side not in G.halfedges])
     G.check_consistency()
