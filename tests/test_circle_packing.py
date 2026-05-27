@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -13,7 +12,6 @@ from eucare.example_tilesets import platonic
 from eucare.geometries import EuclideanGeometry
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "circlepack"
-sys.path.insert(0, str(FIXTURE_DIR))
 
 
 def _hex_triangulation(rings: int = 2):
@@ -278,10 +276,10 @@ class TestGoldenAgainstCirclePack:
 
     @staticmethod
     def _load(name: str):
-        from _parser import parse_p_file, build_heg_from_flowers  # type: ignore
+        from eucare.io import parse_p_file, _build_heg_from_data
 
         data = parse_p_file(str(FIXTURE_DIR / name))
-        G, idx2v = build_heg_from_flowers(data)
+        G, idx2v = _build_heg_from_data(data)
         return data, G, idx2v
 
     def test_egg_a_euclidean(self):
