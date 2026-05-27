@@ -225,6 +225,20 @@ def fill_domain(
     return G
 
 
+def crop_to_domain(G: EuclideanPositionHEG, domain: Domain) -> None:
+    """Delete every vertex of ``G`` whose position lies outside ``domain``.
+
+    Edges and faces incident to the deleted vertices are removed by the
+    underlying topology repair. Mutates ``G`` in place. Pair with
+    :func:`fill_domain` to render a tiling that ends crisply at the domain
+    boundary instead of overflowing it.
+    """
+    ps, vs = G.get_position_view()
+    outside = [v for v, inside in zip(vs, domain.contains(ps)) if not inside]
+    if outside:
+        G.delete_subset(outside)
+
+
 def pgg_2x_tiling(rings: int = 15) -> HalfEdgeGraph:
     """Construct a pgg wallpaper group tiling with the given number of rings."""
     tiles = pgg_2x()

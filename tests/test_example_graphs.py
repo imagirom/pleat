@@ -11,6 +11,7 @@ from eucare.example_graphs import (
     add_vertex_ring,
     complete_closest_vertices,
     complete_vertex,
+    crop_to_domain,
     fill_domain,
     from_tiles,
     get_edge_with,
@@ -159,3 +160,20 @@ def test_fill_domain_rectangle_with_hexagons():
     G = fill_domain(tiles, RectangleDomain(10.0, 4.0))
     assert all(f.order() == 6 for f in G.faces)
     assert len(G.faces) > 3
+
+
+def test_crop_to_domain_removes_outside_vertices():
+    """After filling a domain larger than the crop, crop_to_domain removes the overflow."""
+    tiles = platonic(4)
+    fill = SquareDomain(8.0)
+    crop = SquareDomain(4.0)
+    G = fill_domain(tiles, fill)
+    faces_before = len(G.faces)
+    crop_to_domain(G, crop)
+    faces_after = len(G.faces)
+    # cropping a 4x4 box out of an 8x8 fill should remove a meaningful chunk
+    assert faces_after < faces_before
+    # every surviving vertex sits inside (or exactly on) the crop domain — we use
+    # the domain's own contains check rather than re-deriving the tolerance here
+    positions = G.get_position_view(return_vertices=False)
+    assert np.all(crop.contains(positions))
