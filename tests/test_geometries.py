@@ -69,3 +69,18 @@ def test_polar_roundtrip(G):
 def test_unit_vector_has_unit_distance_to_origin(G):
     u = G.unit_vector(0.7)
     assert G.distance_to_origin(u) == pytest.approx(1.0, abs=1e-6)
+
+
+@pytest.mark.parametrize("n", [3, 4, 5, 6, 7, 8])
+def test_sphere_platonic_side_length_to_radius_at_degenerate_boundary(n):
+    """At l = 2π/n the regular n-gon's vertices lie on a great circle (r = π/2)."""
+    r = SphereModel.platonic_side_length_to_radius(n, 2 * np.pi / n)
+    assert r == pytest.approx(np.pi / 2, abs=1e-12)
+
+
+@pytest.mark.parametrize("n", [3, 4, 5, 6, 7, 8])
+@pytest.mark.parametrize("frac", [0.1, 0.5, 0.9, 0.999, 1.0])
+def test_sphere_platonic_side_length_roundtrip(n, frac):
+    l = frac * 2 * np.pi / n
+    r = SphereModel.platonic_side_length_to_radius(n, l)
+    assert SphereModel.regular_poly_side_length(n, r) == pytest.approx(l, abs=1e-12)
