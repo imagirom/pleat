@@ -102,6 +102,82 @@ def _resolve_boundary_radii(
 
 
 # ---------------------------------------------------------------------------
+# Boundary angle resolution & inference
+# ---------------------------------------------------------------------------
+
+
+def _resolve_boundary_angles(
+    spec: float | Mapping[Vertex, float] | Callable[[Vertex], float],
+    boundary_vertices: list[Vertex],
+) -> dict[Vertex, float]:
+    """Materialize a boundary_angles spec into dict[Vertex, float]; validate (0, 2π)."""
+    result: dict[Vertex, float] = {}
+    if isinstance(spec, Mapping):
+        for v in boundary_vertices:
+            if v not in spec:
+                raise ValueError(f"boundary_angles dict is missing entry for boundary vertex {v}.")
+            theta = float(spec[v])
+            if not (0.0 < theta < 2.0 * np.pi):
+                raise ValueError(f"boundary_angles[{v}] must be in (0, 2π); got {theta}.")
+            result[v] = theta
+        return result
+    if callable(spec):
+        for v in boundary_vertices:
+            theta = float(spec(v))
+            if not (0.0 < theta < 2.0 * np.pi):
+                raise ValueError(f"boundary_angles({v}) must be in (0, 2π); got {theta}.")
+            result[v] = theta
+        return result
+    theta = float(spec)
+    if not (0.0 < theta < 2.0 * np.pi):
+        raise ValueError(f"boundary_angles must be in (0, 2π); got {theta}.")
+    for v in boundary_vertices:
+        result[v] = theta
+    return result
+
+
+def _position_as_2d(p) -> np.ndarray:
+    """Coerce a vertex position (real array or complex) into a 2D float array."""
+    if isinstance(p, complex) or np.iscomplexobj(p):
+        z = complex(p)
+        return np.array([z.real, z.imag], dtype=float)
+    return np.asarray(p, dtype=float)
+
+
+def boundary_angles_from_positions(G) -> dict[Vertex, float]:
+    """Sum the incident-triangle angles at each boundary vertex from ``v['pos']``.
+
+    For a flat triangulated tiling these angles automatically satisfy
+    ``Σ_bdy θ = π(F − 2 V_int)`` (Gauss-Bonnet), making the result a valid
+    input for :func:`pack_euclidean` in angle-prescribed mode. Suitable for
+    matching a packing's combinatorics-shape to an existing flat tiling.
+
+    Args:
+        G: Half-edge graph with ``v['pos']`` populated on boundary vertices
+           (and their interior triangle neighbors).
+
+    Returns:
+        Mapping from each boundary vertex to its total incident-triangle angle.
+    """
+    result: dict[Vertex, float] = {}
+    for v in G.border_vertices():
+        p_v = _position_as_2d(v["pos"])
+        total = 0.0
+        for h in v.outgoing_iter():
+            if h.face is None:
+                continue
+            p_u = _position_as_2d(h.dest["pos"])
+            p_w = _position_as_2d(h.nex.dest["pos"])
+            vu = p_u - p_v
+            vw = p_w - p_v
+            cos_a = float(np.dot(vu, vw) / (np.linalg.norm(vu) * np.linalg.norm(vw)))
+            cos_a = max(-1.0, min(1.0, cos_a))
+            total += float(np.arccos(cos_a))
+        result[v] = total
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Flower / triangle enumeration
 # ---------------------------------------------------------------------------
 
@@ -298,76 +374,117 @@ def _choose_beta(alpha: Vertex) -> Vertex:
 
 def pack_euclidean(
     G,
-    boundary_radii: float | Mapping[Vertex, float] | Callable[[Vertex], float] = 1.0,
+    boundary_radii: float | Mapping[Vertex, float] | Callable[[Vertex], float] | None = None,
     *,
+    boundary_angles: float | Mapping[Vertex, float] | Callable[[Vertex], float] | str | None = None,
     alpha: Vertex | None = None,
     beta: Vertex | None = None,
     tol: float = 1e-10,
     max_iter: int = 10_000,
     copy_graph: bool = True,
 ) -> EuclideanPositionHEG:
-    """Compute a euclidean circle packing with prescribed boundary radii.
+    """Compute a euclidean circle packing with prescribed boundary data.
+
+    The boundary can be pinned in one of two ways (mutually exclusive):
+
+    - ``boundary_radii``: fix each boundary vertex's radius; iterate only
+      interior vertices toward angle sum 2π. This is the classical
+      euclidean boundary-value problem.
+    - ``boundary_angles``: fix each boundary vertex's total incident-triangle
+      angle; iterate every vertex (boundary and interior). For a flat input
+      tiling pass ``"from_positions"`` to read the angles off the input
+      positions. The angles must satisfy Gauss-Bonnet:
+      ``Σ_bdy θ = π(F − 2 V_int)``.
+
+    If neither is given, defaults to ``boundary_radii=1.0``.
 
     Args:
         G: Triangulated, simply-connected disk EuclideanPositionHEG.
         boundary_radii: Per-vertex boundary radii. Accepts a positive scalar
-            (uniform), a Mapping[Vertex, float], or a callable Vertex -> float.
-            Defaults to 1.0 (uniform boundary).
+            (uniform), Mapping[Vertex, float], or callable Vertex -> float.
+        boundary_angles: Per-vertex boundary angle sums in (0, 2π). Accepts
+            a scalar (uniform), Mapping, callable, or the string
+            ``"from_positions"`` to infer angles from ``G``'s positions.
         alpha: Optional anchor vertex (placed at origin). Defaults to the
             interior vertex with maximum graph-distance to the boundary.
         beta: Optional second anchor (placed on +x axis through alpha).
-            Defaults to alpha's first flower neighbor.
-        tol: Maximum permitted angle defect ``|angle_sum - 2*pi|`` over
-            interior vertices.
+        tol: Max permitted angle defect over iterated vertices.
         max_iter: Maximum Collins-Stephenson iterations.
-        copy_graph: If True (default), the input graph is copied; otherwise
-            the input graph is mutated in place.
+        copy_graph: If True (default), the input graph is copied.
 
     Returns:
         EuclideanPositionHEG with EuclideanGeometry, ``v['pos']`` as 2D real
         array centers, and ``v['radius']`` as positive floats.
 
     Raises:
-        ValueError: input not triangulated, not a simply-connected disk, or
-            invalid boundary_radii.
+        ValueError: input not triangulated/disk; both modes specified;
+            boundary_angles violate Gauss-Bonnet; invalid spec values.
         ConvergenceError: iteration did not reach ``tol`` within ``max_iter``.
     """
     _validate_triangulated_disk(G)
 
-    # Working graph
+    if boundary_radii is not None and boundary_angles is not None:
+        raise ValueError("pack_euclidean: specify either `boundary_radii` or `boundary_angles`, not both.")
+    if boundary_radii is None and boundary_angles is None:
+        boundary_radii = 1.0
+
     P = G.copy() if copy_graph else G
-
-    # Boundary set + radii
     boundary_verts = P.border_vertices()
-    radii_spec = _resolve_boundary_radii(boundary_radii, boundary_verts)
     boundary_set = set(boundary_verts)
-
-    # Initial radii: boundary as spec, interior as mean of boundary
-    boundary_mean = float(np.mean(list(radii_spec.values()))) if radii_spec else 1.0
-    radii: dict[Vertex, float] = {}
-    for v in P.vertices:
-        if v in boundary_set:
-            radii[v] = radii_spec[v]
-        else:
-            radii[v] = boundary_mean
-
-    # Pre-cache incident-triangle neighbor lists for interior vertices
     interior_verts = [v for v in P.vertices if v not in boundary_set]
-    flower_neighbors: dict[Vertex, list[tuple[Vertex, Vertex]]] = {v: _incident_triangles(v) for v in interior_verts}
 
-    # Collins-Stephenson iteration
+    targets: dict[Vertex, float]
+    update_verts: list[Vertex]
+    radii: dict[Vertex, float]
+
+    if boundary_angles is not None:
+        if isinstance(boundary_angles, str):
+            if boundary_angles == "from_positions":
+                boundary_angles = boundary_angles_from_positions(P)
+            else:
+                raise ValueError(f"Unknown boundary_angles string: {boundary_angles!r}. " f"Expected 'from_positions'.")
+        angle_spec = _resolve_boundary_angles(boundary_angles, boundary_verts)
+        n_faces = len(P.faces)
+        n_int = len(interior_verts)
+        expected_sum = float(np.pi * (n_faces - 2 * n_int))
+        actual_sum = float(sum(angle_spec.values()))
+        if not np.isclose(actual_sum, expected_sum, rtol=1e-9, atol=1e-9):
+            raise ValueError(
+                f"pack_euclidean: boundary_angles sum to {actual_sum:.10f}, but "
+                f"Gauss-Bonnet requires Σ θ = π(F − 2·V_int) = π·({n_faces} − 2·{n_int}) "
+                f"= {expected_sum:.10f}. Defect = {actual_sum - expected_sum:.3e}."
+            )
+        targets = {v: 2.0 * np.pi for v in interior_verts}
+        targets.update(angle_spec)
+        update_verts = list(targets.keys())
+        radii = {v: 1.0 for v in P.vertices}
+    else:
+        radii_spec = _resolve_boundary_radii(boundary_radii, boundary_verts)
+        targets = {v: 2.0 * np.pi for v in interior_verts}
+        update_verts = interior_verts
+        boundary_mean = float(np.mean(list(radii_spec.values()))) if radii_spec else 1.0
+        radii = {}
+        for v in P.vertices:
+            if v in boundary_set:
+                radii[v] = radii_spec[v]
+            else:
+                radii[v] = boundary_mean
+
+    flower_neighbors: dict[Vertex, list[tuple[Vertex, Vertex]]] = {v: _incident_triangles(v) for v in update_verts}
+
     converged = False
     final_defect = float("inf")
     for _iteration in range(max_iter):
         max_defect = 0.0
-        for v in interior_verts:
+        for v in update_verts:
             pairs = flower_neighbors[v]
             neighbor_radii = [(radii[u], radii[w]) for (u, w) in pairs]
+            target = targets[v]
             theta = _euclidean_angle_sum(radii[v], neighbor_radii)
-            defect = abs(theta - 2 * np.pi)
+            defect = abs(theta - target)
             if defect > max_defect:
                 max_defect = defect
-            radii[v] = _bowers_stephenson_update(radii[v], neighbor_radii)
+            radii[v] = _bowers_stephenson_update(radii[v], neighbor_radii, target=target)
         if max_defect < tol:
             converged = True
             final_defect = max_defect

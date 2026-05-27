@@ -100,6 +100,91 @@ class TestPackEuclidean:
             pack_euclidean(G, boundary_radii=1.0)
 
 
+class TestBoundaryAngles:
+    def test_boundary_angles_from_positions_recovers_input_angles(self):
+        """Angles computed from a flat tiling sum to π(F - 2V_int) automatically."""
+        from eucare.circle_packing import boundary_angles_from_positions
+
+        G = _hex_triangulation()
+        angles = boundary_angles_from_positions(G)
+        n_faces = len(G.faces)
+        n_int = sum(1 for v in G.vertices if not v.on_border())
+        expected = np.pi * (n_faces - 2 * n_int)
+        assert sum(angles.values()) == pytest.approx(expected, abs=1e-10)
+
+    def test_pack_euclidean_with_from_positions_angles_matches_input_layout(self):
+        """Angle-mode roundtrip on a regular hex patch: resulting packing is the input (up to gauge)."""
+        from eucare.circle_packing import pack_euclidean
+
+        G = _hex_triangulation()
+        P = pack_euclidean(G, boundary_angles="from_positions")
+        # All interior angle sums equal 2π.
+        for v in P.vertices:
+            if v.on_border():
+                continue
+            angle_sum = 0.0
+            for h in v.outgoing_iter():
+                if h.face is None:
+                    continue
+                a = v["pos"]
+                b = h.dest["pos"]
+                c = h.pre.orig["pos"]
+                ab = b - a
+                ac = c - a
+                cos_a = float(np.dot(ab, ac) / (np.linalg.norm(ab) * np.linalg.norm(ac)))
+                cos_a = max(-1.0, min(1.0, cos_a))
+                angle_sum += float(np.arccos(cos_a))
+            assert angle_sum == pytest.approx(2 * np.pi, abs=1e-8)
+        # Edge tangencies hold (basic sanity).
+        for h in P.halfedges:
+            if h.face is None:
+                continue
+            u, v = h.orig, h.dest
+            d = float(np.linalg.norm(u["pos"] - v["pos"]))
+            assert d == pytest.approx(u["radius"] + v["radius"], abs=1e-8)
+
+    def test_scalar_boundary_angle_validates_sum(self):
+        """A uniform scalar broadcasts to all boundary vertices; the resulting
+        sum must satisfy Gauss-Bonnet or the call must error."""
+        from eucare.circle_packing import pack_euclidean
+
+        G = _hex_triangulation()
+        # 1.0 is essentially never the per-vertex angle satisfying Σθ = π(F − 2V_int)
+        # on a generic tiling — must raise.
+        with pytest.raises(ValueError, match="Gauss-Bonnet|sum"):
+            pack_euclidean(G, boundary_angles=1.0)
+
+    def test_bad_sum_raises(self):
+        """Manual angles that don't satisfy Σ θ = π(F - 2V_int) must error."""
+        from eucare.circle_packing import boundary_angles_from_positions, pack_euclidean
+
+        G = _hex_triangulation()
+        angles = boundary_angles_from_positions(G)
+        # Perturb one angle so the global sum is wrong. Use copy_graph=False so
+        # the dict (keyed by G's vertices) lines up with the working graph.
+        first = next(iter(angles))
+        angles[first] += 0.1
+        with pytest.raises(ValueError, match="Gauss-Bonnet|sum"):
+            pack_euclidean(G, boundary_angles=angles, copy_graph=False)
+
+    def test_specifying_both_radii_and_angles_raises(self):
+        from eucare.circle_packing import pack_euclidean
+
+        G = _hex_triangulation()
+        with pytest.raises(ValueError, match="not both"):
+            pack_euclidean(G, boundary_radii=1.0, boundary_angles=1.0)
+
+    def test_default_is_uniform_radii(self):
+        """When neither boundary_radii nor boundary_angles is given, defaults to uniform radii=1."""
+        from eucare.circle_packing import pack_euclidean
+
+        G = _hex_triangulation()
+        P = pack_euclidean(G)
+        for v in P.vertices:
+            if v.on_border():
+                assert v["radius"] == pytest.approx(1.0, abs=1e-9)
+
+
 class TestPackHyperbolic:
     def test_returns_hyperbolic_position_heg(self):
         from eucare.circle_packing import pack_hyperbolic
