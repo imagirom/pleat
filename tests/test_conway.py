@@ -148,11 +148,12 @@ class TestCongruencyClassifier:
             assert key is not None
 
 
-class TestConwayCopyGraphPath:
-    def test_dual_with_copy_graph(self):
+class TestConwayDefaultCopyPath:
+    def test_dual_default_returns_copy(self):
         G = _make_tiling(rings=2)
-        G2 = dual_graph()(G, copy_graph=True)
-        # Original is unchanged when copy_graph=True
+        G2 = dual_graph()(G)
+        # Default leaves the original untouched; G2 is a new graph.
+        assert G2 is not G
         G2.check_consistency()
 
 
@@ -254,18 +255,19 @@ class TestShorthandMethods:
         result.check_consistency()
         assert len(result.faces) > 0
 
-    def test_method_returns_self_by_default(self):
-        """Without copy_graph, methods mutate in place and return the same object."""
-        G = _make_tiling(rings=2)
-        result = G.dual()
-        assert result is G
-
-    def test_method_with_copy_graph(self):
+    def test_method_returns_copy_by_default(self):
+        """By default, methods leave the original untouched and return a new graph."""
         G = _make_tiling(rings=2)
         original_faces = set(G.faces)
-        result = G.dual(copy_graph=True)
+        result = G.dual()
         assert result is not G
-        assert set(G.faces) == original_faces  # original untouched
+        assert set(G.faces) == original_faces
+
+    def test_method_with_inplace(self):
+        """With inplace=True, the original is mutated and returned."""
+        G = _make_tiling(rings=2)
+        result = G.dual(inplace=True)
+        assert result is G
 
     def test_truncate_with_t(self):
         G = _make_tiling(rings=2)

@@ -175,7 +175,7 @@ def _build_ortho_with_tangent_points(
     for f in G.faces:
         f["midpoint"] = f.pseudo_incenter()
 
-    G_ortho = conway.ortho_graph()(G, delete_on_border=False, copy_graph=True)
+    G_ortho = conway.ortho_graph()(G, delete_on_border=False)
 
     for v in list(G_ortho.vertices):
         if "pre_conway" not in v.attributes:

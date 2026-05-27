@@ -68,15 +68,16 @@ class TopologicalConwayOperator:
     def __call__(
         self,
         graph: HalfEdgeGraph,
+        *,
         faces: "set[Face] | Callable[[Face], bool] | None" = None,
         delete_on_border: bool = True,
         delete_inner_border: bool = False,
-        copy_graph: bool = False,
+        inplace: bool = False,
     ) -> HalfEdgeGraph:
         """Apply the operator to ``graph``, optionally restricted to ``faces``.
 
         Args:
-            graph: Input half-edge graph; mutated in place unless ``copy_graph``.
+            graph: Input half-edge graph; left untouched unless ``inplace=True``.
             faces: Faces to apply the operator to. Either an explicit set of
                 faces, or a callable ``face -> bool`` used to filter
                 ``graph.faces``. Defaults to all faces.
@@ -84,14 +85,20 @@ class TopologicalConwayOperator:
                 was marked for deletion.
             delete_inner_border: If True, also clear the ``delete`` flag on
                 inner border edges.
-            copy_graph: If True, operate on a deep-ish copy and preserve
-                ``pre_conway`` references back to the original objects.
+            inplace: If True, mutate ``graph`` directly. If False (default),
+                operate on a deep-ish copy and preserve ``pre_conway`` references
+                back to the original objects.
 
         Returns:
-            The (possibly copied) graph after substitution.
+            The transformed graph (the input itself if ``inplace=True``, otherwise a copy).
         """
-        if copy_graph:
+        if not inplace:
             graph, (v_map, h_map, f_map) = graph.copy(return_mappings=True)
+            # An explicit ``faces`` collection still references the input graph; translate
+            # those Face objects into the copy. (A callable filter is applied later, after
+            # ``graph`` already points at the copy, so it needs no remapping.)
+            if faces is not None and not callable(faces):
+                faces = {f_map[f] for f in faces}
             v_map, h_map, f_map = [invert_mapping(m) for m in (v_map, h_map, f_map)]
             obj_map = dict()
             obj_map.update(v_map)
@@ -272,7 +279,7 @@ class TopologicalConwayOperator:
             if v.order() == 2:  # TODO: check this beforehand
                 HalfEdgeGraph.join_vertex(graph, v)
 
-        if copy_graph:
+        if not inplace:
             for objs in (graph.vertices, graph.halfedges, graph.faces):
                 for obj in objs:
                     if "pre_conway" in obj.attributes:

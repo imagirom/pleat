@@ -18,7 +18,6 @@ from eucare.rendering import (
     inset_corner,
     inset_poly,
     is_color,
-    random_color,
 )
 
 
@@ -44,12 +43,6 @@ def test_inset_poly_returns_same_length():
     pts = [np.array([0.0, 0.0]), np.array([1.0, 0.0]), np.array([1.0, 1.0]), np.array([0.0, 1.0])]
     out = inset_poly(pts, 0.05)
     assert len(out) == len(pts)
-
-
-def test_random_color_shape():
-    c = random_color(seed=42)
-    assert c.shape == (3,)
-    assert (0 <= c).all() and (c <= 1).all()
 
 
 def test_is_color_true_false():

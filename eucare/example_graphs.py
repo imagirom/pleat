@@ -84,9 +84,23 @@ def complete_vertex(G: HalfEdgeGraph, v: Vertex) -> None:
         G.execute_edge_instruction(v.get_outgoing_border())
 
 
-def add_vertex_ring(G: HalfEdgeGraph) -> None:
-    """Complete all border vertices, prioritizing those with the largest angle sum."""
-    vs = [h.orig for h in G.border_edges()]
+def add_vertex_ring(G: HalfEdgeGraph, domain: "Domain | None" = None) -> None:
+    """Complete all border vertices, prioritizing those with the largest angle sum.
+
+    Args:
+        G: The graph to expand.
+        domain: If given, only vertices whose ``pos`` lies inside the domain
+            are completed; expansion that would step outside is skipped.
+    """
+    border_origins = [h.orig for h in G.border_edges()]
+    if domain is None:
+        vs = border_origins
+    elif not border_origins:
+        vs = []
+    else:
+        positions = np.array([v["pos"] for v in border_origins])
+        mask = domain.contains(positions)
+        vs = [v for v, inside in zip(border_origins, mask) if inside]
     vs = sorted(vs, key=lambda v: -v.angle_sum())
     for v in vs:
         if v in G.vertices:
@@ -144,6 +158,70 @@ def from_tiles(
                 if h.on_border() and h in G.halfedges:
                     if "instruction" in h.attributes:
                         G.execute_edge_instruction(h)
+    return G
+
+
+class Domain:
+    """Abstract bounding region used by :func:`fill_domain` to limit tiling growth."""
+
+    def contains(self, points: np.ndarray) -> np.ndarray:
+        """Return a boolean array indicating which of the given ``(N, 2)`` points are inside."""
+        raise NotImplementedError
+
+
+class SquareDomain(Domain):
+    """Axis-aligned square of side ``sidelength`` centred at the origin."""
+
+    def __init__(self, sidelength: float) -> None:
+        self.sidelength = sidelength
+
+    def contains(self, points: np.ndarray) -> np.ndarray:
+        return np.max(np.abs(points), axis=-1) < self.sidelength / 2
+
+
+class RectangleDomain(Domain):
+    """Axis-aligned rectangle of width ``a`` and height ``b`` centred at the origin."""
+
+    def __init__(self, a: float, b: float, eps: float = 1e-6) -> None:
+        self.size = np.array([a, b]) + eps
+
+    def contains(self, points: np.ndarray) -> np.ndarray:
+        return np.max(np.abs(points / self.size[None]), axis=-1) < 0.5
+
+
+def fill_domain(
+    tiles: "list[ProtoTile]",
+    domain: Domain,
+    offset: "np.ndarray | None" = None,
+    max_steps: int = 1000,
+) -> EuclideanPositionHEG:
+    """Grow a tiling from ``tiles`` until ``domain`` is filled.
+
+    Args:
+        tiles: Proto-tiles available for the tiling (passed to :func:`from_tiles`
+            with ``rings=0`` for the seed).
+        domain: Bounding region; growth stops when no new tiles fit inside.
+        offset: If given, shift every initial vertex position by this 2-vector
+            before growing. Useful for centring an odd-sized tiling within the domain.
+        max_steps: Maximum number of expansion rings to attempt.
+
+    Returns:
+        The grown :class:`EuclideanPositionHEG`. Growth stops when no border
+        vertex inside ``domain`` can be expanded further, so some faces at the
+        boundary may extend slightly past it (because vertices inside the
+        domain spawn faces whose other vertices need not be).
+    """
+    G = from_tiles(tiles, rings=0)
+    if offset is not None:
+        ps = G.get_position_view(return_vertices=False)
+        ps[:] += offset[None]
+    before = len(G.faces)
+    for _ in range(max_steps):
+        add_vertex_ring(G, domain=domain)
+        after = len(G.faces)
+        if after == before:
+            break
+        before = after
     return G
 
 

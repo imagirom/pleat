@@ -250,3 +250,33 @@ class AdjacencyClassifier(CyclicClassifier):
 
     def _represent_query_item(self, item):
         return np.array([(f[self.key] if f is not None else None, item[self.key]) for f in item.face_iter()])
+
+
+class EdgeLengthClassifier(RepresentationClassifier):
+    """Classify half-edges by their ``length`` attribute (with tolerance ``tol``)."""
+
+    def _compare_representations(self, query_rep, saved_rep):
+        return abs(query_rep - saved_rep) < tol
+
+    def _represent_item(self, item):
+        return float(item["length"])
+
+
+class EdgeOrientationClassifier(RepresentationClassifier):
+    """Classify half-edges by orientation mod π, so an edge and its reverse share a class."""
+
+    def _compare_representations(self, query_rep, saved_rep):
+        d = abs(query_rep - saved_rep)
+        # Circular distance on [0, π): both ends of the interval are the same angle.
+        return min(d, np.pi - d) < tol
+
+    def _represent_item(self, item):
+        v = item.dest["pos"] - item.orig["pos"]
+        return float(np.arctan2(v[1], v[0]) % np.pi)
+
+
+class VertexOrderClassifier(Classifier):
+    """Classify vertices by their degree (number of incident edges)."""
+
+    def _get_index(self, item):
+        return item.order()

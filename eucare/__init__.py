@@ -19,6 +19,7 @@ import eucare.example_graphs
 import eucare.example_tilesets
 import eucare.flat_foldable
 import eucare.geometries
+import eucare.gjh
 import eucare.half
 import eucare.instructions
 import eucare.intersecting_cylinders
@@ -34,3 +35,4 @@ import eucare.prototiles
 import eucare.search_trees
 import eucare.shrink_rotate
 import eucare.svg
+import eucare.tileset_spec
