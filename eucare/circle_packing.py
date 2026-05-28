@@ -381,6 +381,7 @@ def _iterate_with_superstep(
     bs_update_fn: Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray], np.ndarray],
     tol: float,
     max_iter: int,
+    max_value: float = float("inf"),
 ) -> tuple[int, float, bool]:
     """Bowers-Stephenson iteration with Collins-Stephenson superstep acceleration.
 
@@ -391,9 +392,12 @@ def _iterate_with_superstep(
     actual vs. predicted error reduction.
 
     ``r_arr`` is mutated in place. Boundary radii (entries outside
-    ``update_idx``) are never touched. Returns ``(iterations, max_defect,
-    converged)`` where ``max_defect`` is the angle-defect L∞ norm on the
-    final iterate.
+    ``update_idx``) are never touched. ``max_value`` caps the superstep
+    extrapolation so that updated radii stay in ``(0, max_value)`` — set to
+    ``1.0`` for the hyperbolic x-radius parametrisation (the default
+    ``inf`` is appropriate for the unbounded euclidean radii). Returns
+    ``(iterations, max_defect, converged)`` where ``max_defect`` is the
+    angle-defect L∞ norm on the final iterate.
     """
     if update_idx.size == 0:
         return 0, 0.0, True
@@ -448,11 +452,20 @@ def _iterate_with_superstep(
         # === Superstep extrapolation ===
         R2 = r_arr[update_idx].copy()
         diff = R2 - R1
+        # Cap lambda so the extrapolated radii stay inside (0, max_value): if
+        # diff < 0, R2 + λ·diff > 0 requires λ < -R2/diff; if diff > 0 and
+        # max_value is finite, R2 + λ·diff < max_value requires
+        # λ < (max_value - R2)/diff. CirclePack additionally halves the cap
+        # for safety.
+        lmax = 1.0e4
         shrinking = diff < 0.0
         if shrinking.any():
-            lmax = float(np.min(-R2[shrinking] / diff[shrinking])) / 2.0
-        else:
-            lmax = 1.0e4
+            lmax = min(lmax, float(np.min(-R2[shrinking] / diff[shrinking])))
+        if np.isfinite(max_value):
+            growing = diff > 0.0
+            if growing.any():
+                lmax = min(lmax, float(np.min((max_value - R2[growing]) / diff[growing])))
+        lmax = lmax / 2.0
 
         if key == 1:
             lambda_ = m * factor
@@ -1128,6 +1141,7 @@ def pack_hyperbolic(
         _bowers_stephenson_hyperbolic_update_vec,
         tol,
         max_iter,
+        max_value=1.0,
     )
     if not converged:
         raise ConvergenceError(
