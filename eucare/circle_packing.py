@@ -26,12 +26,11 @@ geometry) is obtained by composition::
 
 from __future__ import annotations
 
+import math
 from collections import deque
 from typing import Callable, Mapping
 
 import numpy as np
-
-from scipy.optimize import brentq
 
 from eucare.geometries import EuclideanGeometry, PoincareDiskModel
 from eucare.half import EuclideanPositionHEG, HalfEdge, Vertex
@@ -198,44 +197,324 @@ def _incident_triangles(v: Vertex) -> list[tuple[Vertex, Vertex]]:
 
 
 # ---------------------------------------------------------------------------
-# Euclidean angle formula and CS update
+# Vectorized flower indexing
 # ---------------------------------------------------------------------------
 
 
-def _euclidean_angle_sum(r_v: float, neighbor_pairs: list[tuple[float, float]]) -> float:
-    """Sum of angles at v over incident triangles, in the euclidean metric.
+def _build_flower_arrays(
+    vertices: list[Vertex],
+    update_verts: list[Vertex],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Pack incident-triangle data for the to-be-iterated vertices into padded arrays.
 
-    Each pair (r_u, r_w) represents an incident triangle (v, u, w) with
-    circles of radii (r_v, r_u, r_w) pairwise tangent.
-
-    Angle at v: alpha = 2*arcsin(sqrt(r_u * r_w / ((r_v + r_u) * (r_v + r_w)))).
+    Returns:
+        update_idx: (n_update,) int array indexing into ``vertices`` for the
+            vertices that will be iterated.
+        U, W: (n_update, max_deg) int arrays where row j lists the neighbor
+            indices of the j-th update vertex, padded with 0 past its degree.
+        valid: (n_update, max_deg) bool array marking real triangle slots.
+        degrees: (n_update,) int array of the per-vertex triangle counts.
     """
-    total = 0.0
-    for r_u, r_w in neighbor_pairs:
-        ratio = (r_u * r_w) / ((r_v + r_u) * (r_v + r_w))
-        # numerical guard
-        ratio = max(0.0, min(1.0, ratio))
-        total += 2.0 * float(np.arcsin(np.sqrt(ratio)))
-    return total
+    idx_of = {v: i for i, v in enumerate(vertices)}
+    flowers = [_incident_triangles(v) for v in update_verts]
+    degrees_list = [len(f) for f in flowers]
+    if not degrees_list:
+        empty = np.zeros((0, 0), dtype=np.int64)
+        return (
+            np.zeros(0, dtype=np.int64),
+            empty,
+            empty,
+            np.zeros((0, 0), dtype=bool),
+            np.zeros(0, dtype=np.int64),
+        )
+    max_deg = max(degrees_list)
+    n = len(update_verts)
+    U = np.zeros((n, max_deg), dtype=np.int64)
+    W = np.zeros((n, max_deg), dtype=np.int64)
+    valid = np.zeros((n, max_deg), dtype=bool)
+    for j, pairs in enumerate(flowers):
+        for k, (u, w) in enumerate(pairs):
+            U[j, k] = idx_of[u]
+            W[j, k] = idx_of[w]
+            valid[j, k] = True
+    update_idx = np.fromiter((idx_of[v] for v in update_verts), dtype=np.int64, count=n)
+    degrees = np.asarray(degrees_list, dtype=np.int64)
+    return update_idx, U, W, valid, degrees
 
 
-def _bowers_stephenson_update(
-    r_v: float,
-    neighbor_pairs: list[tuple[float, float]],
-    target: float = 2 * np.pi,
-) -> float:
-    """One Bowers-Stephenson update step for r_v with the uniform-neighbor heuristic."""
-    n = len(neighbor_pairs)
-    theta = _euclidean_angle_sum(r_v, neighbor_pairs)
-    # uniform-neighbor radius reproducing current angle sum
-    s = float(np.sin(theta / (2 * n)))
-    if s >= 1.0:
-        # Degenerate; fall back to a small step toward smaller r_v.
-        return r_v * 0.5
-    r_hat = r_v * s / (1.0 - s)
-    # radius that would give target angle sum with uniform neighbors
-    s_target = float(np.sin(target / (2 * n)))
-    return r_hat * (1.0 - s_target) / s_target
+def _euclidean_angle_sums_vec(
+    r: np.ndarray,
+    update_idx: np.ndarray,
+    U: np.ndarray,
+    W: np.ndarray,
+    valid: np.ndarray,
+) -> np.ndarray:
+    """Vectorized euclidean angle sum at each update vertex.
+
+    For each triangle (v, u, w): angle at v = 2 arcsin(sqrt(r_u r_w / ((r_v+r_u)(r_v+r_w)))).
+    """
+    r_v = r[update_idx][:, None]
+    r_u = r[U]
+    r_w = r[W]
+    denom = (r_v + r_u) * (r_v + r_w)
+    # padding slots have denom = 4 r_v^2 (nonzero), but valid mask zeros them out below.
+    ratio = (r_u * r_w) / denom
+    np.clip(ratio, 0.0, 1.0, out=ratio)
+    angles = 2.0 * np.arcsin(np.sqrt(ratio))
+    angles *= valid
+    return angles.sum(axis=1)
+
+
+def _bowers_stephenson_euclidean_update_vec(
+    r_v: np.ndarray,
+    theta: np.ndarray,
+    degrees: np.ndarray,
+    targets: np.ndarray,
+) -> np.ndarray:
+    """Vectorized euclidean Bowers-Stephenson update.
+
+    r_v: (n,) current radii of update vertices.
+    theta: (n,) current angle sums.
+    degrees: (n,) flower sizes.
+    targets: (n,) target angle sums (typically 2π for interior).
+    """
+    s = np.sin(theta / (2.0 * degrees))
+    # Degenerate: s >= 1 means total angle ≥ N·π, can only happen with broken init.
+    # Fall back to halving r_v (matches scalar fallback).
+    safe = s < 1.0
+    s_safe = np.where(safe, s, 0.5)
+    r_hat = r_v * s_safe / (1.0 - s_safe)
+    s_target = np.sin(targets / (2.0 * degrees))
+    new_r = r_hat * (1.0 - s_target) / s_target
+    return np.where(safe, new_r, r_v * 0.5)
+
+
+def _hyperbolic_angle_sums_vec(
+    x: np.ndarray,
+    update_idx: np.ndarray,
+    U: np.ndarray,
+    W: np.ndarray,
+    valid: np.ndarray,
+) -> np.ndarray:
+    """Vectorized hyperbolic angle sum at each update vertex (x-radius parametrisation)."""
+    x_v = x[update_idx][:, None]
+    a_v = 1.0 - x_v
+    x_u = x[U]
+    x_w = x[W]
+    a_u = 1.0 - x_u
+    a_w = 1.0 - x_w
+    denom = (1.0 - a_v * a_w) * (1.0 - a_v * a_u)
+    num = a_v * x_u * x_w
+    # denom > 0 wherever the configuration is non-degenerate; numerator ≥ 0.
+    ratio = np.where(denom > 0.0, num / np.where(denom > 0.0, denom, 1.0), 1.0)
+    np.clip(ratio, 0.0, 1.0, out=ratio)
+    angles = 2.0 * np.arcsin(np.sqrt(ratio))
+    angles *= valid
+    return angles.sum(axis=1)
+
+
+def _bowers_stephenson_hyperbolic_update_vec(
+    x_v: np.ndarray,
+    theta: np.ndarray,
+    degrees: np.ndarray,
+    targets: np.ndarray,
+) -> np.ndarray:
+    """Vectorized hyperbolic Bowers-Stephenson update in x-radius parametrisation.
+
+    Mirrors the euclidean Bowers-Stephenson trick: invert the uniform-neighbor
+    formula to recover an effective horocyclic offset ``u_hat = 1 - x_hat``
+    from the current angle sum, then solve for the new ``x_v`` that hits the
+    target angle sum against those uniform neighbours.
+
+    For one triangle (v, u, u) with all-uniform u-radius and angle α at v::
+
+        sin(α/2) = sqrt(1 − x_v) · (1 − u_hat) / (1 − (1 − x_v) u_hat)
+
+    Step 1 solves this for u_hat given current α; step 2 solves a quadratic in
+    ``w = sqrt(1 − x_v_new)`` to hit the target angle.
+    """
+    n = degrees.astype(float)
+    # Numerical floor: x_v ∈ (eps, 1-eps), so v = sqrt(1 - x_v) > 0.
+    v_sqrt = np.sqrt(np.clip(1.0 - x_v, 0.0, 1.0))
+
+    s_cur = np.sin(theta / (2.0 * n))
+    # Step 1: u_hat = (v - s) / (v (1 - s v))
+    # Fallback when v - s < 0 (theta too large for uniform-neighbor consistency)
+    # or denominator non-positive: clamp u_hat to a small positive value, which
+    # forces neighbors toward horocyclic — the BS update then pulls x_v down.
+    denom1 = v_sqrt * (1.0 - s_cur * v_sqrt)
+    u_hat = np.where((denom1 > 1e-300) & (v_sqrt > s_cur), (v_sqrt - s_cur) / np.where(denom1 > 0, denom1, 1.0), 0.0)
+    np.clip(u_hat, 0.0, 1.0 - 1e-14, out=u_hat)
+
+    # Step 2: solve s_t (1 - a_v u_hat) = sqrt(a_v) (1 - u_hat) for a_v.
+    # Quadratic in w = sqrt(a_v):  (s_t u_hat) w^2 + (1 - u_hat) w - s_t = 0.
+    # Stable positive root: w = 2 s_t / ((1 - u_hat) + sqrt((1 - u_hat)^2 + 4 s_t^2 u_hat)).
+    s_t = np.sin(targets / (2.0 * n))
+    one_minus_u = 1.0 - u_hat
+    disc = np.sqrt(one_minus_u * one_minus_u + 4.0 * s_t * s_t * u_hat)
+    w_new = 2.0 * s_t / (one_minus_u + disc)
+    a_new = w_new * w_new
+    x_new = 1.0 - a_new
+    # Clamp to the open interval used downstream by the layout / solver.
+    np.clip(x_new, 1e-14, 1.0 - 1e-14, out=x_new)
+    return x_new
+
+
+# ---------------------------------------------------------------------------
+# Stephenson superstep acceleration
+# ---------------------------------------------------------------------------
+
+# Maximum bad-cut retries inside a single BS pass before giving up on the
+# superstep for that outer iteration. Matches CirclePack's default.
+_MAX_BAD_CUTS = 10
+
+
+def _iterate_with_superstep(
+    r_arr: np.ndarray,
+    update_idx: np.ndarray,
+    U_arr: np.ndarray,
+    W_arr: np.ndarray,
+    valid_arr: np.ndarray,
+    degrees_arr: np.ndarray,
+    targets_arr: np.ndarray,
+    angle_sum_fn: Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray], np.ndarray],
+    bs_update_fn: Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray], np.ndarray],
+    tol: float,
+    max_iter: int,
+    max_value: float = float("inf"),
+) -> tuple[int, float, bool]:
+    """Bowers-Stephenson iteration with Collins-Stephenson superstep acceleration.
+
+    Faithful Jacobi-vectorised port of CirclePack's ``EuclPacker.continueRiffle``
+    (Collins & Stephenson, *Comput. Geom.* 25 (2003) 233-256, §3): each outer
+    step does a BS pass, then over-relaxes radii along the direction of the
+    last pass, then does another BS pass — accepting or reverting based on
+    actual vs. predicted error reduction.
+
+    ``r_arr`` is mutated in place. Boundary radii (entries outside
+    ``update_idx``) are never touched. ``max_value`` caps the superstep
+    extrapolation so that updated radii stay in ``(0, max_value)`` — set to
+    ``1.0`` for the hyperbolic x-radius parametrisation (the default
+    ``inf`` is appropriate for the unbounded euclidean radii). Returns
+    ``(iterations, max_defect, converged)`` where ``max_defect`` is the
+    angle-defect L∞ norm on the final iterate.
+    """
+    if update_idx.size == 0:
+        return 0, 0.0, True
+
+    theta = angle_sum_fn(r_arr, update_idx, U_arr, W_arr, valid_arr)
+    max_defect = float(np.max(np.abs(theta - targets_arr)))
+    if max_defect < tol:
+        return 0, max_defect, True
+
+    # === Bootstrap pass (analogue of CirclePack startRiffle) ===
+    accumErr2 = float(np.sqrt(np.sum((theta - targets_arr) ** 2)))
+    r_arr[update_idx] = bs_update_fn(r_arr[update_idx], theta, degrees_arr, targets_arr)
+
+    m = 1.0
+    sct = 1
+    key = 1  # current superstep type
+
+    iter_count = 1
+    while iter_count < max_iter:
+        # Convergence check on whatever state the previous step left us in.
+        theta = angle_sum_fn(r_arr, update_idx, U_arr, W_arr, valid_arr)
+        max_defect = float(np.max(np.abs(theta - targets_arr)))
+        if max_defect < tol:
+            return iter_count, max_defect, True
+
+        # === Pass 1 (with bad-cut retries) ===
+        R1 = r_arr[update_idx].copy()
+        c1 = float(np.sqrt(np.sum((theta - targets_arr) ** 2)))
+        r_arr[update_idx] = bs_update_fn(r_arr[update_idx], theta, degrees_arr, targets_arr)
+        iter_count += 1
+        factor = c1 / accumErr2 if accumErr2 > 0.0 else 0.0
+
+        num_bad_cuts = 0
+        while factor >= 1.0 and iter_count < max_iter:
+            accumErr2 = c1
+            key = 1
+            num_bad_cuts += 1
+            if num_bad_cuts > _MAX_BAD_CUTS:
+                break
+            theta = angle_sum_fn(r_arr, update_idx, U_arr, W_arr, valid_arr)
+            c1 = float(np.sqrt(np.sum((theta - targets_arr) ** 2)))
+            r_arr[update_idx] = bs_update_fn(r_arr[update_idx], theta, degrees_arr, targets_arr)
+            iter_count += 1
+            factor = c1 / accumErr2 if accumErr2 > 0.0 else 0.0
+            # If c1 is already below tol, the next outer-loop convergence check will pick it up.
+
+        if num_bad_cuts > _MAX_BAD_CUTS or factor >= 1.0:
+            # Skip superstep this iteration and try again next outer pass.
+            accumErr2 = c1
+            continue
+
+        # === Superstep extrapolation ===
+        R2 = r_arr[update_idx].copy()
+        diff = R2 - R1
+        # Cap lambda so the extrapolated radii stay inside (0, max_value): if
+        # diff < 0, R2 + λ·diff > 0 requires λ < -R2/diff; if diff > 0 and
+        # max_value is finite, R2 + λ·diff < max_value requires
+        # λ < (max_value - R2)/diff. CirclePack additionally halves the cap
+        # for safety.
+        lmax = 1.0e4
+        shrinking = diff < 0.0
+        if shrinking.any():
+            lmax = min(lmax, float(np.min(-R2[shrinking] / diff[shrinking])))
+        if np.isfinite(max_value):
+            growing = diff > 0.0
+            if growing.any():
+                lmax = min(lmax, float(np.min((max_value - R2[growing]) / diff[growing])))
+        lmax = lmax / 2.0
+
+        if key == 1:
+            lambda_ = m * factor
+            mmax = 0.75 / (1.0 - factor)
+            mm = (1.0 + 0.8 / (sct + 1)) * m
+            m = mmax if mmax < mm else mm
+        else:
+            # CirclePack's Type-2 branch reduces (in this codebase) to lambda = factor.
+            lambda_ = factor
+
+        if lambda_ > lmax:
+            lambda_ = lmax
+        if lambda_ < 0.0:
+            lambda_ = 0.0
+
+        r_arr[update_idx] = R2 + lambda_ * diff
+        sct += 1
+
+        # === Pass 2 on extrapolated radii ===
+        theta = angle_sum_fn(r_arr, update_idx, U_arr, W_arr, valid_arr)
+        new_accumErr2 = float(np.sqrt(np.sum((theta - targets_arr) ** 2)))
+        r_arr[update_idx] = bs_update_fn(r_arr[update_idx], theta, degrees_arr, targets_arr)
+        iter_count += 1
+
+        # Acceptance: predicted improvement = factor^lambda_; actual = new_accumErr2/c1.
+        pred = factor**lambda_
+        act = new_accumErr2 / c1 if c1 > 0.0 else 0.0
+
+        if act < 1.0:
+            if act > pred:
+                # Some progress, but under-delivered: drop multiplier and flip key 1 → 2.
+                m = 1.0
+                sct = 0
+                if key == 1:
+                    key = 2
+            accumErr2 = new_accumErr2
+        else:
+            # No improvement from the extrapolation — roll radii back to R2.
+            m = 1.0
+            sct = 0
+            r_arr[update_idx] = R2
+            accumErr2 = c1
+            if key == 2:
+                key = 1
+
+    # Out of iterations: report the latest state's defect.
+    theta = angle_sum_fn(r_arr, update_idx, U_arr, W_arr, valid_arr)
+    max_defect = float(np.max(np.abs(theta - targets_arr)))
+    return iter_count, max_defect, max_defect < tol
 
 
 # ---------------------------------------------------------------------------
@@ -470,31 +749,31 @@ def pack_euclidean(
             else:
                 radii[v] = boundary_mean
 
-    flower_neighbors: dict[Vertex, list[tuple[Vertex, Vertex]]] = {v: _incident_triangles(v) for v in update_verts}
+    all_vertices = list(P.vertices)
+    idx_of = {v: i for i, v in enumerate(all_vertices)}
+    r_arr = np.fromiter((radii[v] for v in all_vertices), dtype=float, count=len(all_vertices))
+    update_idx, U_arr, W_arr, valid_arr, degrees_arr = _build_flower_arrays(all_vertices, update_verts)
+    targets_arr = np.fromiter((targets[v] for v in update_verts), dtype=float, count=len(update_verts))
 
-    converged = False
-    final_defect = float("inf")
-    for _iteration in range(max_iter):
-        max_defect = 0.0
-        for v in update_verts:
-            pairs = flower_neighbors[v]
-            neighbor_radii = [(radii[u], radii[w]) for (u, w) in pairs]
-            target = targets[v]
-            theta = _euclidean_angle_sum(radii[v], neighbor_radii)
-            defect = abs(theta - target)
-            if defect > max_defect:
-                max_defect = defect
-            radii[v] = _bowers_stephenson_update(radii[v], neighbor_radii, target=target)
-        if max_defect < tol:
-            converged = True
-            final_defect = max_defect
-            break
-        final_defect = max_defect
+    _, final_defect, converged = _iterate_with_superstep(
+        r_arr,
+        update_idx,
+        U_arr,
+        W_arr,
+        valid_arr,
+        degrees_arr,
+        targets_arr,
+        _euclidean_angle_sums_vec,
+        _bowers_stephenson_euclidean_update_vec,
+        tol,
+        max_iter,
+    )
     if not converged:
         raise ConvergenceError(
             f"pack_euclidean: did not converge in {max_iter} iterations; "
             f"final max angle defect = {final_defect:.3e}"
         )
+    radii = {v: float(r_arr[i]) for v, i in idx_of.items()}
 
     # Choose anchors
     if alpha is None:
@@ -547,26 +826,6 @@ def _hyperbolic_angle_sum(x_v: float, neighbor_pairs: list[tuple[float, float]])
     return total
 
 
-def _solve_x_for_target_angle(neighbor_pairs: list[tuple[float, float]], target: float) -> float:
-    """Solve for x_v in (0, 1) such that the hyperbolic angle sum at v equals target.
-
-    Angle sum is monotonically decreasing in x_v, ranging from N*pi at x_v=0+
-    to 0 at x_v=1 (horocycle). For target=2*pi we need at least 3 incident
-    triangles (otherwise no solution exists).
-    """
-
-    def f(x: float) -> float:
-        return _hyperbolic_angle_sum(x, neighbor_pairs) - target
-
-    lo, hi = 1e-14, 1.0 - 1e-14
-    f_lo = f(lo)
-    f_hi = f(hi)
-    if f_lo * f_hi > 0:
-        # No bracket — degenerate case. Return whichever endpoint is closer to target.
-        return lo if abs(f_lo) < abs(f_hi) else hi
-    return float(brentq(f, lo, hi, xtol=1e-15, rtol=1e-14))
-
-
 # ---------------------------------------------------------------------------
 # Hyperbolic layout in euclidean Poincaré-disk coordinates
 # ---------------------------------------------------------------------------
@@ -616,52 +875,118 @@ def _place_third_circle(c_a: complex, r_a: float, c_b: complex, r_b: float, x_c:
     between (c_C, r_C) and x_C. Returns the CCW-side solution (i.e., c_C is
     to the left of the directed segment c_A -> c_B).
 
-    For horocycles (x_c = 1.0), the coupling becomes |c_C| + r_C = 1.
+    For horocycles (``x_c = 1.0``), the coupling reduces to ``|c_C| + r_C = 1``.
+
+    Closed-form solve: parametrise ``c_C`` by ``r_C`` via the euclidean law of
+    cosines for the triangle ``(c_A, c_B, c_C)`` and substitute into the
+    x-radius equation ``|c_C|² = (1 + r_C)² − 4 r_C / x_c``. With
+    ``sin α = 2√T / ((r_A+r_B)(r_A+r_C))`` where ``T = r_A r_B r_C (r_A+r_B+r_C)``
+    (Heron's identity for a tangent-circle triangle), this collapses to a
+    quadratic in ``r_C``. The CCW-side root is selected by the sign of the
+    auxiliary linear function ``P(r_C)``.
     """
-    d_ab = float(abs(c_b - c_a))
+    delta = c_b - c_a
+    d_ab = abs(delta)
+    if d_ab == 0.0:
+        raise ValueError("_place_third_circle: c_a and c_b coincide.")
+    # rot = c_a · conj(delta) / d_ab = A + i B
+    rot = c_a * delta.conjugate() / d_ab
+    A = rot.real
+    B = rot.imag
+    abs_c_a2 = c_a.real * c_a.real + c_a.imag * c_a.imag
+    rab = r_a + r_b
 
-    def c_of_r(r: float) -> complex:
-        d_A = r_a + r
-        d_B = r_b + r
-        # Angle at c_a in triangle (c_a, c_b, c_c) by euclidean law of cosines.
-        cos_alpha = (d_ab * d_ab + d_A * d_A - d_B * d_B) / (2.0 * d_ab * d_A)
-        cos_alpha = max(-1.0, min(1.0, cos_alpha))
-        sin_alpha = float(np.sqrt(max(0.0, 1.0 - cos_alpha * cos_alpha)))
-        u = (c_b - c_a) / d_ab  # unit vector along c_a -> c_b
-        # Rotate by +alpha (CCW) to get unit direction c_a -> c_c.
-        v = u * complex(cos_alpha, sin_alpha)
-        return c_a + d_A * v
+    # P(r) = P0 + P1 r  is the residual of |c_C|^2 = (1+r)^2 - 4 r / x_c with the
+    # α-independent terms collected and the (sin α)-coefficient moved to the
+    # other side of the equation. Then P(r) = -4 B √T(r); squaring gives a
+    # quadratic.
+    p0 = rab * (abs_c_a2 + r_a * r_a - 1.0 + 2.0 * A * r_a)
+    p1 = 2.0 * rab * (r_a - 1.0) + 4.0 * rab / x_c + 2.0 * A * (r_a - r_b)
+    aa = p1 * p1 - 16.0 * B * B * r_a * r_b
+    bb = 2.0 * p0 * p1 - 16.0 * B * B * r_a * r_b * rab
+    cc = p0 * p0
 
-    if x_c >= 1.0:
-        # Horocycle: solve |c(r)| + r = 1.
-        def f(r: float) -> float:
-            return abs(c_of_r(r)) + r - 1.0
-
+    if abs(aa) < 1e-300:
+        if abs(bb) < 1e-300:
+            raise ValueError("_place_third_circle: degenerate quadratic (a = b = 0).")
+        r_c = -cc / bb
     else:
-        # Interior: solve 4 r / ((1+r)^2 - |c|^2) = x_c.
-        def f(r: float) -> float:
-            c = c_of_r(r)
-            abs_c2 = float(c.real * c.real + c.imag * c.imag)
-            denom = (1.0 + r) ** 2 - abs_c2
-            if denom <= 0.0:
-                # |c| + r >= 1 — outside Poincaré-valid range; signal "too far".
-                return 1.0 - x_c
-            return 4.0 * r / denom - x_c
+        disc = bb * bb - 4.0 * aa * cc
+        if disc < 0.0:
+            # Tiny negative from FP noise — clamp; large negative means real
+            # geometric infeasibility.
+            if disc < -1e-12 * max(1.0, abs(bb * bb)):
+                raise ValueError(f"_place_third_circle: no real solution (disc={disc:.3e}, x_c={x_c}).")
+            disc = 0.0
+        sq = np.sqrt(disc)
+        r1 = (-bb + sq) / (2.0 * aa)
+        r2 = (-bb - sq) / (2.0 * aa)
+        # Pick the positive root whose P(r) has sign matching the CCW branch
+        # (P = -4 B √T, so sign(P) = -sign(B)).
+        candidates: list[float] = []
+        for r in (r1, r2):
+            if r <= 1e-15:
+                continue
+            if B == 0.0:
+                candidates.append(r)
+                continue
+            pval = p0 + p1 * r
+            if pval * (-B) >= -1e-12 * max(1.0, abs(pval)):
+                candidates.append(r)
+        if not candidates:
+            # Sign disambiguation failed: fall back to any positive root.
+            candidates = [r for r in (r1, r2) if r > 0.0]
+        if not candidates:
+            raise ValueError(f"_place_third_circle: no positive root (roots: {r1}, {r2}, x_c={x_c}).")
+        r_c = min(candidates)
 
-    # Bracket. f(lo) is negative (tiny r → tiny x or |c|+r < 1); f(hi) becomes
-    # positive once r is large enough. As r → ∞, f → (2 - x_c) > 0 for x_c <= 1.
-    lo = 1e-14
-    hi = 1.0
-    f_lo = f(lo)
-    if f_lo > 0:
-        # Tangency-point T already outside what x_c allows — degenerate config.
-        raise ValueError(f"_place_third_circle: degenerate configuration (f(lo)={f_lo}, x_c={x_c}).")
-    while f(hi) <= 0:
-        hi *= 2.0
-        if hi > 1e8:
-            raise RuntimeError("Failed to bracket the root in _place_third_circle.")
-    r = float(brentq(f, lo, hi, xtol=1e-15, rtol=1e-14))
-    return c_of_r(r), r
+    u = delta / d_ab
+
+    # Polish r_c with one Newton step on the original constraint. The squared
+    # quadratic above carries ~1e-8 cancellation error in some configurations;
+    # one Newton step using a finite-difference derivative recovers near
+    # machine precision at a cost of two extra residual evaluations.
+    def _residual(r: float) -> float:
+        p_ = r_a + r
+        T_ = r_a * r_b * r * (r_a + r_b + r)
+        if T_ < 0.0:
+            T_ = 0.0
+        cos_a = (r_a * (r_a + r_b + r) - r_b * r) / (rab * p_)
+        if cos_a > 1.0:
+            cos_a = 1.0
+        elif cos_a < -1.0:
+            cos_a = -1.0
+        sin_a = 2.0 * math.sqrt(T_) / (rab * p_)
+        c_local = c_a + p_ * u * complex(cos_a, sin_a)
+        abs_c2 = c_local.real * c_local.real + c_local.imag * c_local.imag
+        if x_c >= 1.0:
+            return math.sqrt(abs_c2) + r - 1.0
+        denom = (1.0 + r) * (1.0 + r) - abs_c2
+        if denom <= 0.0:
+            return 1.0 - x_c
+        return 4.0 * r / denom - x_c
+
+    f_val = _residual(r_c)
+    h_step = max(1e-12, r_c * 1e-7)
+    df = (_residual(r_c + h_step) - _residual(r_c - h_step)) / (2.0 * h_step)
+    if df != 0.0 and math.isfinite(df):
+        step = f_val / df
+        if math.isfinite(step) and abs(step) < r_c:
+            r_c -= step
+
+    # Recover c_c via law of cosines. Heron's identity for tangent-circle
+    # triangles gives sin α directly, avoiding sqrt(1 − cos² α) cancellation
+    # when α is small.
+    p = r_a + r_c
+    T = r_a * r_b * r_c * (r_a + r_b + r_c)
+    cos_alpha = (r_a * (r_a + r_b + r_c) - r_b * r_c) / (rab * p)
+    if cos_alpha > 1.0:
+        cos_alpha = 1.0
+    elif cos_alpha < -1.0:
+        cos_alpha = -1.0
+    sin_alpha = 2.0 * math.sqrt(max(0.0, T)) / (rab * p)
+    c_c = c_a + p * u * complex(cos_alpha, sin_alpha)
+    return c_c, r_c
 
 
 def _layout_hyperbolic(
@@ -798,30 +1123,32 @@ def pack_hyperbolic(
             x_radii[v] = 0.5
 
     interior_verts = [v for v in P.vertices if v not in boundary_set]
-    flower_neighbors: dict[Vertex, list[tuple[Vertex, Vertex]]] = {v: _incident_triangles(v) for v in interior_verts}
+    all_vertices = list(P.vertices)
+    idx_of = {v: i for i, v in enumerate(all_vertices)}
+    x_arr = np.fromiter((x_radii[v] for v in all_vertices), dtype=float, count=len(all_vertices))
+    update_idx, U_arr, W_arr, valid_arr, degrees_arr = _build_flower_arrays(all_vertices, interior_verts)
+    targets_arr = np.full(len(interior_verts), 2.0 * np.pi, dtype=float)
 
-    converged = False
-    final_defect = float("inf")
-    for _iteration in range(max_iter):
-        max_defect = 0.0
-        for v in interior_verts:
-            pairs = flower_neighbors[v]
-            neighbor_xs = [(x_radii[u], x_radii[w]) for (u, w) in pairs]
-            theta = _hyperbolic_angle_sum(x_radii[v], neighbor_xs)
-            defect = abs(theta - 2 * np.pi)
-            if defect > max_defect:
-                max_defect = defect
-            x_radii[v] = _solve_x_for_target_angle(neighbor_xs, 2 * np.pi)
-        if max_defect < tol:
-            converged = True
-            final_defect = max_defect
-            break
-        final_defect = max_defect
+    _, final_defect, converged = _iterate_with_superstep(
+        x_arr,
+        update_idx,
+        U_arr,
+        W_arr,
+        valid_arr,
+        degrees_arr,
+        targets_arr,
+        _hyperbolic_angle_sums_vec,
+        _bowers_stephenson_hyperbolic_update_vec,
+        tol,
+        max_iter,
+        max_value=1.0,
+    )
     if not converged:
         raise ConvergenceError(
             f"pack_hyperbolic: did not converge in {max_iter} iterations; "
             f"final max angle defect = {final_defect:.3e}"
         )
+    x_radii = {v: float(x_arr[i]) for v, i in idx_of.items()}
 
     if alpha is None:
         alpha = _choose_alpha(P)
