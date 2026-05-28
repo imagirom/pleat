@@ -239,6 +239,170 @@ def _bowers_stephenson_update(
 
 
 # ---------------------------------------------------------------------------
+# Vectorized flower indexing
+# ---------------------------------------------------------------------------
+
+
+def _build_flower_arrays(
+    vertices: list[Vertex],
+    update_verts: list[Vertex],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Pack incident-triangle data for the to-be-iterated vertices into padded arrays.
+
+    Returns:
+        update_idx: (n_update,) int array indexing into ``vertices`` for the
+            vertices that will be iterated.
+        U, W: (n_update, max_deg) int arrays where row j lists the neighbor
+            indices of the j-th update vertex, padded with 0 past its degree.
+        valid: (n_update, max_deg) bool array marking real triangle slots.
+        degrees: (n_update,) int array of the per-vertex triangle counts.
+    """
+    idx_of = {v: i for i, v in enumerate(vertices)}
+    flowers = [_incident_triangles(v) for v in update_verts]
+    degrees_list = [len(f) for f in flowers]
+    if not degrees_list:
+        empty = np.zeros((0, 0), dtype=np.int64)
+        return (
+            np.zeros(0, dtype=np.int64),
+            empty,
+            empty,
+            np.zeros((0, 0), dtype=bool),
+            np.zeros(0, dtype=np.int64),
+        )
+    max_deg = max(degrees_list)
+    n = len(update_verts)
+    U = np.zeros((n, max_deg), dtype=np.int64)
+    W = np.zeros((n, max_deg), dtype=np.int64)
+    valid = np.zeros((n, max_deg), dtype=bool)
+    for j, pairs in enumerate(flowers):
+        for k, (u, w) in enumerate(pairs):
+            U[j, k] = idx_of[u]
+            W[j, k] = idx_of[w]
+            valid[j, k] = True
+    update_idx = np.fromiter((idx_of[v] for v in update_verts), dtype=np.int64, count=n)
+    degrees = np.asarray(degrees_list, dtype=np.int64)
+    return update_idx, U, W, valid, degrees
+
+
+def _euclidean_angle_sums_vec(
+    r: np.ndarray,
+    update_idx: np.ndarray,
+    U: np.ndarray,
+    W: np.ndarray,
+    valid: np.ndarray,
+) -> np.ndarray:
+    """Vectorized euclidean angle sum at each update vertex.
+
+    For each triangle (v, u, w): angle at v = 2 arcsin(sqrt(r_u r_w / ((r_v+r_u)(r_v+r_w)))).
+    """
+    r_v = r[update_idx][:, None]
+    r_u = r[U]
+    r_w = r[W]
+    denom = (r_v + r_u) * (r_v + r_w)
+    # padding slots have denom = 4 r_v^2 (nonzero), but valid mask zeros them out below.
+    ratio = (r_u * r_w) / denom
+    np.clip(ratio, 0.0, 1.0, out=ratio)
+    angles = 2.0 * np.arcsin(np.sqrt(ratio))
+    angles *= valid
+    return angles.sum(axis=1)
+
+
+def _bowers_stephenson_euclidean_update_vec(
+    r_v: np.ndarray,
+    theta: np.ndarray,
+    degrees: np.ndarray,
+    targets: np.ndarray,
+) -> np.ndarray:
+    """Vectorized euclidean Bowers-Stephenson update.
+
+    r_v: (n,) current radii of update vertices.
+    theta: (n,) current angle sums.
+    degrees: (n,) flower sizes.
+    targets: (n,) target angle sums (typically 2π for interior).
+    """
+    s = np.sin(theta / (2.0 * degrees))
+    # Degenerate: s >= 1 means total angle ≥ N·π, can only happen with broken init.
+    # Fall back to halving r_v (matches scalar fallback).
+    safe = s < 1.0
+    s_safe = np.where(safe, s, 0.5)
+    r_hat = r_v * s_safe / (1.0 - s_safe)
+    s_target = np.sin(targets / (2.0 * degrees))
+    new_r = r_hat * (1.0 - s_target) / s_target
+    return np.where(safe, new_r, r_v * 0.5)
+
+
+def _hyperbolic_angle_sums_vec(
+    x: np.ndarray,
+    update_idx: np.ndarray,
+    U: np.ndarray,
+    W: np.ndarray,
+    valid: np.ndarray,
+) -> np.ndarray:
+    """Vectorized hyperbolic angle sum at each update vertex (x-radius parametrisation)."""
+    x_v = x[update_idx][:, None]
+    a_v = 1.0 - x_v
+    x_u = x[U]
+    x_w = x[W]
+    a_u = 1.0 - x_u
+    a_w = 1.0 - x_w
+    denom = (1.0 - a_v * a_w) * (1.0 - a_v * a_u)
+    num = a_v * x_u * x_w
+    # denom > 0 wherever the configuration is non-degenerate; numerator ≥ 0.
+    ratio = np.where(denom > 0.0, num / np.where(denom > 0.0, denom, 1.0), 1.0)
+    np.clip(ratio, 0.0, 1.0, out=ratio)
+    angles = 2.0 * np.arcsin(np.sqrt(ratio))
+    angles *= valid
+    return angles.sum(axis=1)
+
+
+def _bowers_stephenson_hyperbolic_update_vec(
+    x_v: np.ndarray,
+    theta: np.ndarray,
+    degrees: np.ndarray,
+    targets: np.ndarray,
+) -> np.ndarray:
+    """Vectorized hyperbolic Bowers-Stephenson update in x-radius parametrisation.
+
+    Mirrors the euclidean Bowers-Stephenson trick: invert the uniform-neighbor
+    formula to recover an effective horocyclic offset ``u_hat = 1 - x_hat``
+    from the current angle sum, then solve for the new ``x_v`` that hits the
+    target angle sum against those uniform neighbours.
+
+    For one triangle (v, u, u) with all-uniform u-radius and angle α at v::
+
+        sin(α/2) = sqrt(1 − x_v) · (1 − u_hat) / (1 − (1 − x_v) u_hat)
+
+    Step 1 solves this for u_hat given current α; step 2 solves a quadratic in
+    ``w = sqrt(1 − x_v_new)`` to hit the target angle.
+    """
+    n = degrees.astype(float)
+    # Numerical floor: x_v ∈ (eps, 1-eps), so v = sqrt(1 - x_v) > 0.
+    v_sqrt = np.sqrt(np.clip(1.0 - x_v, 0.0, 1.0))
+
+    s_cur = np.sin(theta / (2.0 * n))
+    # Step 1: u_hat = (v - s) / (v (1 - s v))
+    # Fallback when v - s < 0 (theta too large for uniform-neighbor consistency)
+    # or denominator non-positive: clamp u_hat to a small positive value, which
+    # forces neighbors toward horocyclic — the BS update then pulls x_v down.
+    denom1 = v_sqrt * (1.0 - s_cur * v_sqrt)
+    u_hat = np.where((denom1 > 1e-300) & (v_sqrt > s_cur), (v_sqrt - s_cur) / np.where(denom1 > 0, denom1, 1.0), 0.0)
+    np.clip(u_hat, 0.0, 1.0 - 1e-14, out=u_hat)
+
+    # Step 2: solve s_t (1 - a_v u_hat) = sqrt(a_v) (1 - u_hat) for a_v.
+    # Quadratic in w = sqrt(a_v):  (s_t u_hat) w^2 + (1 - u_hat) w - s_t = 0.
+    # Stable positive root: w = 2 s_t / ((1 - u_hat) + sqrt((1 - u_hat)^2 + 4 s_t^2 u_hat)).
+    s_t = np.sin(targets / (2.0 * n))
+    one_minus_u = 1.0 - u_hat
+    disc = np.sqrt(one_minus_u * one_minus_u + 4.0 * s_t * s_t * u_hat)
+    w_new = 2.0 * s_t / (one_minus_u + disc)
+    a_new = w_new * w_new
+    x_new = 1.0 - a_new
+    # Clamp to the open interval used downstream by the layout / solver.
+    np.clip(x_new, 1e-14, 1.0 - 1e-14, out=x_new)
+    return x_new
+
+
+# ---------------------------------------------------------------------------
 # Layout (BFS over faces)
 # ---------------------------------------------------------------------------
 
@@ -470,31 +634,28 @@ def pack_euclidean(
             else:
                 radii[v] = boundary_mean
 
-    flower_neighbors: dict[Vertex, list[tuple[Vertex, Vertex]]] = {v: _incident_triangles(v) for v in update_verts}
+    all_vertices = list(P.vertices)
+    idx_of = {v: i for i, v in enumerate(all_vertices)}
+    r_arr = np.fromiter((radii[v] for v in all_vertices), dtype=float, count=len(all_vertices))
+    update_idx, U_arr, W_arr, valid_arr, degrees_arr = _build_flower_arrays(all_vertices, update_verts)
+    targets_arr = np.fromiter((targets[v] for v in update_verts), dtype=float, count=len(update_verts))
 
     converged = False
     final_defect = float("inf")
     for _iteration in range(max_iter):
-        max_defect = 0.0
-        for v in update_verts:
-            pairs = flower_neighbors[v]
-            neighbor_radii = [(radii[u], radii[w]) for (u, w) in pairs]
-            target = targets[v]
-            theta = _euclidean_angle_sum(radii[v], neighbor_radii)
-            defect = abs(theta - target)
-            if defect > max_defect:
-                max_defect = defect
-            radii[v] = _bowers_stephenson_update(radii[v], neighbor_radii, target=target)
-        if max_defect < tol:
+        theta = _euclidean_angle_sums_vec(r_arr, update_idx, U_arr, W_arr, valid_arr)
+        defect = float(np.max(np.abs(theta - targets_arr))) if theta.size else 0.0
+        final_defect = defect
+        if defect < tol:
             converged = True
-            final_defect = max_defect
             break
-        final_defect = max_defect
+        r_arr[update_idx] = _bowers_stephenson_euclidean_update_vec(r_arr[update_idx], theta, degrees_arr, targets_arr)
     if not converged:
         raise ConvergenceError(
             f"pack_euclidean: did not converge in {max_iter} iterations; "
             f"final max angle defect = {final_defect:.3e}"
         )
+    radii = {v: float(r_arr[i]) for v, i in idx_of.items()}
 
     # Choose anchors
     if alpha is None:
@@ -798,30 +959,28 @@ def pack_hyperbolic(
             x_radii[v] = 0.5
 
     interior_verts = [v for v in P.vertices if v not in boundary_set]
-    flower_neighbors: dict[Vertex, list[tuple[Vertex, Vertex]]] = {v: _incident_triangles(v) for v in interior_verts}
+    all_vertices = list(P.vertices)
+    idx_of = {v: i for i, v in enumerate(all_vertices)}
+    x_arr = np.fromiter((x_radii[v] for v in all_vertices), dtype=float, count=len(all_vertices))
+    update_idx, U_arr, W_arr, valid_arr, degrees_arr = _build_flower_arrays(all_vertices, interior_verts)
+    targets_arr = np.full(len(interior_verts), 2.0 * np.pi, dtype=float)
 
     converged = False
     final_defect = float("inf")
     for _iteration in range(max_iter):
-        max_defect = 0.0
-        for v in interior_verts:
-            pairs = flower_neighbors[v]
-            neighbor_xs = [(x_radii[u], x_radii[w]) for (u, w) in pairs]
-            theta = _hyperbolic_angle_sum(x_radii[v], neighbor_xs)
-            defect = abs(theta - 2 * np.pi)
-            if defect > max_defect:
-                max_defect = defect
-            x_radii[v] = _solve_x_for_target_angle(neighbor_xs, 2 * np.pi)
-        if max_defect < tol:
+        theta = _hyperbolic_angle_sums_vec(x_arr, update_idx, U_arr, W_arr, valid_arr)
+        defect = float(np.max(np.abs(theta - targets_arr))) if theta.size else 0.0
+        final_defect = defect
+        if defect < tol:
             converged = True
-            final_defect = max_defect
             break
-        final_defect = max_defect
+        x_arr[update_idx] = _bowers_stephenson_hyperbolic_update_vec(x_arr[update_idx], theta, degrees_arr, targets_arr)
     if not converged:
         raise ConvergenceError(
             f"pack_hyperbolic: did not converge in {max_iter} iterations; "
             f"final max angle defect = {final_defect:.3e}"
         )
+    x_radii = {v: float(x_arr[i]) for v, i in idx_of.items()}
 
     if alpha is None:
         alpha = _choose_alpha(P)
