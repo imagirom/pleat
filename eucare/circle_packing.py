@@ -26,6 +26,7 @@ geometry) is obtained by composition::
 
 from __future__ import annotations
 
+import math
 from collections import deque
 from typing import Callable, Mapping
 
@@ -924,52 +925,118 @@ def _place_third_circle(c_a: complex, r_a: float, c_b: complex, r_b: float, x_c:
     between (c_C, r_C) and x_C. Returns the CCW-side solution (i.e., c_C is
     to the left of the directed segment c_A -> c_B).
 
-    For horocycles (x_c = 1.0), the coupling becomes |c_C| + r_C = 1.
+    For horocycles (``x_c = 1.0``), the coupling reduces to ``|c_C| + r_C = 1``.
+
+    Closed-form solve: parametrise ``c_C`` by ``r_C`` via the euclidean law of
+    cosines for the triangle ``(c_A, c_B, c_C)`` and substitute into the
+    x-radius equation ``|c_C|² = (1 + r_C)² − 4 r_C / x_c``. With
+    ``sin α = 2√T / ((r_A+r_B)(r_A+r_C))`` where ``T = r_A r_B r_C (r_A+r_B+r_C)``
+    (Heron's identity for a tangent-circle triangle), this collapses to a
+    quadratic in ``r_C``. The CCW-side root is selected by the sign of the
+    auxiliary linear function ``P(r_C)``.
     """
-    d_ab = float(abs(c_b - c_a))
+    delta = c_b - c_a
+    d_ab = abs(delta)
+    if d_ab == 0.0:
+        raise ValueError("_place_third_circle: c_a and c_b coincide.")
+    # rot = c_a · conj(delta) / d_ab = A + i B
+    rot = c_a * delta.conjugate() / d_ab
+    A = rot.real
+    B = rot.imag
+    abs_c_a2 = c_a.real * c_a.real + c_a.imag * c_a.imag
+    rab = r_a + r_b
 
-    def c_of_r(r: float) -> complex:
-        d_A = r_a + r
-        d_B = r_b + r
-        # Angle at c_a in triangle (c_a, c_b, c_c) by euclidean law of cosines.
-        cos_alpha = (d_ab * d_ab + d_A * d_A - d_B * d_B) / (2.0 * d_ab * d_A)
-        cos_alpha = max(-1.0, min(1.0, cos_alpha))
-        sin_alpha = float(np.sqrt(max(0.0, 1.0 - cos_alpha * cos_alpha)))
-        u = (c_b - c_a) / d_ab  # unit vector along c_a -> c_b
-        # Rotate by +alpha (CCW) to get unit direction c_a -> c_c.
-        v = u * complex(cos_alpha, sin_alpha)
-        return c_a + d_A * v
+    # P(r) = P0 + P1 r  is the residual of |c_C|^2 = (1+r)^2 - 4 r / x_c with the
+    # α-independent terms collected and the (sin α)-coefficient moved to the
+    # other side of the equation. Then P(r) = -4 B √T(r); squaring gives a
+    # quadratic.
+    p0 = rab * (abs_c_a2 + r_a * r_a - 1.0 + 2.0 * A * r_a)
+    p1 = 2.0 * rab * (r_a - 1.0) + 4.0 * rab / x_c + 2.0 * A * (r_a - r_b)
+    aa = p1 * p1 - 16.0 * B * B * r_a * r_b
+    bb = 2.0 * p0 * p1 - 16.0 * B * B * r_a * r_b * rab
+    cc = p0 * p0
 
-    if x_c >= 1.0:
-        # Horocycle: solve |c(r)| + r = 1.
-        def f(r: float) -> float:
-            return abs(c_of_r(r)) + r - 1.0
-
+    if abs(aa) < 1e-300:
+        if abs(bb) < 1e-300:
+            raise ValueError("_place_third_circle: degenerate quadratic (a = b = 0).")
+        r_c = -cc / bb
     else:
-        # Interior: solve 4 r / ((1+r)^2 - |c|^2) = x_c.
-        def f(r: float) -> float:
-            c = c_of_r(r)
-            abs_c2 = float(c.real * c.real + c.imag * c.imag)
-            denom = (1.0 + r) ** 2 - abs_c2
-            if denom <= 0.0:
-                # |c| + r >= 1 — outside Poincaré-valid range; signal "too far".
-                return 1.0 - x_c
-            return 4.0 * r / denom - x_c
+        disc = bb * bb - 4.0 * aa * cc
+        if disc < 0.0:
+            # Tiny negative from FP noise — clamp; large negative means real
+            # geometric infeasibility.
+            if disc < -1e-12 * max(1.0, abs(bb * bb)):
+                raise ValueError(f"_place_third_circle: no real solution (disc={disc:.3e}, x_c={x_c}).")
+            disc = 0.0
+        sq = np.sqrt(disc)
+        r1 = (-bb + sq) / (2.0 * aa)
+        r2 = (-bb - sq) / (2.0 * aa)
+        # Pick the positive root whose P(r) has sign matching the CCW branch
+        # (P = -4 B √T, so sign(P) = -sign(B)).
+        candidates: list[float] = []
+        for r in (r1, r2):
+            if r <= 1e-15:
+                continue
+            if B == 0.0:
+                candidates.append(r)
+                continue
+            pval = p0 + p1 * r
+            if pval * (-B) >= -1e-12 * max(1.0, abs(pval)):
+                candidates.append(r)
+        if not candidates:
+            # Sign disambiguation failed: fall back to any positive root.
+            candidates = [r for r in (r1, r2) if r > 0.0]
+        if not candidates:
+            raise ValueError(f"_place_third_circle: no positive root (roots: {r1}, {r2}, x_c={x_c}).")
+        r_c = min(candidates)
 
-    # Bracket. f(lo) is negative (tiny r → tiny x or |c|+r < 1); f(hi) becomes
-    # positive once r is large enough. As r → ∞, f → (2 - x_c) > 0 for x_c <= 1.
-    lo = 1e-14
-    hi = 1.0
-    f_lo = f(lo)
-    if f_lo > 0:
-        # Tangency-point T already outside what x_c allows — degenerate config.
-        raise ValueError(f"_place_third_circle: degenerate configuration (f(lo)={f_lo}, x_c={x_c}).")
-    while f(hi) <= 0:
-        hi *= 2.0
-        if hi > 1e8:
-            raise RuntimeError("Failed to bracket the root in _place_third_circle.")
-    r = float(brentq(f, lo, hi, xtol=1e-15, rtol=1e-14))
-    return c_of_r(r), r
+    u = delta / d_ab
+
+    # Polish r_c with one Newton step on the original constraint. The squared
+    # quadratic above carries ~1e-8 cancellation error in some configurations;
+    # one Newton step using a finite-difference derivative recovers near
+    # machine precision at a cost of two extra residual evaluations.
+    def _residual(r: float) -> float:
+        p_ = r_a + r
+        T_ = r_a * r_b * r * (r_a + r_b + r)
+        if T_ < 0.0:
+            T_ = 0.0
+        cos_a = (r_a * (r_a + r_b + r) - r_b * r) / (rab * p_)
+        if cos_a > 1.0:
+            cos_a = 1.0
+        elif cos_a < -1.0:
+            cos_a = -1.0
+        sin_a = 2.0 * math.sqrt(T_) / (rab * p_)
+        c_local = c_a + p_ * u * complex(cos_a, sin_a)
+        abs_c2 = c_local.real * c_local.real + c_local.imag * c_local.imag
+        if x_c >= 1.0:
+            return math.sqrt(abs_c2) + r - 1.0
+        denom = (1.0 + r) * (1.0 + r) - abs_c2
+        if denom <= 0.0:
+            return 1.0 - x_c
+        return 4.0 * r / denom - x_c
+
+    f_val = _residual(r_c)
+    h_step = max(1e-12, r_c * 1e-7)
+    df = (_residual(r_c + h_step) - _residual(r_c - h_step)) / (2.0 * h_step)
+    if df != 0.0 and math.isfinite(df):
+        step = f_val / df
+        if math.isfinite(step) and abs(step) < r_c:
+            r_c -= step
+
+    # Recover c_c via law of cosines. Heron's identity for tangent-circle
+    # triangles gives sin α directly, avoiding sqrt(1 − cos² α) cancellation
+    # when α is small.
+    p = r_a + r_c
+    T = r_a * r_b * r_c * (r_a + r_b + r_c)
+    cos_alpha = (r_a * (r_a + r_b + r_c) - r_b * r_c) / (rab * p)
+    if cos_alpha > 1.0:
+        cos_alpha = 1.0
+    elif cos_alpha < -1.0:
+        cos_alpha = -1.0
+    sin_alpha = 2.0 * math.sqrt(max(0.0, T)) / (rab * p)
+    c_c = c_a + p * u * complex(cos_alpha, sin_alpha)
+    return c_c, r_c
 
 
 def _layout_hyperbolic(
