@@ -270,9 +270,8 @@ class TestPackHyperbolic:
             assert d == pytest.approx(u["radius"] + v["radius"], abs=1e-9)
 
 
-@pytest.mark.golden
 class TestGoldenAgainstCirclePack:
-    """Compare radii against CirclePack-generated .p fixtures (opt-in via marker)."""
+    """Compare radii against CirclePack-generated .p fixtures."""
 
     @staticmethod
     def _load(name: str):
