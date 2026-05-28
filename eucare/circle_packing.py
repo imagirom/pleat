@@ -403,6 +403,150 @@ def _bowers_stephenson_hyperbolic_update_vec(
 
 
 # ---------------------------------------------------------------------------
+# Stephenson superstep acceleration
+# ---------------------------------------------------------------------------
+
+# Maximum bad-cut retries inside a single BS pass before giving up on the
+# superstep for that outer iteration. Matches CirclePack's default.
+_MAX_BAD_CUTS = 10
+
+
+def _iterate_with_superstep(
+    r_arr: np.ndarray,
+    update_idx: np.ndarray,
+    U_arr: np.ndarray,
+    W_arr: np.ndarray,
+    valid_arr: np.ndarray,
+    degrees_arr: np.ndarray,
+    targets_arr: np.ndarray,
+    angle_sum_fn: Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray], np.ndarray],
+    bs_update_fn: Callable[[np.ndarray, np.ndarray, np.ndarray, np.ndarray], np.ndarray],
+    tol: float,
+    max_iter: int,
+) -> tuple[int, float, bool]:
+    """Bowers-Stephenson iteration with Collins-Stephenson superstep acceleration.
+
+    Faithful Jacobi-vectorised port of CirclePack's ``EuclPacker.continueRiffle``
+    (Collins & Stephenson, *Comput. Geom.* 25 (2003) 233-256, §3): each outer
+    step does a BS pass, then over-relaxes radii along the direction of the
+    last pass, then does another BS pass — accepting or reverting based on
+    actual vs. predicted error reduction.
+
+    ``r_arr`` is mutated in place. Boundary radii (entries outside
+    ``update_idx``) are never touched. Returns ``(iterations, max_defect,
+    converged)`` where ``max_defect`` is the angle-defect L∞ norm on the
+    final iterate.
+    """
+    if update_idx.size == 0:
+        return 0, 0.0, True
+
+    theta = angle_sum_fn(r_arr, update_idx, U_arr, W_arr, valid_arr)
+    max_defect = float(np.max(np.abs(theta - targets_arr)))
+    if max_defect < tol:
+        return 0, max_defect, True
+
+    # === Bootstrap pass (analogue of CirclePack startRiffle) ===
+    accumErr2 = float(np.sqrt(np.sum((theta - targets_arr) ** 2)))
+    r_arr[update_idx] = bs_update_fn(r_arr[update_idx], theta, degrees_arr, targets_arr)
+
+    m = 1.0
+    sct = 1
+    key = 1  # current superstep type
+
+    iter_count = 1
+    while iter_count < max_iter:
+        # Convergence check on whatever state the previous step left us in.
+        theta = angle_sum_fn(r_arr, update_idx, U_arr, W_arr, valid_arr)
+        max_defect = float(np.max(np.abs(theta - targets_arr)))
+        if max_defect < tol:
+            return iter_count, max_defect, True
+
+        # === Pass 1 (with bad-cut retries) ===
+        R1 = r_arr[update_idx].copy()
+        c1 = float(np.sqrt(np.sum((theta - targets_arr) ** 2)))
+        r_arr[update_idx] = bs_update_fn(r_arr[update_idx], theta, degrees_arr, targets_arr)
+        iter_count += 1
+        factor = c1 / accumErr2 if accumErr2 > 0.0 else 0.0
+
+        num_bad_cuts = 0
+        while factor >= 1.0 and iter_count < max_iter:
+            accumErr2 = c1
+            key = 1
+            num_bad_cuts += 1
+            if num_bad_cuts > _MAX_BAD_CUTS:
+                break
+            theta = angle_sum_fn(r_arr, update_idx, U_arr, W_arr, valid_arr)
+            c1 = float(np.sqrt(np.sum((theta - targets_arr) ** 2)))
+            r_arr[update_idx] = bs_update_fn(r_arr[update_idx], theta, degrees_arr, targets_arr)
+            iter_count += 1
+            factor = c1 / accumErr2 if accumErr2 > 0.0 else 0.0
+            # If c1 is already below tol, the next outer-loop convergence check will pick it up.
+
+        if num_bad_cuts > _MAX_BAD_CUTS or factor >= 1.0:
+            # Skip superstep this iteration and try again next outer pass.
+            accumErr2 = c1
+            continue
+
+        # === Superstep extrapolation ===
+        R2 = r_arr[update_idx].copy()
+        diff = R2 - R1
+        shrinking = diff < 0.0
+        if shrinking.any():
+            lmax = float(np.min(-R2[shrinking] / diff[shrinking])) / 2.0
+        else:
+            lmax = 1.0e4
+
+        if key == 1:
+            lambda_ = m * factor
+            mmax = 0.75 / (1.0 - factor)
+            mm = (1.0 + 0.8 / (sct + 1)) * m
+            m = mmax if mmax < mm else mm
+        else:
+            # CirclePack's Type-2 branch reduces (in this codebase) to lambda = factor.
+            lambda_ = factor
+
+        if lambda_ > lmax:
+            lambda_ = lmax
+        if lambda_ < 0.0:
+            lambda_ = 0.0
+
+        r_arr[update_idx] = R2 + lambda_ * diff
+        sct += 1
+
+        # === Pass 2 on extrapolated radii ===
+        theta = angle_sum_fn(r_arr, update_idx, U_arr, W_arr, valid_arr)
+        new_accumErr2 = float(np.sqrt(np.sum((theta - targets_arr) ** 2)))
+        r_arr[update_idx] = bs_update_fn(r_arr[update_idx], theta, degrees_arr, targets_arr)
+        iter_count += 1
+
+        # Acceptance: predicted improvement = factor^lambda_; actual = new_accumErr2/c1.
+        pred = factor**lambda_
+        act = new_accumErr2 / c1 if c1 > 0.0 else 0.0
+
+        if act < 1.0:
+            if act > pred:
+                # Some progress, but under-delivered: drop multiplier and flip key 1 → 2.
+                m = 1.0
+                sct = 0
+                if key == 1:
+                    key = 2
+            accumErr2 = new_accumErr2
+        else:
+            # No improvement from the extrapolation — roll radii back to R2.
+            m = 1.0
+            sct = 0
+            r_arr[update_idx] = R2
+            accumErr2 = c1
+            if key == 2:
+                key = 1
+
+    # Out of iterations: report the latest state's defect.
+    theta = angle_sum_fn(r_arr, update_idx, U_arr, W_arr, valid_arr)
+    max_defect = float(np.max(np.abs(theta - targets_arr)))
+    return iter_count, max_defect, max_defect < tol
+
+
+# ---------------------------------------------------------------------------
 # Layout (BFS over faces)
 # ---------------------------------------------------------------------------
 
@@ -640,16 +784,19 @@ def pack_euclidean(
     update_idx, U_arr, W_arr, valid_arr, degrees_arr = _build_flower_arrays(all_vertices, update_verts)
     targets_arr = np.fromiter((targets[v] for v in update_verts), dtype=float, count=len(update_verts))
 
-    converged = False
-    final_defect = float("inf")
-    for _iteration in range(max_iter):
-        theta = _euclidean_angle_sums_vec(r_arr, update_idx, U_arr, W_arr, valid_arr)
-        defect = float(np.max(np.abs(theta - targets_arr))) if theta.size else 0.0
-        final_defect = defect
-        if defect < tol:
-            converged = True
-            break
-        r_arr[update_idx] = _bowers_stephenson_euclidean_update_vec(r_arr[update_idx], theta, degrees_arr, targets_arr)
+    _, final_defect, converged = _iterate_with_superstep(
+        r_arr,
+        update_idx,
+        U_arr,
+        W_arr,
+        valid_arr,
+        degrees_arr,
+        targets_arr,
+        _euclidean_angle_sums_vec,
+        _bowers_stephenson_euclidean_update_vec,
+        tol,
+        max_iter,
+    )
     if not converged:
         raise ConvergenceError(
             f"pack_euclidean: did not converge in {max_iter} iterations; "
@@ -965,16 +1112,19 @@ def pack_hyperbolic(
     update_idx, U_arr, W_arr, valid_arr, degrees_arr = _build_flower_arrays(all_vertices, interior_verts)
     targets_arr = np.full(len(interior_verts), 2.0 * np.pi, dtype=float)
 
-    converged = False
-    final_defect = float("inf")
-    for _iteration in range(max_iter):
-        theta = _hyperbolic_angle_sums_vec(x_arr, update_idx, U_arr, W_arr, valid_arr)
-        defect = float(np.max(np.abs(theta - targets_arr))) if theta.size else 0.0
-        final_defect = defect
-        if defect < tol:
-            converged = True
-            break
-        x_arr[update_idx] = _bowers_stephenson_hyperbolic_update_vec(x_arr[update_idx], theta, degrees_arr, targets_arr)
+    _, final_defect, converged = _iterate_with_superstep(
+        x_arr,
+        update_idx,
+        U_arr,
+        W_arr,
+        valid_arr,
+        degrees_arr,
+        targets_arr,
+        _hyperbolic_angle_sums_vec,
+        _bowers_stephenson_hyperbolic_update_vec,
+        tol,
+        max_iter,
+    )
     if not converged:
         raise ConvergenceError(
             f"pack_hyperbolic: did not converge in {max_iter} iterations; "
