@@ -24,7 +24,7 @@ import numpy as np
 from eucare.circle_packing import pack_euclidean, pack_hyperbolic
 from eucare.conway import kis_graph
 from eucare.example_graphs import from_tiles
-from eucare.example_tilesets import curved_platonic, platonic
+from eucare.example_tilesets import curved_omnitruncate, curved_platonic, platonic
 
 
 @dataclass
@@ -42,6 +42,11 @@ def _build_hex(rings: int):
 def _build_hyperbolic_kis(n: int, k: int, rings: int):
     G = from_tiles(curved_platonic(n, k), rings=rings)
     # Triangulate by inserting one vertex per face.
+    return kis_graph()(G)
+
+
+def _build_omnitruncate_kis(n: int, k: int, rings: int):
+    G = from_tiles(curved_omnitruncate(n, k), rings=rings)
     return kis_graph()(G)
 
 
@@ -81,6 +86,30 @@ def cases() -> list[Case]:
             lambda: _build_hyperbolic_kis(7, 3, 2),
             lambda G: pack_hyperbolic(G, boundary_x_radii=0.5),
             5,
+        )
+    )
+    # Bigger Archimedean-style hyperbolic tilings.
+    for (n, k), rings, runs in [
+        ((7, 4), 3, 3),
+        ((7, 3), 5, 2),
+        ((8, 3), 4, 3),
+        ((5, 4), 5, 2),
+    ]:
+        out.append(
+            Case(
+                f"hyperbolic omni({n},{k}) kis r={rings} maximal",
+                lambda n=n, k=k, r=rings: _build_omnitruncate_kis(n, k, r),
+                lambda G: pack_hyperbolic(G, boundary_x_radii=1.0),
+                runs,
+            )
+        )
+    # A really big maximal hyperbolic for stress.
+    out.append(
+        Case(
+            "hyperbolic {5,4} kis r=4 maximal",
+            lambda: _build_hyperbolic_kis(5, 4, 4),
+            lambda G: pack_hyperbolic(G, boundary_x_radii=1.0),
+            2,
         )
     )
     return out
