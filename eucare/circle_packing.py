@@ -32,8 +32,6 @@ from typing import Callable, Mapping
 
 import numpy as np
 
-from scipy.optimize import brentq
-
 from eucare.geometries import EuclideanGeometry, PoincareDiskModel
 from eucare.half import EuclideanPositionHEG, HalfEdge, Vertex
 
@@ -196,47 +194,6 @@ def _incident_triangles(v: Vertex) -> list[tuple[Vertex, Vertex]]:
         w = h.nex.dest
         pairs.append((u, w))
     return pairs
-
-
-# ---------------------------------------------------------------------------
-# Euclidean angle formula and CS update
-# ---------------------------------------------------------------------------
-
-
-def _euclidean_angle_sum(r_v: float, neighbor_pairs: list[tuple[float, float]]) -> float:
-    """Sum of angles at v over incident triangles, in the euclidean metric.
-
-    Each pair (r_u, r_w) represents an incident triangle (v, u, w) with
-    circles of radii (r_v, r_u, r_w) pairwise tangent.
-
-    Angle at v: alpha = 2*arcsin(sqrt(r_u * r_w / ((r_v + r_u) * (r_v + r_w)))).
-    """
-    total = 0.0
-    for r_u, r_w in neighbor_pairs:
-        ratio = (r_u * r_w) / ((r_v + r_u) * (r_v + r_w))
-        # numerical guard
-        ratio = max(0.0, min(1.0, ratio))
-        total += 2.0 * float(np.arcsin(np.sqrt(ratio)))
-    return total
-
-
-def _bowers_stephenson_update(
-    r_v: float,
-    neighbor_pairs: list[tuple[float, float]],
-    target: float = 2 * np.pi,
-) -> float:
-    """One Bowers-Stephenson update step for r_v with the uniform-neighbor heuristic."""
-    n = len(neighbor_pairs)
-    theta = _euclidean_angle_sum(r_v, neighbor_pairs)
-    # uniform-neighbor radius reproducing current angle sum
-    s = float(np.sin(theta / (2 * n)))
-    if s >= 1.0:
-        # Degenerate; fall back to a small step toward smaller r_v.
-        return r_v * 0.5
-    r_hat = r_v * s / (1.0 - s)
-    # radius that would give target angle sum with uniform neighbors
-    s_target = float(np.sin(target / (2 * n)))
-    return r_hat * (1.0 - s_target) / s_target
 
 
 # ---------------------------------------------------------------------------
@@ -854,26 +811,6 @@ def _hyperbolic_angle_sum(x_v: float, neighbor_pairs: list[tuple[float, float]])
         ratio = max(0.0, min(1.0, ratio))
         total += 2.0 * float(np.arcsin(np.sqrt(ratio)))
     return total
-
-
-def _solve_x_for_target_angle(neighbor_pairs: list[tuple[float, float]], target: float) -> float:
-    """Solve for x_v in (0, 1) such that the hyperbolic angle sum at v equals target.
-
-    Angle sum is monotonically decreasing in x_v, ranging from N*pi at x_v=0+
-    to 0 at x_v=1 (horocycle). For target=2*pi we need at least 3 incident
-    triangles (otherwise no solution exists).
-    """
-
-    def f(x: float) -> float:
-        return _hyperbolic_angle_sum(x, neighbor_pairs) - target
-
-    lo, hi = 1e-14, 1.0 - 1e-14
-    f_lo = f(lo)
-    f_hi = f(hi)
-    if f_lo * f_hi > 0:
-        # No bracket — degenerate case. Return whichever endpoint is closer to target.
-        return lo if abs(f_lo) < abs(f_hi) else hi
-    return float(brentq(f, lo, hi, xtol=1e-15, rtol=1e-14))
 
 
 # ---------------------------------------------------------------------------
