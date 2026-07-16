@@ -2,7 +2,7 @@
 
 ## Core data structure: Half-edge graph
 
-Eucare is built around the **half-edge data structure** (also known as DCEL — doubly-connected edge list). Every undirected edge is stored as a pair of directed half-edges linked via `rev`. Navigation around a face uses `nex`/`pre`; navigation around a vertex uses `v.outgoing_iter()`.
+Pleat is built around the **half-edge data structure** (also known as DCEL — doubly-connected edge list). Every undirected edge is stored as a pair of directed half-edges linked via `rev`. Navigation around a face uses `nex`/`pre`; navigation around a vertex uses `v.outgoing_iter()`.
 
 ```
 HalfEdgeGraph          Topology only (vertices, halfedges, faces as sets)
@@ -35,7 +35,7 @@ G2 = ambo_graph()(G, delete_on_border=True)
 
 ## Geometry backends
 
-Three pluggable backends in `eucare.geometries`:
+Three pluggable backends in `pleat.geometries`:
 
 | Backend | Model | Use case |
 |---------|-------|----------|

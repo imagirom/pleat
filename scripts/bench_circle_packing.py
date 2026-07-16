@@ -21,10 +21,10 @@ from typing import Callable
 
 import numpy as np
 
-from eucare.circle_packing import pack_euclidean, pack_hyperbolic
-from eucare.conway import kis_graph
-from eucare.example_graphs import from_tiles
-from eucare.example_tilesets import curved_omnitruncate, curved_platonic, platonic
+from pleat.circle_packing import pack_euclidean, pack_hyperbolic
+from pleat.conway import kis_graph
+from pleat.example_graphs import from_tiles
+from pleat.example_tilesets import curved_omnitruncate, curved_platonic, platonic
 
 
 @dataclass

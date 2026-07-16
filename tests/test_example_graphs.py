@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from eucare.example_graphs import (
+from pleat.example_graphs import (
     RectangleDomain,
     SquareDomain,
     add_vertex_ring,
@@ -18,8 +18,8 @@ from eucare.example_graphs import (
     pgg_2x_tiling,
     rosette,
 )
-from eucare.example_tilesets import curved_platonic, platonic, t_3_12_12
-from eucare.half import EuclideanPositionHEG, RegularNGon
+from pleat.example_tilesets import curved_platonic, platonic, t_3_12_12
+from pleat.half import EuclideanPositionHEG, RegularNGon
 
 
 @pytest.mark.parametrize("n", [4, 6, 8, 12])
@@ -102,7 +102,7 @@ def test_pgg_2x_tiling_smoke():
 
 
 def test_kised_soccer_ball_smoke():
-    from eucare.example_graphs import kised_soccer_ball
+    from pleat.example_graphs import kised_soccer_ball
 
     G = kised_soccer_ball()
     G.check_consistency()
@@ -113,8 +113,8 @@ def test_kised_soccer_ball_smoke():
 
 def test_hyperbolic_square_graph_smoke():
     """Exercise hyperbolic_square_graph (Schwarz-Christoffel) on a tiny graph."""
-    from eucare.example_graphs import hyperbolic_square_graph, from_tiles
-    from eucare.example_tilesets import curved_platonic
+    from pleat.example_graphs import hyperbolic_square_graph, from_tiles
+    from pleat.example_tilesets import curved_platonic
 
     G = from_tiles(curved_platonic(7, 3), rings=1)
     # Use a coarse min_length to avoid slow refinement loop.
@@ -128,8 +128,8 @@ def test_hyperbolic_square_graph_smoke():
 
 
 def test_hyperbolic_square_graph_dual_smoke():
-    from eucare.example_graphs import hyperbolic_square_graph, from_tiles
-    from eucare.example_tilesets import curved_platonic
+    from pleat.example_graphs import hyperbolic_square_graph, from_tiles
+    from pleat.example_tilesets import curved_platonic
 
     G = from_tiles(curved_platonic(7, 3), rings=1)
     G_square = hyperbolic_square_graph(G, min_length=0.5, dual=True)

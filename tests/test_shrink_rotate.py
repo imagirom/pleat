@@ -7,10 +7,10 @@ This tests the full workflow:
 import numpy as np
 import pytest
 
-from eucare.example_graphs import from_tiles
-from eucare.example_tilesets import platonic, t_4_6_12
-from eucare.half import EuclideanPositionHEG, IdObject
-from eucare.overlap import (
+from pleat.example_graphs import from_tiles
+from pleat.example_tilesets import platonic, t_4_6_12
+from pleat.half import EuclideanPositionHEG, IdObject
+from pleat.overlap import (
     CREASE_ASSIGNMENT,
     MOUNTAIN,
     VALLEY,
@@ -19,14 +19,14 @@ from eucare.overlap import (
     fold_wireframe,
     overlap_graph,
 )
-from eucare.shrink_rotate import (
+from pleat.shrink_rotate import (
     assign_shrink_rotate_creases,
     assign_this_way_by_face_z_order,
     reciprocal_figure,
     shrink_rotate_pattern,
 )
-from eucare.flat_foldable import kawasaki_sum, max_kawasaki_sum
-from eucare.search_trees import face_bfs_tree
+from pleat.flat_foldable import kawasaki_sum, max_kawasaki_sum
+from pleat.search_trees import face_bfs_tree
 
 
 def _make_graph(tileset_fn=None, rings=3):

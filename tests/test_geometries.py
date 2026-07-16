@@ -13,7 +13,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from eucare.geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
+from pleat.geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
 
 BACKENDS = [EuclideanGeometry, PoincareDiskModel, SphereModel]
 

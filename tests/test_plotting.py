@@ -9,7 +9,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
-from eucare.plotting import plot_lines, plot_polygon, set_equal_aspect  # noqa: E402
+from pleat.plotting import plot_lines, plot_polygon, set_equal_aspect  # noqa: E402
 
 
 def test_plot_lines_adds_collection():

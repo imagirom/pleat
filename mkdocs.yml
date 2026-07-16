@@ -1,6 +1,6 @@
-site_name: Eucare
+site_name: Pleat
 site_description: Geometric tilings, Conway operators, and origami crease patterns
-repo_url: https://github.com/rremme/eucare
+repo_url: https://github.com/imagirom/pleat
 
 # Render each page as `path/name.html` rather than `path/name/index.html`.
 # This keeps the built-doc relative paths aligned with the source layout (in

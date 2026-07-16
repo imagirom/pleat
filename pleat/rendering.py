@@ -1,0 +1,747 @@
+"""Renderers for half-edge graphs.
+
+Provides :class:`CairoRenderer` (raster/vector output via pycairo) and
+:class:`SvgwriteRenderer` (vector output via svgwrite), plus small polygon
+helpers (:func:`inset_corner`, :func:`inset_poly`) and color utilities.
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+from io import BytesIO
+from typing import TYPE_CHECKING, Iterable
+
+import cairo
+import numpy as np
+
+from .base import angle_to_axis, unit_vector
+from .half import rotate_by
+
+if TYPE_CHECKING:
+    from .half import HalfEdgeGraph
+
+logger = logging.getLogger(__name__)
+try:
+    import svgwrite
+except ImportError:
+    svgwrite = None
+
+
+def _in_jupyter() -> bool:
+    """True if running inside a Jupyter/IPython kernel (ZMQ shell)."""
+    try:
+        from IPython import get_ipython
+    except ImportError:
+        return False
+    shell = get_ipython()
+    return shell is not None and shell.__class__.__name__ == "ZMQInteractiveShell"
+
+
+# matplotlib backends that have no GUI window — calling plt.show() on them is a
+# no-op that only emits a warning, so we skip it for graceful headless behaviour.
+_NON_INTERACTIVE_BACKENDS = {"agg", "cairo", "pdf", "pgf", "ps", "svg", "template"}
+
+
+def _headless() -> bool:
+    """True if the active matplotlib backend cannot open a display window."""
+    import matplotlib
+
+    return matplotlib.get_backend().lower() in _NON_INTERACTIVE_BACKENDS
+
+
+class Rendering:
+    """An in-memory rendered picture of a graph: display it, save it, or read its bytes.
+
+    Holds both an SVG (vector) and a PNG (raster) snapshot baked at render time.
+    In Jupyter it auto-displays as inline SVG via the rich-display protocol; in a
+    script ``show()`` opens a matplotlib window; headless it is a graceful no-op.
+    """
+
+    def __init__(self, svg_bytes: bytes, png_bytes: bytes, width: int, height: int) -> None:
+        """Store the rendered bytes and pixel dimensions.
+
+        Args:
+            svg_bytes: The SVG document as raw bytes.
+            png_bytes: The PNG image as raw bytes.
+            width: Pixel width of the raster snapshot.
+            height: Pixel height of the raster snapshot.
+        """
+        self.svg_bytes = svg_bytes
+        self.png_bytes = png_bytes
+        self.width = width
+        self.height = height
+
+    def _repr_svg_(self) -> str:
+        """Return the SVG text so Jupyter renders this inline (vector, resizable)."""
+        return self.svg_bytes.decode("utf-8")
+
+    def _repr_png_(self) -> bytes:
+        """Return the PNG bytes as a raster fallback for rich display."""
+        return self.png_bytes
+
+    def save(self, path: str) -> None:
+        """Write the rendering to disk.
+
+        ``path`` with no extension writes both ``path.svg`` and ``path.png``; a
+        ``.svg`` or ``.png`` extension writes just that format.
+
+        Args:
+            path: Destination path; extension selects the format(s).
+        """
+        ext = os.path.splitext(path)[1].lower()
+        if ext == ".svg":
+            with open(path, "wb") as f:
+                f.write(self.svg_bytes)
+        elif ext == ".png":
+            with open(path, "wb") as f:
+                f.write(self.png_bytes)
+        elif ext == "":
+            with open(path + ".svg", "wb") as f:
+                f.write(self.svg_bytes)
+            with open(path + ".png", "wb") as f:
+                f.write(self.png_bytes)
+        else:
+            raise ValueError(f"Unsupported extension {ext!r}; use .svg, .png, or no extension (writes both).")
+
+    def show(self) -> None:
+        """Display the rendering: inline in Jupyter, a matplotlib window in scripts.
+
+        In a headless context (no GUI backend, not Jupyter) this is a no-op.
+        """
+        if _in_jupyter():
+            from IPython.display import display
+
+            display(self)
+            return
+        import matplotlib.pyplot as plt
+
+        if _headless():
+            # Non-interactive / headless backend — nothing to display.
+            return
+        import matplotlib.image as mpimg
+
+        img = mpimg.imread(BytesIO(self.png_bytes), format="png")
+        fig, ax = plt.subplots()
+        ax.imshow(img)
+        ax.axis("off")
+        plt.show()
+
+
+# ----- Standard render presets and color constants -------------------------
+#
+# Reused across the docs notebooks so crease patterns look consistent.
+
+#: Default render kwargs for crease-pattern visualizations: no face fill,
+#: no vertex markers, no edge inset.
+CREASE_PATTERN_PRESET: dict = dict(
+    face_inset=0,
+    render_vertices=False,
+    render_faces=False,
+)
+
+#: Standard mountain-fold color (red).
+MOUNTAIN_COLOR: str = "#cc2222"
+#: Standard valley-fold color (blue).
+VALLEY_COLOR: str = "#2266cc"
+#: Standard non-creased / flat edge color (gray).
+FLAT_COLOR: str = "#888888"
+#: Standard border edge color (black).
+BORDER_COLOR: str = "#000000"
+
+
+def inset_corner(a: np.ndarray, b: np.ndarray, c: np.ndarray, dist: float, eps: float = 1e-10) -> np.ndarray:
+    """Inset the corner ``a -> b -> c`` inwards by ``dist``.
+
+    Returns a point inside the angle at ``b`` such that its distance to both
+    edges of the angle equals ``dist``.  If the corner is straight (``v == w``),
+    returns ``b`` unchanged.
+    """
+    w = b - a
+    v = b - c
+    if np.linalg.norm(v - w) < eps:  # 180 degree "corner"
+        return b
+    alpha = ((angle_to_axis(v) - angle_to_axis(w)) % (2 * np.pi)) / 2
+    diag_dist = dist / np.sin(alpha)
+    return b + diag_dist * unit_vector(angle_to_axis(v) - alpha)
+
+
+def inset_poly(pts: list, dist: float) -> list:
+    """Inset a polygon's vertices inwards by ``dist`` (see :func:`inset_corner`)."""
+    return [inset_corner(a, b, c, dist) for a, b, c in rotate_by(pts, (0, 1, 2))]
+
+
+from .colorization import (
+    DEFAULT_EDGE_CMAP,
+    DEFAULT_FACE_CMAP,
+    DEFAULT_VERTEX_CMAP,
+    EDGE_PRESETS,
+    FACE_PRESETS,
+    VERTEX_PRESETS,
+    is_color,
+    resolve_colors,
+)
+
+
+def multi_show(
+    graphs: Iterable,
+    titles: list[str] | None = None,
+    ncols: int | None = None,
+    figsize: tuple[float, float] | None = None,
+    suptitle: str | None = None,
+    cell_size: float = 4.0,
+    per_subplot_kwargs: list[dict] | None = None,
+    **show_kwargs: object,
+) -> None:
+    """Render multiple half-edge graphs side-by-side in a matplotlib grid.
+
+    Each graph is rendered to in-memory PNG bytes via ``G.render(...)`` and then
+    displayed as an image in a matplotlib subplot. This is a thin convenience
+    helper for tutorials and notebook galleries — it does not return the
+    renderer or its surfaces.
+
+    Args:
+        graphs: Iterable of half-edge graphs.
+        titles: Optional list of titles, one per graph.
+        ncols: Number of columns (defaults to ``len(graphs)`` for a single row).
+        figsize: Matplotlib figure size; defaults to ``(cell_size*ncols, cell_size*nrows)``.
+        suptitle: Optional figure-level title.
+        cell_size: Per-cell size in matplotlib inches.
+        per_subplot_kwargs: Optional list of per-subplot kwargs dicts (one per graph)
+            that override ``show_kwargs`` for the corresponding subplot.
+        **show_kwargs: Forwarded verbatim to each ``G.render(...)`` call
+            (e.g. ``face_inset=0.05``, ``render_faces=True``).
+    """
+    import matplotlib.image as mpimg
+    import matplotlib.pyplot as plt
+
+    graphs = list(graphs)
+    n = len(graphs)
+    if titles is None:
+        titles = [None] * n
+    if ncols is None:
+        ncols = n
+    nrows = (n + ncols - 1) // ncols
+    if figsize is None:
+        figsize = (cell_size * ncols, cell_size * nrows)
+
+    # Default to 512px PNGs unless the caller overrode it.
+    show_kwargs.setdefault("height", 512)
+
+    if per_subplot_kwargs is None:
+        per_subplot_kwargs = [{} for _ in range(n)]
+    elif len(per_subplot_kwargs) != n:
+        raise ValueError(f"per_subplot_kwargs has length {len(per_subplot_kwargs)} but expected {n} (one per graph).")
+
+    fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
+    if nrows == 1 and ncols == 1:
+        axes = np.array([[axes]])
+    elif nrows == 1:
+        axes = np.array([axes])
+    elif ncols == 1:
+        axes = np.array([[a] for a in axes])
+
+    for i, (G, title) in enumerate(zip(graphs, titles)):
+        r, c = divmod(i, ncols)
+        ax = axes[r][c]
+        rendering = G.render(**{**show_kwargs, **per_subplot_kwargs[i]})
+        img = mpimg.imread(BytesIO(rendering.png_bytes), format="png")
+        ax.imshow(img)
+        ax.set_axis_off()
+        if title is not None:
+            ax.set_title(title)
+    # hide any leftover axes
+    for j in range(n, nrows * ncols):
+        r, c = divmod(j, ncols)
+        axes[r][c].set_axis_off()
+
+    if suptitle is not None:
+        fig.suptitle(suptitle)
+    fig.tight_layout()
+    if not _headless():
+        plt.show()
+
+
+class CairoRenderer:
+    """Render half-edge graphs to PNG / SVG via pycairo.
+
+    Faces, edges, and vertices are rendered in that order so edges and
+    vertex markers sit on top of face fills.  Per-element ``color_key`` and
+    ``line_width`` attributes override the defaults; missing colour keys fall
+    back to a translucent blue (faces) or grey (edges).
+    """
+
+    def __init__(
+        self,
+        width: int | None = None,
+        height: int | None = None,
+        line_width: float | str = "auto",
+        vertex_radius: float | None = None,
+        scale: float | str = "auto",
+        face_inset: float | None = None,
+        position_key: str = "pos",
+        curve_position_key: str = "curve_pos",
+        face_color_by: object = None,
+        edge_color_by: object = None,
+        vertex_color_by: object = None,
+        face_cmap: object = None,
+        edge_cmap: object = None,
+        vertex_cmap: object = None,
+    ) -> None:
+        """Configure a renderer. Construction does no I/O; call ``render_graph``.
+
+        Args:
+            width: Output width in pixels (defaults to *height*, or 512).
+            height: Output height in pixels (defaults to *width*, or 512).
+            line_width: Stroke width in graph units; ``'auto'`` derives it
+                from the median edge length, ``'NN%'`` is a fraction of that.
+            vertex_radius: Marker radius for vertices (defaults to *line_width*).
+            scale: Drawing scale; ``'auto'`` computes a fit from the bounding box.
+            face_inset: Distance to inset face fills from the edges (defaults
+                to *line_width*).
+            position_key: Vertex attribute holding the 2D position.
+            curve_position_key: Half-edge attribute holding curved-fold polylines
+                (overrides the straight ``orig -> dest`` line).
+            face_color_by: Auto-colour faces by a preset name (``"congruency"``,
+                ``"order"``), a :class:`~pleat.classifiers.Classifier`, or any
+                callable ``face -> hashable``.  Pre-existing ``face['color_key']``
+                attributes are honoured: literal colours pass through unchanged,
+                non-colour hashables fold into palette indexing.
+            edge_color_by: Same idea for edges; presets are ``"length"`` and
+                ``"orientation"``.
+            vertex_color_by: Same idea for vertices; preset is ``"order"``.
+            face_cmap: Matplotlib colormap name, ``Colormap`` instance, or list
+                of colours.  Defaults to
+                :data:`~pleat.colorization.DEFAULT_FACE_CMAP`.
+            edge_cmap: Same for edges; defaults to
+                :data:`~pleat.colorization.DEFAULT_EDGE_CMAP`.
+            vertex_cmap: Same for vertices; defaults to
+                :data:`~pleat.colorization.DEFAULT_VERTEX_CMAP`.
+        """
+        if width is None and height is None:
+            width, height = 512, 512
+        self.width = width if width is not None else height
+        self.height = height if height is not None else width
+        self.scale = scale
+        self.line_width = line_width
+        self.vertex_radius = vertex_radius
+        self.face_inset = face_inset
+        self.position_key = position_key
+        self.curve_position_key = curve_position_key
+        self.face_color_by = face_color_by
+        self.edge_color_by = edge_color_by
+        self.vertex_color_by = vertex_color_by
+        self.face_cmap = face_cmap if face_cmap is not None else DEFAULT_FACE_CMAP
+        self.edge_cmap = edge_cmap if edge_cmap is not None else DEFAULT_EDGE_CMAP
+        self.vertex_cmap = vertex_cmap if vertex_cmap is not None else DEFAULT_VERTEX_CMAP
+        self.surface = None
+        self.dc = None
+        # Filled by render_graph before each render loop.
+        self._face_colors: dict = {}
+        self._edge_colors: dict = {}
+        self._vertex_colors: dict = {}
+
+    def render_face(self, face, color_key: str = "color_key"):
+        """Draw a single face's filled polygon, honouring ``face[color_key]``."""
+        dc = self.dc
+        points = []
+        for h in face.halfedge_iter():
+            if self.curve_position_key not in h.attributes:
+                points.append(h.orig[self.position_key])
+            else:
+                points.extend(h[self.curve_position_key][:-1])
+        inset = self.face_inset
+        if inset != 0:
+            points = inset_poly(points, inset)
+        dc.move_to(*points[-1])
+        for point in points:
+            dc.line_to(*point)
+        color = self._face_colors.get(face)
+        if color is None:
+            color = np.array((0.0, 0.0, 1.0, 0.15))
+        self.set_source_color(color)
+        dc.fill_preserve()
+        dc.set_line_width(0)
+        dc.stroke()
+        return self.surface
+
+    def set_source_color(self, color) -> None:
+        """Set the current cairo source colour from an RGB/RGBA tuple, ndarray, or ``#RRGGBB`` string."""
+        if isinstance(color, str):
+            color = np.array([int(color[i : i + 2], 16) / 255 for i in (1, 3, 5)])
+        if len(color) == 3:
+            self.dc.set_source_rgb(*color)
+        else:
+            self.dc.set_source_rgba(*color)
+
+    def render_edge(self, edge, color_key: str = "color_key", last_pos=None, tol: float = 1e-6):
+        """Draw a single half-edge as a line or a tapered ribbon.
+
+        If both endpoints carry a ``line_width`` attribute, the edge is drawn
+        as a filled ribbon of varying width; otherwise it is a stroked polyline.
+
+        The ``curve_pos`` attribute, if present, replaces the straight segment with a polyline.
+        """
+        dc = self.dc
+
+        if "line_width" in edge.orig.attributes and "line_width" in edge.dest.attributes:
+            lw_orig = edge.orig["line_width"]
+            lw_dest = edge.dest["line_width"]
+            direction = edge.dest["pos"] - edge.orig["pos"]
+            direction /= np.linalg.norm(direction)
+            dc.set_line_width(0)
+            points = [
+                inset_corner(edge.pre.orig["pos"], edge.orig["pos"], edge.dest["pos"], lw_orig),
+                edge.orig["pos"] - direction * lw_orig / 2,
+                inset_corner(edge.dest["pos"], edge.orig["pos"], edge.rev.nex.dest["pos"], lw_orig),
+                inset_corner(edge.rev.pre.orig["pos"], edge.dest["pos"], edge.orig["pos"], lw_dest),
+                edge.dest["pos"] + direction * lw_dest / 2,
+                inset_corner(edge.orig["pos"], edge.dest["pos"], edge.nex.dest["pos"], lw_dest),
+            ]
+            dc.move_to(*points[-1])
+            for point in points:
+                dc.line_to(*point)
+            color = self._edge_colors.get(edge)
+            if color is None:
+                color = np.array((0.5, 0.5, 1.0, 0.5))
+            self.set_source_color(color)
+            dc.fill_preserve()
+        else:
+
+            dc.set_line_width(edge.attributes.get("line_width", self.line_width))
+            if self.curve_position_key not in edge.attributes:
+                dc.move_to(*edge.orig[self.position_key])
+                dc.line_to(*edge.dest[self.position_key])
+            else:
+                curve = edge["curve_pos"]
+                dc.move_to(*curve[0])
+                for pos in curve[1:]:
+                    dc.line_to(*pos)
+            color = self._edge_colors.get(edge)
+            if color is None:
+                color = np.array((0.5, 0.5, 1.0))
+            self.set_source_color(color)
+
+            if edge.attributes.get("delete", False):
+                dc.set_dash([self.line_width * 2, self.line_width * 3])
+                dc.stroke()
+                dc.set_dash([])
+            else:
+                pass
+                # dc.stroke()
+        return self.surface if last_pos is None else (self.surface, edge.dest[self.position_key])
+
+    def render_vertex(self, vertex, color_key: str = "color_key") -> None:
+        """Draw a vertex as a small disc, picking colour from ``vertex[color_key]`` or attribute flags."""
+        dc = self.dc
+        dc.set_line_width(0)
+        radius = vertex.get("vertex_radius", self.vertex_radius)
+        if radius == 0:
+            return
+        dc.arc(*vertex[self.position_key], vertex.get("vertex_radius", self.vertex_radius), 0, 2 * np.pi)
+        color = self._vertex_colors.get(vertex)
+        if color is not None:
+            self.set_source_color(color)
+        elif vertex.attributes.get("join", False):
+            dc.set_source_rgb(0.0, 1.0, 0.0)
+        elif vertex.attributes.get("delete", False):
+            dc.set_source_rgb(1.0, 0.0, 0.0)
+        else:
+            dc.set_source_rgba(0.0, 0.0, 0.0, 0.5)
+        dc.fill_preserve()
+        dc.set_source_rgb(0.0, 0.0, 0.0)
+        dc.stroke()
+        dc.set_line_width(self.line_width)
+
+    def autoscale(self, graph):
+        """Pick an isotropic scale to fit *graph* in the surface (origin-centred)."""
+        positions = np.array([v[self.position_key] for v in graph.vertices])
+        max_abs_pos = np.max(np.abs(positions), axis=0)
+        scale = np.min(np.array([self.width, self.height]) / max_abs_pos) / 2.2
+        self.dc.scale(scale, scale)
+        return self
+
+    def autocenterscale(self, graph):
+        """Pick scale and translation to fit *graph* in the surface, centred on its bounding box."""
+        positions = np.array([v[self.position_key] for v in graph.vertices])
+        offset = (np.max(positions, axis=0) + np.min(positions, axis=0)) / 2
+        max_abs_pos = np.max(np.abs(positions - offset[None]), axis=0)
+        relative_margin = 0.05
+        scale = np.min(np.array([self.width, self.height]) / max_abs_pos) / 2 / (1 + 2 * relative_margin)
+        self.dc.scale(scale, scale)
+        self.dc.translate(-offset[0] * (1 + 0 * relative_margin), -offset[1] * (1))
+        return self
+
+    @staticmethod
+    def auto_line_width(graph) -> float:
+        """Default line width for *graph*: ``min(min_edge / 2, mean_edge / 10)``."""
+        lengths = np.array(
+            [
+                h["length"] if "length" in h.attributes else float(np.linalg.norm(h.dest["pos"] - h.orig["pos"]))
+                for h in graph.halfedges
+            ]
+        )
+        return min(np.min(lengths) / 2, np.mean(lengths) / 10)
+
+    def render_graph(
+        self,
+        graph: "HalfEdgeGraph",
+        render_vertices: bool = True,
+        render_faces: bool = True,
+        render_edges: bool = True,
+        for_cutting: bool = False,
+    ) -> "Rendering":
+        """Render the whole *graph* (faces, edges, vertices) onto the cairo surface.
+
+        Args:
+            graph: A :class:`~pleat.half.HalfEdgeGraph`.
+            render_vertices: Whether to draw vertex markers.
+            render_faces: Whether to draw face fills.
+            render_edges: Whether to draw edges.
+            for_cutting: Reorder edges to minimise pen-up moves on a plotter.
+                Currently raises :class:`NotImplementedError`.
+
+        Returns:
+            A :class:`Rendering` holding the SVG and PNG bytes.
+        """
+        svg_buf = BytesIO()
+        self.surface = cairo.SVGSurface(svg_buf, self.width, self.height)
+        dc = cairo.Context(self.surface)
+        dc.set_line_cap(cairo.LINE_CAP_ROUND)
+        dc.set_line_join(cairo.LINE_JOIN_ROUND)
+        dc.translate(self.width / 2, self.height / 2)
+        dc.set_source_rgb(1, 1, 1)
+        dc.paint()
+        self.dc = dc
+
+        if self.scale == "auto":
+            self.autocenterscale(graph)
+        else:
+            self.dc.scale(self.scale, self.scale)
+        # self.dc.set_font_size(18.0 / self.scale)
+
+        if self.line_width == "auto":
+            self.line_width = self.auto_line_width(graph)
+        elif isinstance(self.line_width, str) and self.line_width.endswith("%"):
+            self.line_width = float(self.line_width[:-1]) / 100 * self.auto_line_width(graph)
+        self.vertex_radius = self.vertex_radius if self.vertex_radius is not None else self.line_width
+        self.face_inset = self.face_inset if self.face_inset is not None else self.line_width
+
+        # Pre-resolve per-element colours so each render_face/edge/vertex is a dict lookup.
+        # Edges only colour the half-edge actually drawn (one per pair); render_edge skips reverses.
+        rendered_halfedges = []
+        if render_edges and not for_cutting:
+            seen = set()
+            for h in graph.halfedges:
+                if h.rev in seen:
+                    continue
+                seen.add(h)
+                rendered_halfedges.append(h)
+        elif render_edges:
+            rendered_halfedges = list(graph.halfedges)
+        self._face_colors = resolve_colors(
+            graph.faces if render_faces else [],
+            self.face_color_by,
+            self.face_cmap,
+            FACE_PRESETS,
+        )
+        self._edge_colors = resolve_colors(
+            rendered_halfedges,
+            self.edge_color_by,
+            self.edge_cmap,
+            EDGE_PRESETS,
+        )
+        self._vertex_colors = resolve_colors(
+            graph.vertices if render_vertices else [],
+            self.vertex_color_by,
+            self.vertex_cmap,
+            VERTEX_PRESETS,
+        )
+
+        if render_faces:
+            for f in graph.faces:
+                self.render_face(f)
+
+        if render_edges:
+            self.dc.set_source_rgb(0.0, 0.0, 0.0)
+            if not for_cutting:
+                rendered_edges = set()
+                for h in graph.halfedges:
+                    if h.rev in rendered_edges:
+                        continue
+                    rendered_edges.add(h)
+                    self.render_edge(h)
+                    self.dc.stroke()
+            else:
+                raise NotImplementedError
+                # order the edges such that the plotting takes less time
+                edges = list(graph.halfedges)
+                edge_to_index = {e: i for i, e in enumerate(edges)}
+                n_edges = len(edges)
+                rendered = np.zeros(n_edges, dtype=np.int32)
+                origs = np.stack([e.orig[self.position_key] for e in edges])
+                current = np.argmin(origs[:, 0])
+                id_range = np.arange(n_edges)
+                last_pos = np.array([np.inf, np.inf])
+                while True:
+                    e = edges[current]
+                    _, last_pos = self.render_edge(e, last_pos=last_pos)
+                    rendered[current] = 1
+                    rendered[edge_to_index[e.rev]] = 1
+                    if all(rendered):
+                        break
+                    dists = np.linalg.norm(origs[rendered == 0] - e.dest[self.position_key][None], axis=1)
+                    current = id_range[rendered == 0][np.argmin(dists)]
+                    if np.min(dists) > 1e-6:  # TODO: hardcoding this is bad, use relative deviation..
+                        self.dc.stroke()
+                self.dc.stroke()
+
+        if render_vertices:
+            for v in graph.vertices:
+                self.render_vertex(v)
+
+        png_buf = BytesIO()
+        self.surface.write_to_png(png_buf)
+        self.surface.finish()
+        return Rendering(
+            svg_bytes=svg_buf.getvalue(),
+            png_bytes=png_buf.getvalue(),
+            width=self.width,
+            height=self.height,
+        )
+
+
+class SvgwriteRenderer:
+    """Vector renderer for cutting plotters: minimises pen-up moves between strokes.
+
+    Edges are emitted as a few long polylines rather than many short segments,
+    so a plotter can complete the cut without unnecessary travel.  Faces and
+    vertices are not implemented; only ``for_cutting=True`` is supported.
+    """
+
+    def __init__(self, position_key: str = "pos", curve_position_key: str = "curve_pos") -> None:
+        assert svgwrite is not None, "SvgwriteRenderer requires the svgwrite package. You can install it via pip."
+        self.position_key = position_key
+        self.curve_position_key = curve_position_key
+
+    def _render_halfedges(self, halfedges, dwg, bbox, scale):
+        # TODO: adapt this to get an even better path: https://stackoverflow.com/a/44080908
+        edges = list(halfedges)
+        edge_to_index = {e: i for i, e in enumerate(edges)}
+        n_edges = len(edges)
+        rendered = np.zeros(n_edges, dtype=np.int32)
+        origs = np.stack([e.orig[self.position_key] for e in edges])
+        current = int(np.argmin(origs[:, 0]))
+        id_range = np.arange(n_edges)
+        polylines = []
+        current_polyline = [edges[current].orig[self.position_key]]
+        while True:
+            e = edges[current]
+            last_pos = e.dest[self.position_key]
+            if self.curve_position_key not in e:
+                current_polyline.append(last_pos)
+            else:
+                current_polyline.extend(e[self.curve_position_key][1:])
+            rendered[current] = 1
+            rendered[edge_to_index[e.rev]] = 1
+            if all(rendered):
+                break
+            dists = np.linalg.norm(origs[rendered == 0] - e.dest[self.position_key][None], axis=1)
+            current = id_range[rendered == 0][np.argmin(dists)]
+            if np.min(dists) > 1e-6:  # TODO: hardcoding this is bad, use relative deviation..
+                polylines.append(current_polyline)
+                current_polyline = [edges[current].orig[self.position_key]]
+        polylines.append(current_polyline)
+        # print(f'Rendering {len(polylines)} polylines, with {[len(line) for line in polylines]} line segments.')
+
+        for pts in polylines:
+            pts = np.array(pts)
+            pts -= bbox[:, 0][None]
+            pts *= scale
+            pth = dwg.path(fill_opacity=0, stroke_width="0.05", stroke="black")
+            pth.push("M", *pts)
+            dwg.add(pth)
+
+    def create_drawing(self, filename: str, pts: np.ndarray, height: float, unit=svgwrite.cm) -> None:
+        """Initialise the underlying ``svgwrite.Drawing`` based on the bounding box of *pts*."""
+        self.bbox = np.array([[f(pts[:, i]) for f in [np.min, np.max]] for i in [0, 1]])
+        aspect_ratio = (self.bbox[0, 1] - self.bbox[0, 0]) / (self.bbox[1, 1] - self.bbox[1, 0])
+        self.scale = height / (self.bbox[1, 1] - self.bbox[1, 0])
+        self.width = height * aspect_ratio
+        self.height = height
+        self.dwg = svgwrite.Drawing(
+            filename, size=(self.width * unit, height * unit), viewBox=f"0 0 {self.width} {height}"
+        )
+
+    def render_graph(
+        self,
+        filename: str,
+        graph,
+        render_vertices: bool = False,
+        render_faces: bool = False,
+        render_edges: bool = True,
+        for_cutting: bool = True,
+        height: float = 30,
+        unit=svgwrite.cm,
+        render_interior_and_borders: bool = True,
+        extra_render_keys: tuple[str, ...] = ("drawing_edge",),
+    ) -> None:
+        """Write a plotter-ready SVG of *graph*'s edges to *filename*.
+
+        Also writes companion files ``<name>_borders.svg`` and
+        ``<name>_interior.svg`` (when *render_interior_and_borders* is True),
+        plus one extra SVG per attribute key in *extra_render_keys* that
+        marks half-edges with a truthy attribute of that key.
+        """
+
+        # get bbox of points that will be rendered
+        ps, vs = graph.get_position_view()
+        self.create_drawing(filename=filename, pts=ps, height=height, unit=unit)
+
+        if render_faces:
+            raise NotImplementedError
+
+        if render_edges:
+            if not for_cutting:
+                raise NotImplementedError
+            else:
+                halfedges = set(graph) if isinstance(graph, (list, tuple)) else graph.halfedges
+                self._render_halfedges(halfedges, self.dwg, self.bbox, self.scale)
+                self.dwg.save()
+
+                if render_interior_and_borders:
+                    assert filename.endswith(".svg")
+                    filename_border = ".".join(filename.split(".")[:-1]) + "_borders.svg"
+                    dwg_border = svgwrite.Drawing(
+                        filename_border, size=(self.width * unit, height * unit), viewBox=f"0 0 {self.width} {height}"
+                    )
+                    border_edges = {h for h in halfedges if h.on_border() or h.rev.on_border()}
+                    self._render_halfedges(border_edges, dwg_border, self.bbox, self.scale)
+                    dwg_border.save()
+
+                    filename_interior = ".".join(filename.split(".")[:-1]) + "_interior.svg"
+                    interior_edges = halfedges.difference(border_edges)
+                    dwg_interior = svgwrite.Drawing(
+                        filename_interior, size=(self.width * unit, height * unit), viewBox=f"0 0 {self.width} {height}"
+                    )
+                    self._render_halfedges(interior_edges, dwg_interior, self.bbox, self.scale)
+                    dwg_interior.save()
+
+                if extra_render_keys:
+                    for key in extra_render_keys:
+                        key_edges = [h for h in halfedges if h.attributes.get(key)]
+                        if not key_edges:
+                            logger.info("skipping rendering of %s as no edges are present", key)
+                            continue
+                        assert filename.endswith(".svg")
+                        key_filename = ".".join(filename.split(".")[:-1]) + f"{key}.svg"
+                        dwg_key = svgwrite.Drawing(
+                            key_filename, size=(self.width * unit, height * unit), viewBox=f"0 0 {self.width} {height}"
+                        )
+                        self._render_halfedges(key_edges, dwg_key, self.bbox, self.scale)
+                        dwg_key.save()
+
+        if render_vertices:
+            raise NotImplementedError
+
+        return self.dwg

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from eucare.tileset_spec import (
+from pleat.tileset_spec import (
     TilesetSpec,
     parse_edge_ref,
     spec_from_yaml,
@@ -60,7 +60,7 @@ def test_tileset_from_spec_platonic_triangle():
 
 def test_tileset_from_spec_grows_into_tiling():
     """Round-trip: spec → tiles → grown graph has at least one face per tile type."""
-    from eucare.example_graphs import from_tiles
+    from pleat.example_graphs import from_tiles
 
     spec: TilesetSpec = {
         "a": [("b", 1), ("b", 1), ("b", 1)],

@@ -40,7 +40,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
 
       - name: Run black
-        run: uvx black@24.10.0 --check eucare tests
+        run: uvx black@24.10.0 --check pleat tests
 
   docs:
     runs-on: ubuntu-latest

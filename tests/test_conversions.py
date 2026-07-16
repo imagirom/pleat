@@ -5,8 +5,8 @@ from __future__ import annotations
 import networkx as nx
 import numpy as np
 
-from eucare.conversions import EHEG_from_nx
-from eucare.half import EuclideanPositionHEG
+from pleat.conversions import EHEG_from_nx
+from pleat.half import EuclideanPositionHEG
 
 
 def test_simple_triangle_from_nx():

@@ -1,11 +1,12 @@
 """Generate the API reference pages and navigation."""
+
 from pathlib import Path
 
 import mkdocs_gen_files
 
 nav = mkdocs_gen_files.Nav()
 
-src = Path("eucare")
+src = Path("pleat")
 
 for path in sorted(src.rglob("*.py")):
     module_path = path.with_suffix("")

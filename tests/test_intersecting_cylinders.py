@@ -3,10 +3,10 @@
 import numpy as np
 import pytest
 
-from eucare.example_graphs import from_tiles
-from eucare.example_tilesets import platonic
-from eucare.half import IdObject
-from eucare.intersecting_cylinders import (
+from pleat.example_graphs import from_tiles
+from pleat.example_tilesets import platonic
+from pleat.half import IdObject
+from pleat.intersecting_cylinders import (
     Profile,
     circular_profile,
     convert_all_to_triangle_twists,
@@ -265,7 +265,7 @@ class TestDualCirclePackings:
         G_ortho.check_consistency()
 
     def test_styling_attributes_present(self):
-        from eucare import half
+        from pleat import half
 
         G = _make_graph(p=4, rings=2)
         G_ortho = build_dual_circle_packings(G)
@@ -295,7 +295,7 @@ class TestDualCirclePackings:
         # The radius assigned to each face/vertex circle is the distance from
         # its centre to *any* adjacent tangent point. By construction all
         # tangent points on the same circle should be equidistant.
-        from eucare import half
+        from pleat import half
 
         G = _make_graph(p=4, rings=2)
         G_ortho = build_dual_circle_packings(G)
@@ -321,7 +321,7 @@ class TestDualCirclePackings:
 class TestTriangleTwist:
     @staticmethod
     def _hub_cp():
-        import eucare as ec
+        import pleat as ec
 
         G = ec.io.load_graph("graphs/irregular2.heg")
         G = ec.conway.kis_graph()(G, delete_on_border=True)

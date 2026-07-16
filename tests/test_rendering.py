@@ -9,9 +9,9 @@ matplotlib.use("Agg")  # headless: plt.show() must be a no-op
 import numpy as np
 import pytest
 
-from eucare.example_graphs import rosette
-from eucare.half import RegularNGon
-from eucare.rendering import (
+from pleat.example_graphs import rosette
+from pleat.half import RegularNGon
+from pleat.rendering import (
     CairoRenderer,
     Rendering,
     SvgwriteRenderer,
@@ -218,7 +218,7 @@ def test_geometric_show_headless_no_files(tmp_path, monkeypatch):
 
 
 def test_multi_show_runs_in_memory(tmp_path, monkeypatch):
-    from eucare.rendering import multi_show
+    from pleat.rendering import multi_show
 
     monkeypatch.chdir(tmp_path)
     G1 = rosette(n=4)

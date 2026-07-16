@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from eucare.svg import load_svg
+from pleat.svg import load_svg
 
 # Minimal SVG with three colored line strokes:
 #   * red   = mountain

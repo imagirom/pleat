@@ -1,12 +1,12 @@
-"""Tests for eucare.utils helpers."""
+"""Tests for pleat.utils helpers."""
 
 from __future__ import annotations
 
 import logging
 
-from eucare.example_graphs import rosette
-from eucare.half import RegularNGon
-from eucare.utils import (
+from pleat.example_graphs import rosette
+from pleat.half import RegularNGon
+from pleat.utils import (
     VerboseTimer,
     invert_mapping,
     print_attribute_info,
@@ -40,7 +40,7 @@ def test_random_directed_set_accepts_iterable_of_halfedges():
 
 def test_print_attribute_info_on_graph(caplog):
     G = rosette(n=4)
-    with caplog.at_level(logging.INFO, logger="eucare.utils"):
+    with caplog.at_level(logging.INFO, logger="pleat.utils"):
         print_attribute_info(G)
     msgs = [rec.message for rec in caplog.records]
     # The graph branch logs section headers.
@@ -55,7 +55,7 @@ def test_print_attribute_info_on_collection(caplog):
     for v in G.vertices:
         v["some_label"] = "x"
         v["unhashable"] = [1, 2, 3]
-    with caplog.at_level(logging.INFO, logger="eucare.utils"):
+    with caplog.at_level(logging.INFO, logger="pleat.utils"):
         print_attribute_info(G.vertices)
     msgs = [rec.message for rec in caplog.records]
     assert any("some_label" in m for m in msgs)

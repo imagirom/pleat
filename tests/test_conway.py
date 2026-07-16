@@ -7,8 +7,8 @@ matplotlib.use("Agg")  # headless: rendering smoke tests must not need a display
 import numpy as np
 import pytest
 
-from eucare.classifiers import congruency_classifier
-from eucare.conway import (
+from pleat.classifiers import congruency_classifier
+from pleat.conway import (
     ambo_graph,
     dual_graph,
     gyro_graph,
@@ -17,9 +17,9 @@ from eucare.conway import (
     starify_graph,
     truncate_graph,
 )
-from eucare.example_graphs import from_tiles
-from eucare.example_tilesets import platonic, t_3_3_4_3_4, t_4_6_12
-from eucare.half import EuclideanPositionHEG, IdObject
+from pleat.example_graphs import from_tiles
+from pleat.example_tilesets import platonic, t_3_3_4_3_4, t_4_6_12
+from pleat.half import EuclideanPositionHEG, IdObject
 
 
 def _make_tiling(tileset_fn=None, rings=3):
@@ -159,7 +159,7 @@ class TestConwayDefaultCopyPath:
 
 class TestGoldberg2:
     def test_goldberg2_smoke(self):
-        from eucare.conway import goldberg2_graph
+        from pleat.conway import goldberg2_graph
 
         op = goldberg2_graph()
         assert op.graph is not None
@@ -167,42 +167,42 @@ class TestGoldberg2:
 
 class TestExpandLoftLaceChamfer:
     def test_expand(self):
-        from eucare.conway import expand_graph
+        from pleat.conway import expand_graph
 
         G = _make_tiling(rings=2)
         result = expand_graph()(G)
         result.check_consistency()
 
     def test_loft(self):
-        from eucare.conway import loft_graph
+        from pleat.conway import loft_graph
 
         G = _make_tiling(rings=2)
         result = loft_graph()(G)
         result.check_consistency()
 
     def test_lace(self):
-        from eucare.conway import lace_graph
+        from pleat.conway import lace_graph
 
         G = _make_tiling(rings=2)
         result = lace_graph()(G)
         result.check_consistency()
 
     def test_chamfer(self):
-        from eucare.conway import chamfer_graph
+        from pleat.conway import chamfer_graph
 
         G = _make_tiling(rings=2)
         result = chamfer_graph()(G)
         result.check_consistency()
 
     def test_shrink_rotate_graph(self):
-        from eucare.conway import shrink_rotate_graph
+        from pleat.conway import shrink_rotate_graph
 
         G = _make_tiling(rings=2)
         result = shrink_rotate_graph()(G)
         result.check_consistency()
 
     def test_flagstone_pvitelli(self):
-        from eucare.conway import flagstone_pvitelli_graph
+        from pleat.conway import flagstone_pvitelli_graph
 
         G = _make_tiling(rings=2)
         result = flagstone_pvitelli_graph()(G)
@@ -297,7 +297,7 @@ class TestFaceFilterCallable:
 
     def test_callable_filter_matches_explicit_set(self):
         """Passing ``faces=callable`` is equivalent to passing the matching set."""
-        from eucare.half import IdObject
+        from pleat.half import IdObject
 
         IdObject.reset_ids()
         G1 = _make_tiling(rings=2)
@@ -318,8 +318,8 @@ class TestFaceFilterCallable:
 )
 def test_geometric_show_smoke(factory_name):
     """``GeometricConwayOperator.render``/``show`` run end-to-end headless."""
-    import eucare.conway as conway_mod
-    from eucare.rendering import Rendering
+    import pleat.conway as conway_mod
+    from pleat.rendering import Rendering
 
     factory = getattr(conway_mod, factory_name)
     op = factory()

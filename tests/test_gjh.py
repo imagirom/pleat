@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from eucare.example_graphs import from_tiles
-from eucare.gjh import compile_gjh_spec, gjh, gjh_graph, gjh_spec
-from eucare.gjh.parser import compile_gjh_graph, polygon_placement
-from eucare.gjh.distill import spec_from_graph
-from eucare.gjh.library import CACHED_SPECS, GJH_CODES, cached_spec
+from pleat.example_graphs import from_tiles
+from pleat.gjh import compile_gjh_spec, gjh, gjh_graph, gjh_spec
+from pleat.gjh.parser import compile_gjh_graph, polygon_placement
+from pleat.gjh.distill import spec_from_graph
+from pleat.gjh.library import CACHED_SPECS, GJH_CODES, cached_spec
 
 
 def test_polygon_placement_single_polygon():

@@ -1,6 +1,6 @@
 ## Project Overview
 
-Eucare is a Python library for constructing, manipulating, and visualizing geometric tilings and origami crease patterns. It supports Euclidean, hyperbolic, and spherical geometries, and can generate folded forms, reciprocal figures, and output for 3D printing.
+Pleat is a Python library for constructing, manipulating, and visualizing geometric tilings and origami crease patterns. It supports Euclidean, hyperbolic, and spherical geometries, and can generate folded forms, reciprocal figures, and output for 3D printing.
 
 ## Environment Setup
 
@@ -12,7 +12,6 @@ uv pip install -e ".[dev]"
 Optional extras: `docs` (MkDocs), `notebook` (Jupyter), `threed` (meshio for STL), `torch` (PyTorch + einops).
 
 Additional optional requirements (not on PyPI):
-- `fancy` from github.com/imagirom/fancy
 - `cplex` from IBM (free for academics)
 
 ## Running Tests
@@ -22,7 +21,7 @@ uv run pytest                        # all tests
 uv run pytest -m "not slow"         # skip slow integration tests (~7s)
 uv run pytest tests/test_base.py    # single test file
 uv run pytest -k "test_dual"        # run tests matching pattern
-uv run pytest --cov=eucare          # with coverage report (HTML in htmlcov/)
+uv run pytest --cov=pleat          # with coverage report (HTML in htmlcov/)
 ```
 
 Tests are organized in `tests/`:
@@ -39,8 +38,8 @@ Tests are organized in `tests/`:
 ## Linting and CI
 
 ```bash
-uv run --extra dev black --check eucare tests  # formatting check
-uv run --extra dev black eucare tests          # auto-format
+uv run --extra dev black --check pleat tests  # formatting check
+uv run --extra dev black pleat tests          # auto-format
 pre-commit install                    # enable pre-commit hooks (black + notebook stripping)
 ```
 
@@ -61,7 +60,7 @@ API docs are auto-generated from docstrings via mkdocstrings. Notebooks in `docs
 
 ## Architecture
 
-### Core Data Structure: Half-Edge Graph (`eucare/half.py`)
+### Core Data Structure: Half-Edge Graph (`pleat/half.py`)
 
 The central data structure is the **half-edge data structure** (DCEL). This is the backbone of the entire library.
 

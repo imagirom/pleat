@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from eucare.overlap import (
+from pleat.overlap import (
     fast_group_closeby,
     faster_group_closeby_nx,
     intervals_overlapping,

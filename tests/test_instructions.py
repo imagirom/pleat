@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from eucare.instructions import attatch_tile_instruction
-from eucare.prototiles import RegularEuclideanTile
+from pleat.instructions import attatch_tile_instruction
+from pleat.prototiles import RegularEuclideanTile
 
 
 def test_attatch_tile_instruction_glues_to_border_edge():

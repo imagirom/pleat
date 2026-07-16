@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from eucare.prototiles import RegularEuclideanTile, RegularProtoTile
+from pleat.prototiles import RegularEuclideanTile, RegularProtoTile
 
 
 @pytest.mark.parametrize("n", [3, 4, 5, 6, 8])

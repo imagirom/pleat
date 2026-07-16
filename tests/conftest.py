@@ -1,6 +1,6 @@
 import pytest
 
-from eucare.half import IdObject
+from pleat.half import IdObject
 
 
 @pytest.fixture(autouse=True)

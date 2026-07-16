@@ -1,12 +1,12 @@
-"""Tests for eucare.io: round-trip save/load of half-edge graphs in the .heg format."""
+"""Tests for pleat.io: round-trip save/load of half-edge graphs in the .heg format."""
 
 from __future__ import annotations
 
 import numpy as np
 
-from eucare.example_graphs import rosette
-from eucare.half import EuclideanPositionHEG, RegularNGon
-from eucare.io import dict_to_graph, graph_to_dict, load_graph, save_graph
+from pleat.example_graphs import rosette
+from pleat.half import EuclideanPositionHEG, RegularNGon
+from pleat.io import dict_to_graph, graph_to_dict, load_graph, save_graph
 
 
 def _topology_signature(G):

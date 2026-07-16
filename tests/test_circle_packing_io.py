@@ -1,4 +1,4 @@
-"""Tests for `.p` (CirclePack) file I/O via :mod:`eucare.io`."""
+"""Tests for `.p` (CirclePack) file I/O via :mod:`pleat.io`."""
 
 from __future__ import annotations
 
@@ -7,9 +7,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from eucare.example_graphs import from_tiles
-from eucare.example_tilesets import platonic
-from eucare.geometries import EuclideanGeometry, PoincareDiskModel
+from pleat.example_graphs import from_tiles
+from pleat.example_tilesets import platonic
+from pleat.geometries import EuclideanGeometry, PoincareDiskModel
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "circlepack"
 
@@ -28,7 +28,7 @@ class TestParseWriteIdentity:
 
     @pytest.mark.parametrize("name", ["egg_a.p", "circular1.p", "hyp_7575around6.p"])
     def test_roundtrip_identity(self, tmp_path, name):
-        from eucare.io import parse_p_file, write_p_file
+        from pleat.io import parse_p_file, write_p_file
 
         data = parse_p_file(str(FIXTURE_DIR / name))
         out = tmp_path / name
@@ -58,7 +58,7 @@ class TestParseWriteIdentity:
 
 class TestLoadCirclepack:
     def test_egg_a_combinatorics(self):
-        from eucare.io import load_circlepack
+        from pleat.io import load_circlepack
 
         G = load_circlepack(str(FIXTURE_DIR / "egg_a.p"))
         # egg_a.p declares NODECOUNT 24
@@ -72,7 +72,7 @@ class TestLoadCirclepack:
 
     def test_egg_a_tangency(self):
         """The egg_a.p fixture stores a valid packing — every edge satisfies tangency."""
-        from eucare.io import load_circlepack
+        from pleat.io import load_circlepack
 
         G = load_circlepack(str(FIXTURE_DIR / "egg_a.p"))
         for h in G.halfedges:
@@ -83,7 +83,7 @@ class TestLoadCirclepack:
             assert d == pytest.approx(u["radius"] + v["radius"], abs=5e-3)
 
     def test_hyperbolic_geometry_recognised(self):
-        from eucare.io import load_circlepack
+        from pleat.io import load_circlepack
 
         G = load_circlepack(str(FIXTURE_DIR / "hyp_7575around6.p"))
         assert G.geometry is PoincareDiskModel
@@ -92,8 +92,8 @@ class TestLoadCirclepack:
 class TestSaveLoadRoundtrip:
     def test_euclidean_packed_graph_roundtrip(self, tmp_path):
         """Pack a hex triangulation, save, reload — tangency should still hold."""
-        from eucare.circle_packing import pack_euclidean
-        from eucare.io import load_circlepack, save_circlepack
+        from pleat.circle_packing import pack_euclidean
+        from pleat.io import load_circlepack, save_circlepack
 
         G = _hex_triangulation()
         P = pack_euclidean(G, boundary_radii=1.0)
@@ -113,8 +113,8 @@ class TestSaveLoadRoundtrip:
 
     def test_euclidean_radii_preserved(self, tmp_path):
         """Save/load must preserve the multiset of radii (modulo vertex relabeling)."""
-        from eucare.circle_packing import pack_euclidean
-        from eucare.io import load_circlepack, save_circlepack
+        from pleat.circle_packing import pack_euclidean
+        from pleat.io import load_circlepack, save_circlepack
 
         G = _hex_triangulation()
         P = pack_euclidean(G, boundary_radii=1.0)
@@ -128,7 +128,7 @@ class TestSaveLoadRoundtrip:
 
     def test_save_load_egg_a_preserves_radii(self, tmp_path):
         """Load fixture, save, reload — multiset of radii unchanged."""
-        from eucare.io import load_circlepack, save_circlepack
+        from pleat.io import load_circlepack, save_circlepack
 
         G1 = load_circlepack(str(FIXTURE_DIR / "egg_a.p"))
         out = tmp_path / "egg_a_out.p"
@@ -140,8 +140,8 @@ class TestSaveLoadRoundtrip:
 
     def test_overwrite_guard(self, tmp_path):
         """save_circlepack refuses to overwrite by default."""
-        from eucare.circle_packing import pack_euclidean
-        from eucare.io import save_circlepack
+        from pleat.circle_packing import pack_euclidean
+        from pleat.io import save_circlepack
 
         G = _hex_triangulation()
         P = pack_euclidean(G, boundary_radii=1.0)

@@ -1,4 +1,4 @@
-"""Tests for ``eucare.colorization``."""
+"""Tests for ``pleat.colorization``."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ matplotlib.use("Agg")
 import numpy as np
 import pytest
 
-from eucare.classifiers import congruency_classifier
-from eucare.colorization import (
+from pleat.classifiers import congruency_classifier
+from pleat.colorization import (
     EDGE_PRESETS,
     FACE_PRESETS,
     VERTEX_PRESETS,
@@ -21,10 +21,9 @@ from eucare.colorization import (
     is_color,
     resolve_colors,
 )
-from eucare.example_graphs import from_tiles, rosette
-from eucare.example_tilesets import t_4_6_12
-from eucare.rendering import CairoRenderer
-
+from pleat.example_graphs import from_tiles, rosette
+from pleat.example_tilesets import t_4_6_12
+from pleat.rendering import CairoRenderer
 
 # --- existing helper tests ------------------------------------------------
 

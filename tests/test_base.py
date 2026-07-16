@@ -1,9 +1,9 @@
-"""Tests for eucare.base geometry utilities."""
+"""Tests for pleat.base geometry utilities."""
 
 import numpy as np
 import pytest
 
-from eucare.base import (
+from pleat.base import (
     angle,
     angle_to_axis,
     apply_affine,

@@ -7,9 +7,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from eucare.example_graphs import from_tiles
-from eucare.example_tilesets import platonic
-from eucare.geometries import EuclideanGeometry
+from pleat.example_graphs import from_tiles
+from pleat.example_tilesets import platonic
+from pleat.geometries import EuclideanGeometry
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "circlepack"
 
@@ -21,14 +21,14 @@ def _hex_triangulation(rings: int = 2):
 
 class TestPackEuclidean:
     def test_returns_euclidean_position_heg(self):
-        from eucare.circle_packing import pack_euclidean
+        from pleat.circle_packing import pack_euclidean
 
         G = _hex_triangulation()
         P = pack_euclidean(G, boundary_radii=1.0)
         assert P.geometry is EuclideanGeometry
 
     def test_every_vertex_has_radius_attribute(self):
-        from eucare.circle_packing import pack_euclidean
+        from pleat.circle_packing import pack_euclidean
 
         G = _hex_triangulation()
         P = pack_euclidean(G, boundary_radii=1.0)
@@ -37,7 +37,7 @@ class TestPackEuclidean:
             assert v["radius"] > 0
 
     def test_boundary_radii_match_uniform_input(self):
-        from eucare.circle_packing import pack_euclidean
+        from pleat.circle_packing import pack_euclidean
 
         G = _hex_triangulation()
         P = pack_euclidean(G, boundary_radii=0.7)
@@ -46,7 +46,7 @@ class TestPackEuclidean:
                 assert v["radius"] == pytest.approx(0.7, abs=1e-12)
 
     def test_tangency_holds_at_every_edge(self):
-        from eucare.circle_packing import pack_euclidean
+        from pleat.circle_packing import pack_euclidean
 
         G = _hex_triangulation()
         P = pack_euclidean(G, boundary_radii=1.0)
@@ -58,7 +58,7 @@ class TestPackEuclidean:
             assert d == pytest.approx(u["radius"] + v["radius"], abs=1e-9)
 
     def test_interior_angle_sums_are_2pi(self):
-        from eucare.circle_packing import pack_euclidean
+        from pleat.circle_packing import pack_euclidean
 
         G = _hex_triangulation()
         P = pack_euclidean(G, boundary_radii=1.0)
@@ -82,7 +82,7 @@ class TestPackEuclidean:
 
     def test_regular_hex_lattice_yields_uniform_radii(self):
         """In a regular {3,6} tiling with uniform boundary, all radii equal."""
-        from eucare.circle_packing import pack_euclidean
+        from pleat.circle_packing import pack_euclidean
 
         G = _hex_triangulation()
         P = pack_euclidean(G, boundary_radii=1.0)
@@ -90,7 +90,7 @@ class TestPackEuclidean:
         assert all(r == pytest.approx(1.0, abs=1e-9) for r in radii)
 
     def test_raises_on_non_triangulated_input(self):
-        from eucare.circle_packing import pack_euclidean
+        from pleat.circle_packing import pack_euclidean
 
         # platonic(6) = hexagonal tiling — faces are hexagons, not triangles
         G = from_tiles(platonic(6), rings=2)
@@ -101,7 +101,7 @@ class TestPackEuclidean:
 class TestBoundaryAngles:
     def test_boundary_angles_from_positions_recovers_input_angles(self):
         """Angles computed from a flat tiling sum to π(F - 2V_int) automatically."""
-        from eucare.circle_packing import boundary_angles_from_positions
+        from pleat.circle_packing import boundary_angles_from_positions
 
         G = _hex_triangulation()
         angles = boundary_angles_from_positions(G)
@@ -112,7 +112,7 @@ class TestBoundaryAngles:
 
     def test_pack_euclidean_with_from_positions_angles_matches_input_layout(self):
         """Angle-mode roundtrip on a regular hex patch: resulting packing is the input (up to gauge)."""
-        from eucare.circle_packing import pack_euclidean
+        from pleat.circle_packing import pack_euclidean
 
         G = _hex_triangulation()
         P = pack_euclidean(G, boundary_angles="from_positions")
@@ -144,7 +144,7 @@ class TestBoundaryAngles:
     def test_scalar_boundary_angle_validates_sum(self):
         """A uniform scalar broadcasts to all boundary vertices; the resulting
         sum must satisfy Gauss-Bonnet or the call must error."""
-        from eucare.circle_packing import pack_euclidean
+        from pleat.circle_packing import pack_euclidean
 
         G = _hex_triangulation()
         # 1.0 is essentially never the per-vertex angle satisfying Σθ = π(F − 2V_int)
@@ -154,7 +154,7 @@ class TestBoundaryAngles:
 
     def test_bad_sum_raises(self):
         """Manual angles that don't satisfy Σ θ = π(F - 2V_int) must error."""
-        from eucare.circle_packing import boundary_angles_from_positions, pack_euclidean
+        from pleat.circle_packing import boundary_angles_from_positions, pack_euclidean
 
         G = _hex_triangulation()
         angles = boundary_angles_from_positions(G)
@@ -166,7 +166,7 @@ class TestBoundaryAngles:
             pack_euclidean(G, boundary_angles=angles, copy_graph=False)
 
     def test_specifying_both_radii_and_angles_raises(self):
-        from eucare.circle_packing import pack_euclidean
+        from pleat.circle_packing import pack_euclidean
 
         G = _hex_triangulation()
         with pytest.raises(ValueError, match="not both"):
@@ -174,7 +174,7 @@ class TestBoundaryAngles:
 
     def test_default_is_uniform_radii(self):
         """When neither boundary_radii nor boundary_angles is given, defaults to uniform radii=1."""
-        from eucare.circle_packing import pack_euclidean
+        from pleat.circle_packing import pack_euclidean
 
         G = _hex_triangulation()
         P = pack_euclidean(G)
@@ -185,15 +185,15 @@ class TestBoundaryAngles:
 
 class TestPackHyperbolic:
     def test_returns_hyperbolic_position_heg(self):
-        from eucare.circle_packing import pack_hyperbolic
-        from eucare.geometries import PoincareDiskModel
+        from pleat.circle_packing import pack_hyperbolic
+        from pleat.geometries import PoincareDiskModel
 
         G = _hex_triangulation()
         P = pack_hyperbolic(G, boundary_x_radii=0.5)
         assert P.geometry is PoincareDiskModel
 
     def test_radii_are_positive_and_inside_disk(self):
-        from eucare.circle_packing import pack_hyperbolic
+        from pleat.circle_packing import pack_hyperbolic
 
         G = _hex_triangulation()
         P = pack_hyperbolic(G, boundary_x_radii=0.5)
@@ -204,7 +204,7 @@ class TestPackHyperbolic:
             assert abs(v["pos"]) + v["radius"] <= 1.0 + 1e-9
 
     def test_positions_inside_unit_disk(self):
-        from eucare.circle_packing import pack_hyperbolic
+        from pleat.circle_packing import pack_hyperbolic
 
         G = _hex_triangulation()
         P = pack_hyperbolic(G, boundary_x_radii=0.5)
@@ -214,7 +214,7 @@ class TestPackHyperbolic:
 
     def test_euclidean_tangency_holds(self):
         """In the Poincaré model, hyperbolic tangency = euclidean tangency."""
-        from eucare.circle_packing import pack_hyperbolic
+        from pleat.circle_packing import pack_hyperbolic
 
         G = _hex_triangulation()
         P = pack_hyperbolic(G, boundary_x_radii=0.5)
@@ -227,7 +227,7 @@ class TestPackHyperbolic:
 
     def test_interior_hyperbolic_angle_sums_are_2pi(self):
         """Interior x-radii (recovered from stored (c, r_euc)) satisfy angle-sum = 2π."""
-        from eucare.circle_packing import (
+        from pleat.circle_packing import (
             pack_hyperbolic,
             _hyperbolic_angle_sum,
             _x_radius_from_euclidean,
@@ -252,7 +252,7 @@ class TestPackHyperbolic:
 
     def test_horocycle_boundary_supported(self):
         """boundary_x_radii = 1.0 produces a maximal packing: boundary tangent to unit circle."""
-        from eucare.circle_packing import pack_hyperbolic
+        from pleat.circle_packing import pack_hyperbolic
 
         G = _hex_triangulation()
         P = pack_hyperbolic(G, boundary_x_radii=1.0)
@@ -275,7 +275,7 @@ class TestGoldenAgainstCirclePack:
 
     @staticmethod
     def _load(name: str):
-        from eucare.io import parse_p_file, _build_heg_from_data
+        from pleat.io import parse_p_file, _build_heg_from_data
 
         data = parse_p_file(str(FIXTURE_DIR / name))
         G, idx2v = _build_heg_from_data(data)
@@ -283,7 +283,7 @@ class TestGoldenAgainstCirclePack:
 
     def test_egg_a_euclidean(self):
         """egg_a.p: 24-vertex euclidean packing with uniform boundary radius 0.025."""
-        from eucare.circle_packing import pack_euclidean
+        from pleat.circle_packing import pack_euclidean
 
         data, G, idx2v = self._load("egg_a.p")
         # Extract boundary radii from the .p file (boundary vertices are those
@@ -302,7 +302,7 @@ class TestGoldenAgainstCirclePack:
 
     def test_circular1_euclidean(self):
         """circular1.p: 37-vertex euclidean packing."""
-        from eucare.circle_packing import pack_euclidean
+        from pleat.circle_packing import pack_euclidean
 
         data, G, idx2v = self._load("circular1.p")
         boundary_radii = {}
@@ -325,7 +325,7 @@ class TestGoldenAgainstCirclePack:
         also iterated boundary radii; we hold ours fixed, so interior radii
         are compared with ~5% tolerance.
         """
-        from eucare.circle_packing import pack_hyperbolic, _x_radius_from_euclidean
+        from pleat.circle_packing import pack_hyperbolic, _x_radius_from_euclidean
 
         data, G, idx2v = self._load("hyp_7575around6.p")
         boundary_x_radii = {}

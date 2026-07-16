@@ -1,10 +1,10 @@
-# Eucare
+# Pleat
 
-[![CI](https://github.com/imagirom/oritile/actions/workflows/ci.yml/badge.svg)](https://github.com/imagirom/oritile/actions/workflows/ci.yml)
+[![CI](https://github.com/imagirom/pleat/actions/workflows/ci.yml/badge.svg)](https://github.com/imagirom/pleat/actions/workflows/ci.yml)
 
 **Construct geometric tilings, and turn them into origami tesselations.**
 
-Eucare is a Python library for constructing, manipulating, and visualizing geometric tilings across Euclidean, hyperbolic, and spherical geometries.
+Pleat is a Python library for constructing, manipulating, and visualizing geometric tilings across Euclidean, hyperbolic, and spherical geometries.
 It can generate crease patterns for origami tesselations and corrugations using several algorithms which can be exported for printing or plotting, and can preview folded states.
 
 ## Features
@@ -30,9 +30,9 @@ pip install -e ".[dev]"
 ## Quick start
 
 ```python
-from eucare.example_tilesets import platonic
-from eucare.example_graphs import from_tiles
-from eucare.conway import ambo_graph
+from pleat.example_tilesets import platonic
+from pleat.example_graphs import from_tiles
+from pleat.conway import ambo_graph
 
 # Build a hexagonal tiling and apply the ambo operator
 G = from_tiles(platonic(6), rings=4)
@@ -44,7 +44,7 @@ G2.show()
 ### Spherical and hyperbolic tilings
 
 ```python
-from eucare.example_tilesets import curved_platonic
+from pleat.example_tilesets import curved_platonic
 
 # Icosahedron (spherical)
 G = from_tiles(curved_platonic(3, 5), rings=3)
@@ -56,9 +56,9 @@ G = from_tiles(curved_platonic(7, 3), rings=3)
 ### Origami crease patterns
 
 ```python
-from eucare.shrink_rotate import shrink_rotate_pattern, assign_this_way_by_face_z_order
-from eucare.search_trees import face_bfs_tree
-from eucare.overlap import fold_complete
+from pleat.shrink_rotate import shrink_rotate_pattern, assign_this_way_by_face_z_order
+from pleat.search_trees import face_bfs_tree
+from pleat.overlap import fold_complete
 import numpy as np
 
 G = from_tiles(platonic(4), rings=3)
@@ -90,20 +90,20 @@ Key modules:
 
 | Module | Purpose |
 |--------|---------|
-| `eucare.half` | Core half-edge data structure |
-| `eucare.conway` | Conway topological operators |
-| `eucare.example_tilesets` | Predefined Archimedean and curved tilings |
-| `eucare.reciprocal_figures` | Reciprocal figures and shrink-rotate |
-| `eucare.overlap` | Folding, overlap graphs, ILP face ordering |
-| `eucare.geometries` | Euclidean, hyperbolic, and spherical backends |
-| `eucare.rendering` | Cairo-based PNG rendering |
+| `pleat.half` | Core half-edge data structure |
+| `pleat.conway` | Conway topological operators |
+| `pleat.example_tilesets` | Predefined Archimedean and curved tilings |
+| `pleat.reciprocal_figures` | Reciprocal figures and shrink-rotate |
+| `pleat.overlap` | Folding, overlap graphs, ILP face ordering |
+| `pleat.geometries` | Euclidean, hyperbolic, and spherical backends |
+| `pleat.rendering` | Cairo-based PNG rendering |
 
 ## Testing
 
 ```bash
 uv run pytest                     # all tests
 uv run pytest -m "not slow"      # skip integration tests (~7s)
-uv run pytest --cov=eucare       # with coverage report
+uv run pytest --cov=pleat       # with coverage report
 ```
 
 ## Documentation
@@ -117,7 +117,7 @@ mkdocs build                      # build static site to site/
 ## Development
 
 ```bash
-uv run --extra dev black --check eucare tests  # formatting check
+uv run --extra dev black --check pleat tests  # formatting check
 pre-commit install                 # install git hooks
 ```
 

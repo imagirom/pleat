@@ -5,9 +5,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from eucare.example_graphs import rosette
-from eucare.half import EuclideanPositionHEG, RegularNGon
-from eucare.layout import (
+from pleat.example_graphs import rosette
+from pleat.half import EuclideanPositionHEG, RegularNGon
+from pleat.layout import (
     angle_to_height,
     min_edge_length,
     optimal_rotation,

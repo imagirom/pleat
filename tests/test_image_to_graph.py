@@ -8,7 +8,7 @@ matplotlib.use("Agg")
 from matplotlib import pyplot as plt
 
 pytest.importorskip("mahotas", reason="image_to_graph requires the [image] extra")
-from eucare.image_to_graph import image_to_graph
+from pleat.image_to_graph import image_to_graph
 
 
 def test_image_to_graph_sample_image_merges_branch_points_without_type_error(monkeypatch):

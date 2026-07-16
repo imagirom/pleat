@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from eucare.example_graphs import from_tiles
-from eucare.example_tilesets import (
+from pleat.example_graphs import from_tiles
+from pleat.example_tilesets import (
     curved_expand,
     curved_platonic,
     curved_snub,
@@ -14,9 +14,9 @@ from eucare.example_tilesets import (
     t_3_12_12,
     t_4_6_12,
 )
-from eucare.geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
-from eucare.half import EuclideanPositionHEG, GeometricHEG, IdObject
-from eucare.prototiles import RegularEuclideanTile
+from pleat.geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
+from pleat.half import EuclideanPositionHEG, GeometricHEG, IdObject
+from pleat.prototiles import RegularEuclideanTile
 
 
 class TestEuclideanTilings:
@@ -84,7 +84,7 @@ class TestSphericalTilings:
     )
     def test_platonic_solid(self, n, k, name):
         tiles = curved_platonic(n, k)
-        from eucare.example_graphs import add_vertex_ring
+        from pleat.example_graphs import add_vertex_ring
 
         base_tile = tiles[-1]
         G = GeometricHEG(geometry=tiles[0].geometry, other=base_tile.make_graph(add_positions=True)[0])

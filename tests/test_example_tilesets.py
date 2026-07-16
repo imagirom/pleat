@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from eucare import example_tilesets as ts
-from eucare.example_graphs import from_tiles
-from eucare.geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
-from eucare.prototiles import ProtoTile
-
+from pleat import example_tilesets as ts
+from pleat.example_graphs import from_tiles
+from pleat.geometries import EuclideanGeometry, PoincareDiskModel, SphereModel
+from pleat.prototiles import ProtoTile
 
 # ---- Euclidean Archimedean tilesets ----
 
@@ -92,7 +91,7 @@ def test_from_tiles_euclidean_growth():
 
 
 def test_from_tiles_no_positions_returns_in_angle_heg():
-    from eucare.half import GeometricHEG, InAngleHEG
+    from pleat.half import GeometricHEG, InAngleHEG
 
     G = from_tiles(ts.platonic(4), rings=1, add_positions=False)
     G.check_consistency()

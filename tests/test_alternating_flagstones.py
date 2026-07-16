@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from eucare.alternating_flagstones import (
+from pleat.alternating_flagstones import (
     build_structure,
     connection_length_metric,
     cut_twist_centres,
@@ -11,7 +11,7 @@ from eucare.alternating_flagstones import (
     optimize_alternating_flagstone,
     subdivide_ridges_for_curved_fold,
 )
-from eucare.classifiers import congruency_classifier
+from pleat.classifiers import congruency_classifier
 
 try:  # optional dep
     import torch  # noqa: F401
@@ -19,7 +19,7 @@ try:  # optional dep
     HAS_TORCH = True
 except ModuleNotFoundError:
     HAS_TORCH = False
-from eucare.conway import (
+from pleat.conway import (
     alternating_flagstone_graph,
     chamfer_graph,
     dual_graph,
@@ -29,10 +29,10 @@ from eucare.conway import (
     loft_graph,
     shrink_rotate_graph,
 )
-from eucare.example_graphs import from_tiles
-from eucare.example_tilesets import platonic, t_4_6_12
-from eucare.half import EuclideanPositionHEG, IdObject
-from eucare.overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
+from pleat.example_graphs import from_tiles
+from pleat.example_tilesets import platonic, t_4_6_12
+from pleat.half import EuclideanPositionHEG, IdObject
+from pleat.overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
 
 
 def _make_tiling(tileset_fn=None, rings=3):
@@ -165,7 +165,7 @@ class TestFlagstoneProperties:
 
 
 # ---------------------------------------------------------------------------
-# High-level pipeline (eucare.alternating_flagstones)
+# High-level pipeline (pleat.alternating_flagstones)
 
 
 class TestAlternatingFlagstonePipeline:

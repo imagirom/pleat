@@ -1,6 +1,6 @@
 # Documentation Pipeline
 
-Eucare's documentation is built with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/)
+Pleat's documentation is built with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/)
 and served as a static site. This page explains the pipeline so you can add pages, fix docstrings,
 or add example notebooks without having to reverse-engineer the setup.
 
@@ -28,7 +28,7 @@ Notebook pages are executed during the build, so the published docs do not rely 
 
 `docs/gen_ref_pages.py` runs at build time (via the `gen-files` plugin). It:
 
-1. Walks `eucare/*.py` (and `eucare/geometries/*.py`) and creates a stub page per module at
+1. Walks `pleat/*.py` (and `pleat/geometries/*.py`) and creates a stub page per module at
    `reference/<module>.md` containing only a `:::` autodoc directive.
 2. Writes `reference/SUMMARY.md` listing all pages in the order they were discovered.
 

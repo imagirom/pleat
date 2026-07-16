@@ -3,8 +3,8 @@
 ## With uv (recommended)
 
 ```bash
-git clone https://github.com/rremme/eucare.git
-cd eucare
+git clone https://github.com/imagirom/pleat.git
+cd pleat
 uv venv --python 3.10
 uv pip install -e ".[dev]"
 ```

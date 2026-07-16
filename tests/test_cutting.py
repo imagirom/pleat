@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import numpy as np
 
-from eucare.cutting import (
+from pleat.cutting import (
     Halfplane,
     cut_out_poly,
     pointinpolygon,
     polygon_line_segment_intersections,
 )
-from eucare.example_graphs import from_tiles
-from eucare.example_tilesets import platonic
-from eucare.half import EuclideanPositionHEG
+from pleat.example_graphs import from_tiles
+from pleat.example_tilesets import platonic
+from pleat.half import EuclideanPositionHEG
 
 SQUARE = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])
 
