@@ -4,6 +4,12 @@
 
 **Construct geometric tilings, and turn them into origami tessellations.**
 
+<p align="center">
+  <img src="docs/notebooks/images/shrink-rotate/Seven%20Flowers.jpg" alt="Seven Flowers — folded shrink-rotate tessellation" height="240" />
+  <img src="docs/notebooks/images/intersecting-cylinders/Double%20Dodecagon.png" alt="Double Dodecagon — folded intersecting-cylinders tessellation" height="240" />
+  <img src="docs/notebooks/images/shrink-rotate/7.4.3%20Circles.jpg" alt="7.4.3 Circles — folded shrink-rotate tessellation" height="240" />
+</p>
+
 Pleat is a Python library for constructing, manipulating, and visualizing geometric tilings across Euclidean, hyperbolic, and spherical geometries.
 It can generate crease patterns for origami tessellations and corrugations using several algorithms which can be exported for printing or plotting, and can preview folded states.
 
@@ -29,100 +35,49 @@ pip install -e ".[dev]"
 
 ## Quick start
 
-```python
-from pleat.example_tilesets import platonic
-from pleat.example_graphs import from_tiles
-from pleat.conway import ambo_graph
-
-# Build a hexagonal tiling and apply the ambo operator
-G = from_tiles(platonic(6), rings=4)
-G2 = ambo_graph()(G, delete_on_border=True)
-G2.recompute_lengths_and_angles()
-G2.show()
-```
-
-### Spherical and hyperbolic tilings
+The whole pipeline — build a tiling, turn it into a crease pattern, preview the folded state:
 
 ```python
-from pleat.example_tilesets import curved_platonic
-
-# Icosahedron (spherical)
-G = from_tiles(curved_platonic(3, 5), rings=3)
-
-# {7,3} tiling (hyperbolic, Poincaré disk)
-G = from_tiles(curved_platonic(7, 3), rings=3)
-```
-
-### Origami crease patterns
-
-```python
-from pleat.shrink_rotate import shrink_rotate_pattern, assign_this_way_by_face_z_order
-from pleat.search_trees import face_bfs_tree
-from pleat.overlap import fold_complete
 import numpy as np
+import pleat as ec
+from pleat.shrink_rotate import assign_this_way_by_bfs, shrink_rotate_pattern
 
-G = from_tiles(platonic(4), rings=3)
+# build a tiling: two rings of hexagons around a central one
+G = ec.example_graphs.from_tiles(ec.example_tilesets.platonic(n=6), rings=2)
 
-# Assign crease directions via face z-order
-central = min(G.faces, key=lambda f: np.linalg.norm(f.midpoint()))
-central['z_order'] = 0
-for orig, dest in face_bfs_tree(central):
-    dest['z_order'] = orig['z_order'] + 1
-assign_this_way_by_face_z_order(G)
+# decide which faces fold on top, then construct the crease pattern
+assign_this_way_by_bfs(G, G.central_face())
+CP = shrink_rotate_pattern(G, simplify_boundary=True, alpha=np.pi / 5, factor=0.5)
 
-# Build shrink-rotate crease pattern and fold
-SRG = shrink_rotate_pattern(G)
-results = fold_complete(SRG, overlap_eps=1e-8)
-```
-
-## Architecture
-
-The library is built around the **half-edge data structure** (DCEL):
-
-```
-HalfEdgeGraph              Topology only
-  └─ InAngleHEG            + interior angles and edge lengths
-      └─ GeometricHEG      + pluggable geometry backend
-          └─ EuclideanPositionHEG  + 2D vertex positions
-```
-
-Key modules:
-
-| Module | Purpose |
-|--------|---------|
-| `pleat.half` | Core half-edge data structure |
-| `pleat.conway` | Conway topological operators |
-| `pleat.example_tilesets` | Predefined Archimedean and curved tilings |
-| `pleat.reciprocal_figures` | Reciprocal figures and shrink-rotate |
-| `pleat.overlap` | Folding, overlap graphs, ILP face ordering |
-| `pleat.geometries` | Euclidean, hyperbolic, and spherical backends |
-| `pleat.rendering` | Cairo-based PNG rendering |
-
-## Testing
-
-```bash
-uv run pytest                     # all tests
-uv run pytest -m "not slow"      # skip integration tests (~7s)
-uv run pytest --cov=pleat       # with coverage report
+# fold it: preview the folded state with solved layer ordering
+ec.overlap.fold_complete(CP, quiet=True).show()
 ```
 
 ## Documentation
 
+The heart of the documentation is a series of Jupyter notebooks in
+[`docs/notebooks/`](docs/notebooks/) (rendered directly on GitHub), starting with the
+[pipeline overview](docs/index.ipynb). They cover constructing Euclidean and curved tilings,
+Conway operators, styling, and the origami algorithms (shrink-rotate, intersecting cylinders,
+alternating flagstones).
+
+To browse the full documentation site locally:
+
 ```bash
 uv pip install -e ".[docs]"
-mkdocs serve                      # local dev server at http://127.0.0.1:8000
-mkdocs build                      # build static site to site/
+mkdocs serve                      # dev server at http://127.0.0.1:8000
 ```
 
 ## Development
 
 ```bash
-uv run --extra dev black --check pleat tests  # formatting check
-pre-commit install                 # install git hooks
+uv run pytest -m "not slow"                    # tests (drop the -m flag for the full suite)
+uv run --extra dev black --check pleat tests   # formatting check
+pre-commit install                             # install git hooks
 ```
 
 GitHub Actions CI runs tests, lint, and `mkdocs build --strict` on every push and pull request (`.github/workflows/ci.yml`). Contributor guidance and architecture notes for AI coding agents live in [AGENTS.md](AGENTS.md).
 
-<!-- ## License: TODO
+## License
 
-See [LICENSE](LICENSE) for details. -->
+MIT — see [LICENSE](LICENSE).

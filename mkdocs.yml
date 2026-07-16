@@ -53,6 +53,9 @@ plugins:
             merge_init_into_class: true
             members_order: source
 
+hooks:
+  - docs/hooks.py
+
 extra_css:
   - stylesheets/extra.css
 
@@ -67,23 +70,23 @@ markdown_extensions:
       permalink: true
 
 nav:
-  - Home: index.md
+  - Home: index.ipynb
   - Installation: getting-started/installation.md
   - Notebooks:
-      - Overview: notebooks/00_Overview.ipynb
       - Constructing tilings:
           - Euclidean Tilings: notebooks/01_Tilings_Euclidean.ipynb
           - Curved Geometries: notebooks/02_Curved_Geometries.ipynb
           - Conway Operators: notebooks/05_Conway_Operators.ipynb
           - Styling: notebooks/07_Styling.ipynb
           - Modifications: notebooks/08_Modifications.ipynb
-          - Image to graph: notebooks/Image To Graph.ipynb
+          - Circle Packing: notebooks/Circle_Packing.ipynb
+          - Image to graph: notebooks/Image_To_Graph.ipynb
           - Saving and exporting: notebooks/Saving_and_Exporting.ipynb
           - GomJau-Hogg Notation: notebooks/03_GomJau_Hogg_Notation.ipynb
       - Tilings to origami tessellations:
           - Shrink-Rotate: notebooks/Shrink_Rotate_Tessellations.ipynb
           - Intersecting Cylinders: notebooks/Intersecting_Cylinders.ipynb
-          - Alternating Flagstones: notebooks/Alternating Flagstones.ipynb
+          - Alternating Flagstones: notebooks/Alternating_Flagstones.ipynb
       # - 04 Folding and Overlap: notebooks/04_Folding_and_Overlap.ipynb #TODO: proper notebook walking through my layer-order algorithm: CP -> Overlap graph -> ILP -> layer-order -> top / bottom rendering
 
   - Architecture: concepts/architecture.md
