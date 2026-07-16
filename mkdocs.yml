@@ -80,8 +80,8 @@ nav:
           - Image to graph: notebooks/Image To Graph.ipynb
           - Saving and exporting: notebooks/Saving_and_Exporting.ipynb
           - GomJau-Hogg Notation: notebooks/03_GomJau_Hogg_Notation.ipynb
-      - Tilings to origami tesselations:
-          - Shrink-Rotate: notebooks/Shrink_Rotate_Tesselations.ipynb
+      - Tilings to origami tessellations:
+          - Shrink-Rotate: notebooks/Shrink_Rotate_Tessellations.ipynb
           - Intersecting Cylinders: notebooks/Intersecting_Cylinders.ipynb
           - Alternating Flagstones: notebooks/Alternating Flagstones.ipynb
       # - 04 Folding and Overlap: notebooks/04_Folding_and_Overlap.ipynb #TODO: proper notebook walking through my layer-order algorithm: CP -> Overlap graph -> ILP -> layer-order -> top / bottom rendering

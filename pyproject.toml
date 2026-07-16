@@ -3,6 +3,8 @@ name = "pleat"
 version = "0.1.0"
 description = "Constructing geometric tilings and transforming them into origami crease patterns"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Roman Remme" }]
 requires-python = ">=3.10"
 classifiers = [

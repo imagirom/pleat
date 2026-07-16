@@ -45,4 +45,4 @@ Three pluggable backends in `pleat.geometries`:
 
 ## Origami pipelines
 
-Multiple pipelines for turning tilings into origami tesselations are implemented, see the example notebooks for details.
+Multiple pipelines for turning tilings into origami tessellations are implemented, see the example notebooks for details.

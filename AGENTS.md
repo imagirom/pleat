@@ -87,7 +87,7 @@ Topological operators that transform tilings. Each operator defines a fundamenta
 
 ### Origami / Crease Patterns
 
-- **Shrink Rotate Tesselations** (`shrink_rotate`): Dual crease patterns via rotated edge vectors. `make_SRG(G)` is the main entry point.
+- **Shrink Rotate Tessellations** (`shrink_rotate`): Dual crease patterns via rotated edge vectors. `make_SRG(G)` is the main entry point.
 - **Overlap** (`overlap.py`): Crease assignments (MOUNTAIN/VALLEY), face stacking order via ILP (PuLP), overlap graphs. `fold_complete(SRG)` runs the full pipeline.
 - **Cutting** (`cutting.py`): Cuts graphs along halfplanes for unfolding.
 
@@ -111,7 +111,6 @@ Pluggable geometry implementations: `EuclideanGeometry`, `PoincareDiskModel` (hy
 
 ## Development Notes
 
-- The library is used interactively via Jupyter notebooks (see `notebooks/`).
-- `test.py` at the root is a runnable smoke-test script (not part of the test suite).
+- The library is used interactively via Jupyter notebooks (see `docs/notebooks/`).
 - `HalfEdgeGraph.show()` is the quickest way to visualize a graph during development.
 - Cyclic iterators (`Vertex.outgoing_iter()`, `Face.halfedge_iter()`) are `while True` loops — never modify graph topology during iteration.

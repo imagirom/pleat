@@ -2,10 +2,10 @@
 
 [![CI](https://github.com/imagirom/pleat/actions/workflows/ci.yml/badge.svg)](https://github.com/imagirom/pleat/actions/workflows/ci.yml)
 
-**Construct geometric tilings, and turn them into origami tesselations.**
+**Construct geometric tilings, and turn them into origami tessellations.**
 
 Pleat is a Python library for constructing, manipulating, and visualizing geometric tilings across Euclidean, hyperbolic, and spherical geometries.
-It can generate crease patterns for origami tesselations and corrugations using several algorithms which can be exported for printing or plotting, and can preview folded states.
+It can generate crease patterns for origami tessellations and corrugations using several algorithms which can be exported for printing or plotting, and can preview folded states.
 
 ## Features
 
