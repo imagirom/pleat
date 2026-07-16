@@ -74,20 +74,20 @@ nav:
   - Installation: getting-started/installation.md
   - Notebooks:
       - Constructing tilings:
-          - Euclidean Tilings: notebooks/01_Tilings_Euclidean.ipynb
-          - Curved Geometries: notebooks/02_Curved_Geometries.ipynb
-          - Conway Operators: notebooks/05_Conway_Operators.ipynb
-          - Styling: notebooks/07_Styling.ipynb
-          - Modifications: notebooks/08_Modifications.ipynb
+          - Euclidean Tilings: notebooks/Tilings_Euclidean.ipynb
+          - Curved Geometries: notebooks/Curved_Geometries.ipynb
+          - Conway Operators: notebooks/Conway_Operators.ipynb
+          - Styling: notebooks/Styling.ipynb
+          - Modifications: notebooks/Modifications.ipynb
           - Circle Packing: notebooks/Circle_Packing.ipynb
           - Image to graph: notebooks/Image_To_Graph.ipynb
           - Saving and exporting: notebooks/Saving_and_Exporting.ipynb
-          - GomJau-Hogg Notation: notebooks/03_GomJau_Hogg_Notation.ipynb
+          - GomJau-Hogg Notation: notebooks/GomJau_Hogg_Notation.ipynb
       - Tilings to origami tessellations:
           - Shrink-Rotate: notebooks/Shrink_Rotate_Tessellations.ipynb
           - Intersecting Cylinders: notebooks/Intersecting_Cylinders.ipynb
           - Alternating Flagstones: notebooks/Alternating_Flagstones.ipynb
-      # - 04 Folding and Overlap: notebooks/04_Folding_and_Overlap.ipynb #TODO: proper notebook walking through my layer-order algorithm: CP -> Overlap graph -> ILP -> layer-order -> top / bottom rendering
+      # - 04 Folding and Overlap: notebooks/Folding_and_Overlap.ipynb #TODO: proper notebook walking through my layer-order algorithm: CP -> Overlap graph -> ILP -> layer-order -> top / bottom rendering
 
   - Architecture: concepts/architecture.md
   - Contributing:

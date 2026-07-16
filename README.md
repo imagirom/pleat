@@ -53,6 +53,8 @@ CP = shrink_rotate_pattern(G, simplify_boundary=True, alpha=np.pi / 5, factor=0.
 ec.overlap.fold_complete(CP, quiet=True).show()
 ```
 
+![Quick start output: crease pattern, backlit folded state, and folded top/bottom views](docs/notebooks/images/readme_quickstart.png)
+
 ## Documentation
 
 The heart of the documentation is a series of Jupyter notebooks in
