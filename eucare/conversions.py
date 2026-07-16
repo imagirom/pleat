@@ -130,3 +130,49 @@ def EHEG_from_nx(
         return result
     else:
         return result, v_lookup
+
+
+def delaunay_tiling(
+    points: np.ndarray,
+    prune_sliver_angle: float | None = 0.3,
+) -> EuclideanPositionHEG:
+    """Build a Delaunay triangulation of ``points`` as an :class:`EuclideanPositionHEG`.
+
+    Args:
+        points: ``(N, 2)`` array of 2D vertex positions.
+        prune_sliver_angle: If not None, iteratively delete border faces whose
+            smallest interior angle is below this threshold (in radians), along
+            with border vertices of order < 3. This cleans up thin sliver
+            triangles produced by the Delaunay triangulation of the convex hull.
+            Set to ``None`` to skip pruning.
+
+    Returns:
+        The Delaunay triangulation as a half-edge graph with vertex positions.
+    """
+    from scipy.spatial import Delaunay
+
+    points = np.asarray(points)
+    assert points.ndim == 2 and points.shape[1] == 2, f"expected (N, 2) points, got {points.shape}"
+
+    triangulation = Delaunay(points)
+    faces = triangulation.simplices
+    edges = np.stack([faces, np.roll(faces, 1, axis=1)], axis=-1).reshape(-1, 2)
+    nx_graph = nx.Graph()
+    nx_graph.add_nodes_from(range(len(points)))
+    nx_graph.add_edges_from(edges)
+    G = EHEG_from_nx(nx_graph, positions={i: pos for i, pos in enumerate(points)})
+
+    if prune_sliver_angle is not None:
+        G.recompute_lengths_and_angles()
+        while True:
+            to_delete = [
+                f
+                for f in G.faces
+                if f.on_border() and np.min([h["in_angle"] for h in f.halfedge_iter()]) < prune_sliver_angle
+            ]
+            to_delete += [v for v in G.vertices if v.on_border() and v.order() < 3]
+            if not to_delete:
+                break
+            G.delete_subset(to_delete)
+
+    return G

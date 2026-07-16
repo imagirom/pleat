@@ -1238,6 +1238,12 @@ class HalfEdgeGraph:
         else:
             return result, (v_map, e_map, f_map)
 
+    def delete_attribute(self, key: str) -> None:
+        """Delete the attribute ``key`` from all vertices, half-edges, and faces."""
+        for obj in chain(self.vertices, self.halfedges, self.faces):
+            if key in obj.attributes:
+                del obj.attributes[key]
+
 
 # ------------------------------------------------ faces with in-angles ------------------------------------------------
 

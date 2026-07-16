@@ -279,6 +279,7 @@ def optimize_alternating_flagstone(
     momentum_after_ramp: float = 0.9,
     tol: float = 1e-9,
     progress: bool = False,
+    show_every: int | None = None,
 ) -> list[float]:
     """Optimise flagstone rotations / offsets / star positions for foldability.
 
@@ -411,6 +412,9 @@ def optimize_alternating_flagstone(
 
         if progress and i % 10 == 0:
             iterator.set_postfix(loss=loss.item())
+
+        if show_every is not None and i % show_every == 0:
+            CP.show()
 
         if i == ramp_step:
             for g in optimizer.param_groups:
