@@ -23,11 +23,11 @@ Public API
 
 Example::
 
-    import pleat as ec
+    import pleat
     from pleat.gjh import gjh
 
     tiles = gjh("6-3-3")
-    G = ec.example_graphs.from_tiles(tiles, rings=5)
+    G = pleat.example_graphs.from_tiles(tiles, rings=5)
     G.show()
 """
 

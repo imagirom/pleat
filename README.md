@@ -42,18 +42,18 @@ The whole pipeline — build a tiling, turn it into a crease pattern, preview th
 
 ```python
 import numpy as np
-import pleat as ec
+import pleat
 from pleat.shrink_rotate import crease_orientation, shrink_rotate_pattern
 
 # build a tiling: two rings of hexagons around a central one
-G = ec.example_graphs.from_tiles(ec.example_tilesets.platonic(n=6), rings=2)
+G = pleat.example_graphs.from_tiles(pleat.example_tilesets.platonic(n=6), rings=2)
 
 # decide which faces fold on top, then construct the crease pattern
 crease_orientation.assign_this_way_from_center(G)
 CP = shrink_rotate_pattern(G, simplify_boundary=True, alpha=np.pi / 5, factor=0.5)
 
 # fold it: preview the folded state with solved layer ordering
-ec.overlap.fold_complete(CP, quiet=True).show()
+pleat.overlap.fold_complete(CP, quiet=True).show()
 ```
 
 <p align="center"><img src="docs/notebooks/images/readme_quickstart_1.png" alt="Quick start output: crease pattern and backlit folded state" width="410" /><img src="docs/notebooks/images/readme_quickstart_2.png" alt="Quick start output: folded top and bottom views" width="410" /></p>

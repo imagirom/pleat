@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import numpy as np
 import yaml
 
-import pleat as ec
+import pleat
 
 from .geometries import EuclideanGeometry, PoincareDiskModel
 from .half import EuclideanPositionHEG, Face, HalfEdge, HalfEdgeGraph, Vertex, rotate_by
@@ -98,7 +98,7 @@ def graph_to_dict(
     return graph_dict
 
 
-def dict_to_graph(graph_dict: dict) -> ec.half.EuclideanPositionHEG:
+def dict_to_graph(graph_dict: dict) -> pleat.half.EuclideanPositionHEG:
     """Inverse of :func:`graph_to_dict`: reconstruct a graph from its serialised dict.
 
     The returned graph is always an :class:`EuclideanPositionHEG` regardless of
@@ -151,7 +151,7 @@ def dict_to_graph(graph_dict: dict) -> ec.half.EuclideanPositionHEG:
         hs.add(h)
 
     # TODO make it so the class can be specified
-    G = ec.half.EuclideanPositionHEG()
+    G = pleat.half.EuclideanPositionHEG()
     G.vertices = vs
     G.faces = fs
     G.halfedges = hs
@@ -188,7 +188,7 @@ def save_graph(
         f.write(yaml.dump(graph_dict))
 
 
-def load_graph(filename: str) -> ec.half.EuclideanPositionHEG:
+def load_graph(filename: str) -> pleat.half.EuclideanPositionHEG:
     """Load a graph previously saved by :func:`save_graph`."""
     with open(filename, "r") as f:
         lines = f.read()

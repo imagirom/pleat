@@ -18,7 +18,7 @@ import warnings
 import networkx as nx
 import numpy as np
 
-import pleat as ec
+import pleat
 from pleat.base import angle_to_axis, signed_area
 from pleat.conversions import EHEG_from_nx
 from pleat.half import EuclideanPositionHEG, Face, Vertex

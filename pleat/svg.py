@@ -11,13 +11,13 @@ import networkx as nx
 import numpy as np
 import svgpathtools as spt
 
-import pleat as ec
+import pleat
 from pleat.overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
 
 logger = logging.getLogger(__name__)
 
 
-def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
+def load_svg(filepath: str) -> pleat.half.EuclideanPositionHEG:
     """Load an SVG crease pattern as an :class:`EuclideanPositionHEG`.
 
     Recognises:
@@ -96,7 +96,7 @@ def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
     points /= 2 * np.max(np.abs(points))
     points += [[0.5, 0.5]]
 
-    clustering = ec.overlap.group_closeby(points, 1e-5)
+    clustering = pleat.overlap.group_closeby(points, 1e-5)
     first_occurences = np.argmax(clustering[None] == np.arange(np.max(clustering) + 1)[:, None], axis=1)
     merged_points = points[first_occurences]
 
@@ -105,7 +105,7 @@ def load_svg(filepath: str) -> ec.half.EuclideanPositionHEG:
         [(tuple(merged_points[clustering[i]]), tuple(merged_points[clustering[j]]), attrs) for i, j, attrs in edges]
     )
 
-    G = ec.conversions.EHEG_from_nx(G)
+    G = pleat.conversions.EHEG_from_nx(G)
 
     if len(counts_by_stroke) not in (2, 3):
         logger.warning(

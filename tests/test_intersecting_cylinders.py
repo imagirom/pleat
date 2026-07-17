@@ -321,10 +321,10 @@ class TestDualCirclePackings:
 class TestTriangleTwist:
     @staticmethod
     def _hub_cp():
-        import pleat as ec
+        import pleat
 
-        G = ec.io.load_graph("graphs/irregular2.heg")
-        G = ec.conway.kis_graph()(G, delete_on_border=True)
+        G = pleat.io.load_graph("graphs/irregular2.heg")
+        G = pleat.conway.kis_graph()(G, delete_on_border=True)
         return make_intersecting_cylinders(G, circular_profile(), r=1.0)
 
     def test_convert_all(self):

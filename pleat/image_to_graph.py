@@ -18,7 +18,7 @@ from scipy import ndimage as ndi
 from skimage import color, io
 from skimage.transform import downscale_local_mean
 
-import pleat as ec
+import pleat
 
 from .overlap import group_closeby
 
@@ -140,7 +140,7 @@ def image_to_graph(
     closing_iterations: int = 3,
     edge_length_cutoff: float = 40,
     max_size: int = 1000,
-) -> "ec.half.EuclideanPositionHEG":
+) -> "pleat.half.EuclideanPositionHEG":
     """Extract a planar half-edge graph from a raster image of a line drawing.
 
     Pipeline: downscale, threshold, morphological close, skeletonise, prune,
@@ -250,7 +250,7 @@ def image_to_graph(
     graph.add_edges_from(new_edges)
 
     # convert to pleat graph
-    G = ec.conversions.EHEG_from_nx(graph, new_pos_dict)
+    G = pleat.conversions.EHEG_from_nx(graph, new_pos_dict)
 
     G.recompute_lengths_and_angles()
     G.show()

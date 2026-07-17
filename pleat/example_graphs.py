@@ -259,7 +259,7 @@ def hyperbolic_square_graph(
     Returns:
         A copy of the tiling with positions in the unit square.
     """
-    import pleat as ec
+    import pleat
 
     def wrapped_elliptic_f(z, m):
         return complex(N(elliptic_f(z, m)))
@@ -275,11 +275,11 @@ def hyperbolic_square_graph(
         return (z + 1j) / (1j * z + 1)
 
     if G is None:
-        G = ec.example_graphs.from_tiles(ec.example_graphs.curved_platonic(7, 3), 1)
+        G = pleat.example_graphs.from_tiles(pleat.example_graphs.curved_platonic(7, 3), 1)
 
     def map_to_square(G):
         G_square = G.copy()
-        G_square.geometry = ec.geometries.EuclideanGeometry
+        G_square.geometry = pleat.geometries.EuclideanGeometry
         for v in G_square.vertices:
             if "square_pos" in v:
                 v["pos"] = v["square_pos"]
@@ -311,11 +311,11 @@ def hyperbolic_square_graph(
         for v, length in reversed(sorted(queue.items(), key=lambda kv: kv[1])):
             if length > min_length:
                 if v.on_border():
-                    ec.example_graphs.complete_vertex(G, v)
+                    pleat.example_graphs.complete_vertex(G, v)
         nv_after = G.order
 
     if dual:
-        G = ec.conway.dual_graph()(G)
+        G = pleat.conway.dual_graph()(G)
     G_square = map_to_square(G)
 
     return G_square
