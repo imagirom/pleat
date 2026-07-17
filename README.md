@@ -69,7 +69,7 @@ The full documentation lives at **[imagirom.github.io/pleat](https://imagirom.gi
 Its heart is a series of executed Jupyter notebooks — starting with the
 [pipeline overview](https://imagirom.github.io/pleat/index.html) — covering tiling
 construction, Conway operators, styling, and the origami algorithms. The notebook
-sources are in [`docs/notebooks/`](docs/notebooks/) and also render directly on GitHub.
+sources are in [`docs/notebooks/`](https://github.com/imagirom/pleat/tree/main/docs/notebooks) and also render directly on GitHub.
 
 To build the site locally:
 
@@ -91,6 +91,6 @@ GitHub Actions CI runs tests, lint, and `mkdocs build --strict` on every push an
 
 ## License
 
-The code is MIT-licensed — see [LICENSE](LICENSE).
+The code is MIT-licensed — see [LICENSE](https://github.com/imagirom/pleat/blob/main/LICENSE).
 
 The photographs of folded origami models (in `docs/notebooks/images/`) are © Roman Remme and licensed under [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/).
