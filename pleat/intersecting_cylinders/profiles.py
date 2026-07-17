@@ -25,7 +25,6 @@ from typing import Callable
 
 import numpy as np
 from numpy.typing import NDArray
-from rdp import rdp
 
 
 @dataclass(frozen=True)
@@ -87,6 +86,8 @@ class Profile:
         # Simplify the (t, l) polyline; pad with a zero column to silence the
         # numpy 2.0 deprecation warning about 2D vectors. ``return_mask`` lets us
         # subset the parallel ``y`` array at the same surviving indices.
+        from rdp import rdp  # optional dependency (intersecting_cylinders extra)
+
         mask = rdp(
             np.stack([t_dense, l_dense, np.zeros_like(t_dense)], axis=-1),
             rdp_tol,
