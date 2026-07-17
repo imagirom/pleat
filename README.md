@@ -59,10 +59,8 @@ ec.overlap.fold_complete(CP, quiet=True).show()
 ## Documentation
 
 The heart of the documentation is a series of Jupyter notebooks in
-[`docs/notebooks/`](docs/notebooks/) (rendered directly on GitHub), starting with the
-[pipeline overview](docs/index.ipynb). They cover constructing Euclidean and curved tilings,
-Conway operators, styling, and the origami algorithms (shrink-rotate, intersecting cylinders,
-alternating flagstones).
+[`docs/notebooks/`](docs/notebooks/), starting with the
+[pipeline overview](docs/index.ipynb).
 
 To browse the full documentation site locally:
 
@@ -79,7 +77,7 @@ uv run --extra dev black --check pleat tests   # formatting check
 pre-commit install                             # install git hooks
 ```
 
-GitHub Actions CI runs tests, lint, and `mkdocs build --strict` on every push and pull request (`.github/workflows/ci.yml`). Contributor guidance and architecture notes for AI coding agents live in [AGENTS.md](AGENTS.md).
+GitHub Actions CI runs tests, lint, and `mkdocs build --strict` on every push and pull request (`.github/workflows/ci.yml`).
 
 ## License
 
