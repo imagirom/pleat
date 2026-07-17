@@ -29,7 +29,7 @@ It can generate crease patterns for origami tessellations and corrugations using
 
 ```bash
 # With uv (recommended)
-uv venv --python 3.10
+uv venv --python 3.14
 uv pip install -e ".[dev]"
 
 # Or with pip

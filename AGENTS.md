@@ -5,7 +5,7 @@ Pleat is a Python library for constructing, manipulating, and visualizing geomet
 ## Environment Setup
 
 ```bash
-uv venv --python 3.10
+uv venv --python 3.14
 uv pip install -e ".[dev]"
 ```
 
@@ -45,7 +45,7 @@ pre-commit install                    # enable pre-commit hooks (black + noteboo
 ```
 
 GitHub Actions CI runs on every push/PR (see `.github/workflows/ci.yml`):
-- `test` job on Python 3.10/3.11/3.12 with coverage upload
+- `test` job on Python 3.10-3.14 with coverage upload
 - `lint` job (`black --check`)
 - `docs` job (`mkdocs build --strict`)
 

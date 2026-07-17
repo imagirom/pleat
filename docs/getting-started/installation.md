@@ -5,7 +5,7 @@
 ```bash
 git clone https://github.com/imagirom/pleat.git
 cd pleat
-uv venv --python 3.10
+uv venv --python 3.14
 uv pip install -e ".[dev]"
 ```
 
