@@ -83,4 +83,4 @@ GitHub Actions CI runs tests, lint, and `mkdocs build --strict` on every push an
 
 The code is MIT-licensed — see [LICENSE](LICENSE).
 
-The photographs and renders of folded origami models (in `docs/notebooks/images/`) are © Roman Remme and licensed under [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) instead: share them with credit, but no commercial use and no derivatives.
+The photographs of folded origami models (in `docs/notebooks/images/`) are © Roman Remme and licensed under [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/).
