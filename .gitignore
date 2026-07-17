@@ -34,3 +34,4 @@ hydralance/
 # Solver logs (e.g. PuLP) emitted next to notebooks
 *.log
 .claude/
+IMPROVEMENTS.md
