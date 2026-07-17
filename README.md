@@ -31,8 +31,7 @@ It can generate crease patterns for origami tessellations and corrugations using
 pip install pleat
 ```
 
-To run the [example notebooks](https://imagirom.github.io/pleat/) locally
-(they use sample graphs shipped in the repository), clone instead:
+To run the [example notebooks](https://imagirom.github.io/pleat/) locally, clone instead:
 
 ```bash
 git clone https://github.com/imagirom/pleat.git && cd pleat
