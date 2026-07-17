@@ -19,7 +19,7 @@ It can generate crease patterns for origami tessellations and corrugations using
 - **Tiling construction** — all 11 Archimedean tilings, Platonic solids, hyperbolic tilings, and custom prototiles
 - **Conway operators** — dual, ambo, truncate, kis, join, gyro, starify, and more (including alternating flagstones, loft, lace, expand, chamfer)
 - **Three geometries** — Euclidean plane, Poincaré disk model (hyperbolic), spherical
-- **Origami pipelines** — shrink-rotate, intersecting cylinders, alternating flagstones (see examples at the top)
+- **Origami pipelines** — shrink-rotate, intersecting cylinders, alternating flagstones
 - **Folding simulation** — flat folding, finding a face ordering by solving an ILP
 - **Multiple renderers** — Cairo for pretty pictures, svgwrite for optimized output for cutting plotters (or laser cutters)
 
