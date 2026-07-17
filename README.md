@@ -18,9 +18,10 @@ It can generate crease patterns for origami tessellations and corrugations using
 - **Half-edge data structure** — efficient DCEL representation for planar graphs with topology, angles, and positions
 - **Tiling construction** — all 11 Archimedean tilings, Platonic solids, hyperbolic tilings, and custom prototiles
 - **Conway operators** — dual, ambo, truncate, kis, join, gyro, starify, and more (including alternating flagstones, loft, lace, expand, chamfer)
-- **Three geometries** — Euclidean plane, Poincaré disk model (hyperbolic), stereographic sphere
-- **Origami pipeline** — reciprocal figures → shrink-rotate → crease assignment → folding with ILP face ordering
-- **Multiple renderers** — Cairo (PNG), SVG, Matplotlib, 3D mesh export (STL)
+- **Three geometries** — Euclidean plane, Poincaré disk model (hyperbolic), spherical
+- **Origami pipelines** — shrink-rotate, instesecting cylinders, alternating flagstones (see examples at the top)
+- **Folding simulation** — flat folding, finding a face ordering by solving an ILP
+- **Multiple renderers** — Cairo for pretty pictures, svgwrite for optimized output for cutting plotters (or laser cutters)
 
 ## Installation
 
