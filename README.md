@@ -54,7 +54,7 @@ CP = shrink_rotate_pattern(G, simplify_boundary=True, alpha=np.pi / 5, factor=0.
 ec.overlap.fold_complete(CP, quiet=True).show()
 ```
 
-![Quick start output: crease pattern, backlit folded state, and folded top/bottom views](docs/notebooks/images/readme_quickstart.png)
+<p align="center"><img src="docs/notebooks/images/readme_quickstart_1.png" alt="Quick start output: crease pattern and backlit folded state" width="410" /><img src="docs/notebooks/images/readme_quickstart_2.png" alt="Quick start output: folded top and bottom views" width="410" /></p>
 
 ## Documentation
 
@@ -81,4 +81,6 @@ GitHub Actions CI runs tests, lint, and `mkdocs build --strict` on every push an
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+The code is MIT-licensed — see [LICENSE](LICENSE).
+
+The photographs and renders of folded origami models (in `docs/notebooks/images/`) are © Roman Remme and licensed under [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) instead: share them with credit, but no commercial use and no derivatives.

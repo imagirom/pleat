@@ -40,8 +40,6 @@ Install multiple extras at once:
 uv pip install -e ".[dev,docs,notebook]"
 ```
 
-Keeping focused extras is normal practice: it keeps installs smaller and makes feature-specific requirements explicit. The `all` extra is the convenience path when you do want everything available in one environment.
-
 ## Optional External dependencies
 
 These are not available on PyPI and must be installed separately:
