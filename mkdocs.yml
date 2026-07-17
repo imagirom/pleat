@@ -26,8 +26,6 @@ theme:
         name: Switch to light mode
   features:
     - content.code.copy
-    - navigation.sections
-    - navigation.expand
     - toc.follow
 
 plugins:
