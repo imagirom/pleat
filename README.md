@@ -2,14 +2,14 @@
 
 [![CI](https://github.com/imagirom/pleat/actions/workflows/ci.yml/badge.svg)](https://github.com/imagirom/pleat/actions/workflows/ci.yml)
 [![Documentation](https://img.shields.io/badge/docs-imagirom.github.io%2Fpleat-teal)](https://imagirom.github.io/pleat/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/imagirom/pleat/blob/main/LICENSE)
 
 **Construct geometric tilings, and turn them into origami tessellations.**
 
 <p align="center">
-  <img src="docs/notebooks/images/shrink-rotate/Seven%20Flowers.jpg" alt="Seven Flowers — folded shrink-rotate tessellation" height="240" />
-  <img src="docs/notebooks/images/intersecting-cylinders/Double%20Dodecagon.png" alt="Double Dodecagon — folded intersecting-cylinders tessellation" height="240" />
-  <img src="docs/notebooks/images/shrink-rotate/7.4.3%20Circles.jpg" alt="7.4.3 Circles — folded shrink-rotate tessellation" height="240" />
+  <img src="https://raw.githubusercontent.com/imagirom/pleat/main/docs/notebooks/images/shrink-rotate/Seven%20Flowers.jpg" alt="Seven Flowers — folded shrink-rotate tessellation" height="240" />
+  <img src="https://raw.githubusercontent.com/imagirom/pleat/main/docs/notebooks/images/intersecting-cylinders/Double%20Dodecagon.png" alt="Double Dodecagon — folded intersecting-cylinders tessellation" height="240" />
+  <img src="https://raw.githubusercontent.com/imagirom/pleat/main/docs/notebooks/images/shrink-rotate/7.4.3%20Circles.jpg" alt="7.4.3 Circles — folded shrink-rotate tessellation" height="240" />
 </p>
 
 Pleat is a Python library for constructing, manipulating, and visualizing geometric tilings across Euclidean, hyperbolic, and spherical geometries.
@@ -56,7 +56,7 @@ CP = shrink_rotate_pattern(G, simplify_boundary=True, alpha=np.pi / 5, factor=0.
 pleat.overlap.fold_complete(CP, quiet=True).show()
 ```
 
-<p align="center"><img src="docs/notebooks/images/readme_quickstart_1.png" alt="Quick start output: crease pattern and backlit folded state" width="410" /><img src="docs/notebooks/images/readme_quickstart_2.png" alt="Quick start output: folded top and bottom views" width="410" /></p>
+<p align="center"><img src="https://raw.githubusercontent.com/imagirom/pleat/main/docs/notebooks/images/readme_quickstart_1.png" alt="Quick start output: crease pattern and backlit folded state" width="410" /><img src="https://raw.githubusercontent.com/imagirom/pleat/main/docs/notebooks/images/readme_quickstart_2.png" alt="Quick start output: folded top and bottom views" width="410" /></p>
 
 ## Documentation
 
