@@ -41,13 +41,13 @@ The whole pipeline — build a tiling, turn it into a crease pattern, preview th
 ```python
 import numpy as np
 import pleat as ec
-from pleat.shrink_rotate import assign_this_way_by_bfs, shrink_rotate_pattern
+from pleat.shrink_rotate import crease_orientation, shrink_rotate_pattern
 
 # build a tiling: two rings of hexagons around a central one
 G = ec.example_graphs.from_tiles(ec.example_tilesets.platonic(n=6), rings=2)
 
 # decide which faces fold on top, then construct the crease pattern
-assign_this_way_by_bfs(G, G.central_face())
+crease_orientation.assign_this_way_from_center(G)
 CP = shrink_rotate_pattern(G, simplify_boundary=True, alpha=np.pi / 5, factor=0.5)
 
 # fold it: preview the folded state with solved layer ordering
