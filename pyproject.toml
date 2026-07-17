@@ -1,6 +1,6 @@
 [project]
 name = "pleat"
-version = "0.1.0.post1"  # temporary: TestPyPI readme-render check; revert to 0.1.0 before tagging
+version = "0.1.0"
 description = "Constructing geometric tilings and transforming them into origami crease patterns"
 readme = "README.md"
 license = "MIT"
