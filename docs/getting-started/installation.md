@@ -26,7 +26,7 @@ jupyter lab docs/notebooks
 If you prefer a lighter install, pick a subset from the
 [extras table](#optional-extras) below instead — e.g.
 `".[notebook,image,intersecting_cylinders]"` runs most notebooks while
-skipping heavy dependencies such as torch (only needed for the
+skipping the heavy torch dependency (only needed for the
 alternating-flagstones optimization).
 
 ## Contributing / development setup
