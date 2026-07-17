@@ -1,6 +1,8 @@
 # Pleat
 
 [![CI](https://github.com/imagirom/pleat/actions/workflows/ci.yml/badge.svg)](https://github.com/imagirom/pleat/actions/workflows/ci.yml)
+[![Documentation](https://img.shields.io/badge/docs-imagirom.github.io%2Fpleat-teal)](https://imagirom.github.io/pleat/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 **Construct geometric tilings, and turn them into origami tessellations.**
 
@@ -58,11 +60,13 @@ ec.overlap.fold_complete(CP, quiet=True).show()
 
 ## Documentation
 
-The heart of the documentation is a series of Jupyter notebooks in
-[`docs/notebooks/`](docs/notebooks/), starting with the
-[pipeline overview](docs/index.ipynb).
+The full documentation lives at **[imagirom.github.io/pleat](https://imagirom.github.io/pleat/)**.
+Its heart is a series of executed Jupyter notebooks — starting with the
+[pipeline overview](https://imagirom.github.io/pleat/index.html) — covering tiling
+construction, Conway operators, styling, and the origami algorithms. The notebook
+sources are in [`docs/notebooks/`](docs/notebooks/) and also render directly on GitHub.
 
-To browse the full documentation site locally:
+To build the site locally:
 
 ```bash
 uv pip install -e ".[docs]"

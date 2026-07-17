@@ -180,3 +180,4 @@ explicit = true
 
 [project.urls]
 Repository = "https://github.com/imagirom/pleat"
+Documentation = "https://imagirom.github.io/pleat/"
