@@ -35,6 +35,7 @@ plugins:
   - mkdocs-jupyter:
       include: ["*.ipynb"]
       execute: true
+      allow_errors: false
       include_requirejs: true
   - gen-files:
       scripts:

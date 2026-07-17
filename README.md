@@ -1,5 +1,6 @@
 # Pleat
 
+[![PyPI](https://img.shields.io/pypi/v/pleat)](https://pypi.org/project/pleat/)
 [![CI](https://github.com/imagirom/pleat/actions/workflows/ci.yml/badge.svg)](https://github.com/imagirom/pleat/actions/workflows/ci.yml)
 [![Documentation](https://img.shields.io/badge/docs-imagirom.github.io%2Fpleat-teal)](https://imagirom.github.io/pleat/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/imagirom/pleat/blob/main/LICENSE)
@@ -31,14 +32,17 @@ It can generate crease patterns for origami tessellations and corrugations using
 pip install pleat
 ```
 
-To run the [example notebooks](https://imagirom.github.io/pleat/) locally, clone instead:
+To run the [example notebooks](https://imagirom.github.io/pleat/) locally, clone and install with all extras:
 
 ```bash
 git clone https://github.com/imagirom/pleat.git && cd pleat
 uv venv --python 3.14
-uv pip install -e ".[notebook]"
+uv pip install -e ".[all]"
 jupyter lab docs/notebooks
 ```
+
+Finer-grained extras (e.g. to skip heavy dependencies such as torch) are listed in the
+[installation guide](https://imagirom.github.io/pleat/getting-started/installation.html).
 
 ## Quick start
 
@@ -67,8 +71,8 @@ pleat.overlap.fold_complete(CP, quiet=True).show()
 The full documentation lives at **[imagirom.github.io/pleat](https://imagirom.github.io/pleat/)**.
 Its heart is a series of executed Jupyter notebooks — starting with the
 [pipeline overview](https://imagirom.github.io/pleat/index.html) — covering tiling
-construction, Conway operators, styling, and the origami algorithms. The notebook
-sources are in [`docs/notebooks/`](https://github.com/imagirom/pleat/tree/main/docs/notebooks) and also render directly on GitHub.
+construction, and methods to turn them into origami tesselations. The notebook
+sources are in [`docs/notebooks/`](https://github.com/imagirom/pleat/tree/main/docs/notebooks).
 
 To build the site locally:
 

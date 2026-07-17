@@ -13,15 +13,21 @@ this documentation site, no installation required.
 ## Running the notebooks locally
 
 The notebooks use sample graphs and images shipped in the repository, so to
-run or modify them, clone the repo:
+run or modify them, clone the repo and install with all extras:
 
 ```bash
 git clone https://github.com/imagirom/pleat.git
 cd pleat
 uv venv --python 3.14
-uv pip install -e ".[notebook]"
+uv pip install -e ".[all]"
 jupyter lab docs/notebooks
 ```
+
+If you prefer a lighter install, pick a subset from the
+[extras table](#optional-extras) below instead — e.g.
+`".[notebook,image,intersecting_cylinders]"` runs most notebooks while
+skipping heavy dependencies such as torch (only needed for the
+alternating-flagstones optimization).
 
 ## Contributing / development setup
 

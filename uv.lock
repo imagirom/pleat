@@ -2908,6 +2908,7 @@ dev = [
     { name = "rdp" },
 ]
 docs = [
+    { name = "einops" },
     { name = "ipympl" },
     { name = "ipywidgets" },
     { name = "jupyter" },
@@ -2921,6 +2922,8 @@ docs = [
     { name = "rdp" },
     { name = "scikit-image", version = "0.25.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scikit-image", version = "0.26.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "python_full_version < '3.15' and sys_platform == 'darwin'" },
+    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "python_full_version >= '3.15' or sys_platform != 'darwin'" },
     { name = "widgetsnbextension" },
 ]
 image = [
@@ -2952,6 +2955,7 @@ requires-dist = [
     { name = "black", marker = "extra == 'all'" },
     { name = "black", marker = "extra == 'dev'" },
     { name = "einops", marker = "extra == 'all'" },
+    { name = "einops", marker = "extra == 'docs'" },
     { name = "einops", marker = "extra == 'torch'" },
     { name = "fastcluster" },
     { name = "ipympl", marker = "extra == 'all'" },
@@ -3012,6 +3016,7 @@ requires-dist = [
     { name = "svgwrite" },
     { name = "sympy" },
     { name = "torch", marker = "extra == 'all'", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "torch", marker = "extra == 'docs'", index = "https://download.pytorch.org/whl/cpu" },
     { name = "torch", marker = "extra == 'torch'", index = "https://download.pytorch.org/whl/cpu" },
     { name = "tqdm" },
     { name = "widgetsnbextension", marker = "extra == 'all'" },

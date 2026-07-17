@@ -45,7 +45,7 @@ pre-commit install                    # enable pre-commit hooks (black + noteboo
 ```
 
 GitHub Actions CI runs on every push/PR (see `.github/workflows/ci.yml`):
-- `test` job on Python 3.10-3.14 with coverage upload
+- `test` job on Python 3.10 and 3.14 (bounds of the supported range)
 - `lint` job (`black --check`)
 - `docs` job (`mkdocs build --strict`)
 
