@@ -71,19 +71,19 @@ def get_potential_intersections(segments: np.ndarray, epsilon: float = 1e-12) ->
 
 
 @jit(nopython=True)
-def _on_segment(p, q, r):
+def _on_segment(p, q, r):  # pragma: no cover - numba-jitted, invisible to coverage
     """Check if q lies on segment pr, assuming the three points are collinear."""
     return (min(p[0], r[0]) <= q[0] <= max(p[0], r[0])) and (min(p[1], r[1]) <= q[1] <= max(p[1], r[1]))
 
 
 @jit(nopython=True)
-def _det(a, b):
+def _det(a, b):  # pragma: no cover - numba-jitted, invisible to coverage
     """Compute the 2x2 determinant of vectors a and b."""
     return a[0] * b[1] - a[1] * b[0]
 
 
 @jit(nopython=True)
-def line_segment_intersections(s1, s2, eps=1e-12):
+def line_segment_intersections(s1, s2, eps=1e-12):  # pragma: no cover - numba-jitted, invisible to coverage
     """Return a list of intersection points between two line segments, handling collinear cases."""
 
     if s1.dtype is not np.float64:

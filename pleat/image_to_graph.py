@@ -136,9 +136,9 @@ def pruning(skeleton, size=None):
 
 def image_to_graph(
     image: str | np.ndarray,
-    threshold: float | None = None,
+    threshold: float = 75,
     closing_iterations: int = 3,
-    edge_length_cutoff: float | None = None,
+    edge_length_cutoff: float = 40,
     max_size: int = 1000,
 ) -> "ec.half.EuclideanPositionHEG":
     """Extract a planar half-edge graph from a raster image of a line drawing.
@@ -149,12 +149,13 @@ def image_to_graph(
 
     Args:
         image: Path to an RGB image file or an ``(H, W, 3)`` ``ndarray``.
-        threshold: Grayscale cutoff in ``[0, 1]`` separating foreground from
-            background. Required (no automatic thresholding yet).
+        threshold: Grayscale cutoff separating dark foreground from light
+            background, on the scale of the image values. The plotted
+            grayscale histogram helps tune it per image.
         closing_iterations: Number of binary closing iterations applied to
             connect broken lines.
-        edge_length_cutoff: Distance below which adjacent branch points are
-            merged. Required (no automatic estimation yet).
+        edge_length_cutoff: Distance (in pixels) below which adjacent branch
+            points are merged. The plotted edge-length histogram helps tune it.
         max_size: Maximum image side length; image is halved repeatedly until
             it fits.
 
@@ -183,9 +184,6 @@ def image_to_graph(
     plt.hist(grayscale.flatten(), bins=100)
     plt.title("grayscale histogram. use this to select cutoff")
     plt.show()
-    if threshold is None:
-        raise NotImplementedError("Automatic thresholding is not implemented.")
-
     fg = grayscale < threshold
 
     plot_image(fg, figheight=5, title="foreground")
@@ -233,9 +231,6 @@ def image_to_graph(
     plt.hist(lengths, bins=20)
     plt.title("edge lengths")
     plt.show()
-
-    if edge_length_cutoff is None:
-        raise NotImplementedError("Automatic edge length cutoff not implemented.")
 
     bp_positions = np.stack(list(pos_dict.values()))
 

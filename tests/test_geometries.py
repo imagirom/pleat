@@ -84,3 +84,15 @@ def test_sphere_platonic_side_length_roundtrip(n, frac):
     l = frac * 2 * np.pi / n
     r = SphereModel.platonic_side_length_to_radius(n, l)
     assert SphereModel.regular_poly_side_length(n, r) == pytest.approx(l, abs=1e-12)
+
+
+def test_convert_to_euclidean_is_noop_on_euclidean_graphs():
+    from pleat.example_graphs import from_tiles
+    from pleat.example_tilesets import platonic
+
+    G = from_tiles(platonic(4), rings=1)
+    assert G.geometry is EuclideanGeometry
+    before = {v: v["pos"] for v in G.vertices}
+    G.convert_to_euclidean()
+    # early return: positions are byte-identical (the very same arrays, untouched)
+    assert all(v["pos"] is pos for v, pos in before.items())

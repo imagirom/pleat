@@ -82,3 +82,13 @@ def test_nested_classifier_returns_tuple_index():
     assert a == b
     assert a != diff_len
     assert a != diff_set
+
+
+def test_len_classifier_accepts_faces():
+    from pleat.example_graphs import from_tiles
+    from pleat.example_tilesets import t_4_6_12
+
+    G = from_tiles(t_4_6_12(), rings=1)
+    c = LenClassifier()
+    faces = list(G.faces)
+    assert {c.classify(f) for f in faces} == {f.order() for f in faces}

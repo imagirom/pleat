@@ -13,6 +13,7 @@ Optional extras: `docs` (MkDocs), `notebook` (Jupyter), `threed` (meshio for STL
 
 Additional optional requirements (not on PyPI):
 - `cplex` from IBM (free for academics)
+- `sdf` from github.com/fogleman/sdf (only for `pleat.marching_cubes`)
 
 ## Running Tests
 

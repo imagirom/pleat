@@ -59,3 +59,25 @@ def test_save_appends_heg_extension(tmp_path):
     base = str(tmp_path / "noext")
     save_graph(base, G)
     assert (tmp_path / "noext.heg").exists()
+
+
+def test_roundtrip_curved(tmp_path):
+    """Curved tilings (complex hyperbolic and 3D spherical positions) survive a save/load cycle."""
+    from pleat.example_graphs import from_tiles
+    from pleat.example_tilesets import curved_platonic
+
+    for p, q in [(7, 3), (3, 5)]:  # hyperbolic, spherical
+        G = from_tiles(curved_platonic(p, q), rings=2)
+        filename = str(tmp_path / f"curved_{p}_{q}.heg")
+        save_graph(filename, G)
+        G2 = load_graph(filename)
+        assert _topology_signature(G) == _topology_signature(G2)
+        G2.check_consistency()
+
+        def pos_key(v):
+            return tuple(np.round(np.atleast_1d(v["pos"]).view(np.float64), 8))
+
+        assert sorted(map(pos_key, G.vertices)) == sorted(map(pos_key, G2.vertices))
+        # complex hyperbolic positions must come back complex, not truncated to their real part
+        if p == 7:
+            assert all(np.iscomplexobj(v["pos"]) for v in G2.vertices)

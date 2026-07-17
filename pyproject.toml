@@ -129,6 +129,36 @@ check_untyped_defs = true
 no_implicit_optional = true
 
 [[tool.mypy.overrides]]
+# Third-party libraries without type stubs.
+module = [
+    "yaml.*",
+    "networkx.*",
+    "pulp.*",
+    "fastcluster",
+    "numba.*",
+    "scipy.*",
+    "tqdm.*",
+    "svgwrite.*",
+    "svgpathtools.*",
+    "mahotas.*",
+    "skimage.*",
+    "sympy.*",
+    "meshio",
+    "plotly.*",
+    "rdp",
+    "torch.*",
+    "einops",
+    "sdf",
+    "cplex",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# skimage pulls in tifffile, whose py3.12+ `type` statements break the py3.10 target.
+module = ["tifffile.*"]
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
 # Modules that have been fully annotated — promote to strict here.
 module = []
 disallow_untyped_defs = true

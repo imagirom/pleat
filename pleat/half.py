@@ -306,6 +306,10 @@ class Face(IdObject):
         """Return the number of edges (= sides) of this polygonal face."""
         return len(list(self.halfedge_iter()))
 
+    def __len__(self) -> int:
+        """Number of sides, so faces work with ``len()``-based helpers like ``LenClassifier``."""
+        return self.order()
+
     def vertex_iter(self):
         """Yield boundary vertices in counter-clockwise order around this face."""
         for h in self.halfedge_iter():
@@ -634,12 +638,12 @@ class HalfEdgeGraph:
                 new_face = None
             # new_face = None if h is h2 and (h2.face not in self.faces) else h2.face
             new_faces.add(new_face)
-            if new_face:
+            if new_face is not None:
                 new_face.any_side = h2
             h3 = h2
             while True:
                 assert h3 in self.halfedges
-                if h3.face and h3.face is not new_face:
+                if h3.face is not None and h3.face is not new_face:
                     self.faces.discard(h3.face)
                 h3.face = new_face
                 h3 = h3.nex
@@ -1587,6 +1591,8 @@ class GeometricHEG(InAngleHEG):
 
     def convert_to_euclidean(self) -> None:
         """Project all positions to the Euclidean plane and switch the geometry backend."""
+        if self.geometry is EuclideanGeometry:
+            return
         for v in self.vertices:
             v["pos"] = self.geometry.to_euclidean(v["pos"])
         self.geometry = EuclideanGeometry

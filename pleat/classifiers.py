@@ -12,10 +12,14 @@ sequences up to cyclic rotation).  Used by :mod:`pleat.colorization`.
 
 from __future__ import annotations
 
+from typing import Generic, Hashable, Sized, TypeVar
+
 import numpy as np
 
+T = TypeVar("T")
 
-class Classifier:
+
+class Classifier(Generic[T]):
     """Classify items by a hashable index, optionally tracking items and indices per class."""
 
     def __init__(self, save_items: bool = False, save_indices: bool = False) -> None:
@@ -37,11 +41,11 @@ class Classifier:
         else:
             self.saved_indices = None
 
-    def _get_index(self, item):
+    def _get_index(self, item: T) -> Hashable:
         # the returned 'index' can be any hashable
         raise NotImplementedError
 
-    def classify(self, item):
+    def classify(self, item: T) -> Hashable:
         """Return the equivalence class index for ``item`` and update saved items/indices."""
         index = self._get_index(item)
         if self.save_items:
@@ -51,7 +55,7 @@ class Classifier:
         return index
 
 
-class CountingClassifier(Classifier):
+class CountingClassifier(Classifier[T]):
     """Wrap a classifier to remap its indices to consecutive natural numbers."""
 
     def __init__(self, other, *super_args, **super_kwargs):
@@ -68,7 +72,7 @@ class CountingClassifier(Classifier):
         return self.index_to_count[index]
 
 
-class RepresentationClassifier(Classifier):
+class RepresentationClassifier(Classifier[T]):
     """Classify items by computing a representation and comparing it against known classes."""
 
     def __init__(self, *super_args, **super_kwargs):
@@ -104,7 +108,7 @@ class RepresentationClassifier(Classifier):
         return self.current_count - 1
 
 
-class NestedClassifier(Classifier):
+class NestedClassifier(Classifier[T]):
     """Chain multiple classifiers from coarse to fine, producing a tuple index."""
 
     def __init__(self, coarse_to_fine, *super_args, **super_kwargs):
@@ -132,7 +136,7 @@ class NestedClassifier(Classifier):
 def lambda_classifier(func):
     """Create a Classifier class that uses the given function as its index."""
 
-    class LambdaClassifier(Classifier):
+    class LambdaClassifier(Classifier[T]):
         """Classifier whose index is computed by the wrapped function."""
 
         def _get_index(self, item):
@@ -141,17 +145,17 @@ def lambda_classifier(func):
     return LambdaClassifier
 
 
-class LenClassifier(Classifier):
+class LenClassifier(Classifier[Sized]):
     """Classify items by their length."""
 
-    def _get_index(self, item):
+    def _get_index(self, item: Sized) -> int:
         return len(item)
 
 
 tol = 1e-4
 
 
-class SumClassifier(RepresentationClassifier):
+class SumClassifier(RepresentationClassifier[T]):
     """Classify items by the sum of their elements (with tolerance)."""
 
     def _compare_representations(self, query_rep, saved_rep):
@@ -161,7 +165,7 @@ class SumClassifier(RepresentationClassifier):
         return np.sum(np.array(item))
 
 
-class UnorderedClassifier(RepresentationClassifier):
+class UnorderedClassifier(RepresentationClassifier[T]):
     """Classify items by their sorted elements, ignoring order."""
 
     def _compare_representations(self, query_rep, saved_rep):
@@ -171,7 +175,7 @@ class UnorderedClassifier(RepresentationClassifier):
         return np.sort(np.array(item))
 
 
-class CyclicClassifier(RepresentationClassifier):
+class CyclicClassifier(RepresentationClassifier[T]):
     """Classify items up to cyclic permutation (and optionally reflection)."""
 
     def __init__(self, tolerance=tol, allow_flip=False, *super_args, **super_kwargs):

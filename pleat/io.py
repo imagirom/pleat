@@ -53,7 +53,11 @@ def graph_to_dict(
                 if isinstance(value, np.ndarray):
                     value = value.tolist()
                 if np.isscalar(value):
-                    value = float(value)
+                    if np.iscomplexobj(value):
+                        c = complex(value)  # type: ignore[arg-type]
+                        value = {"complex": [c.real, c.imag]}
+                    else:
+                        value = float(value)  # type: ignore[arg-type]
                 result[attr] = value
         return result
 
@@ -104,7 +108,9 @@ def dict_to_graph(graph_dict: dict) -> ec.half.EuclideanPositionHEG:
     def unwrap_attributes(obj_dict):
         result = {}
         for key, value in obj_dict.pop("attributes", {}).items():
-            if isinstance(value, list):
+            if isinstance(value, dict) and set(value) == {"complex"}:
+                value = np.complex128(complex(*value["complex"]))
+            elif isinstance(value, list):
                 try:
                     value = np.array(value, dtype=np.float64)
                 except Exception:
