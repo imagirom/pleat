@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use pleat in your work, please cite it."
+title: "pleat: Constructing geometric tilings and transforming them into origami crease patterns"
+abstract: "A Python library for constructing geometric tilings and converting them into flat-foldable origami crease patterns."
+type: software
+authors:
+  - given-names: Roman
+    family-names: Remme
+version: 0.1.0
+date-released: "2026-07-17"
+license: MIT
+repository-code: "https://github.com/imagirom/pleat"
+url: "https://imagirom.github.io/pleat/"
+keywords:
+  - origami
+  - crease-pattern
+  - tessellation
+  - tiling
+  - flat-foldable
+  - computational-geometry
