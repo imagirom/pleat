@@ -1,6 +1,29 @@
 # Installation
 
-## With uv (recommended)
+## Using the library
+
+```bash
+pip install pleat
+```
+
+That's all you need to build tilings and crease patterns in your own code.
+All example notebooks are readable — executed, with output — right here on
+this documentation site, no installation required.
+
+## Running the notebooks locally
+
+The notebooks use sample graphs and images shipped in the repository, so to
+run or modify them, clone the repo:
+
+```bash
+git clone https://github.com/imagirom/pleat.git
+cd pleat
+uv venv --python 3.14
+uv pip install -e ".[notebook]"
+jupyter lab docs/notebooks
+```
+
+## Contributing / development setup
 
 ```bash
 git clone https://github.com/imagirom/pleat.git
@@ -9,17 +32,9 @@ uv venv --python 3.14
 uv pip install -e ".[dev]"
 ```
 
-For a full local setup with docs, notebooks, and optional feature stacks, install:
-
-```bash
-uv pip install -e ".[all]"
-```
-
-## With pip
-
-```bash
-pip install -e ".[dev]"
-```
+For a full local setup with docs, notebooks, and optional feature stacks,
+install `".[all]"` instead. (Plain `pip install -e ".[dev]"` works too if you
+don't use uv.)
 
 ## Optional extras
 

@@ -28,12 +28,17 @@ It can generate crease patterns for origami tessellations and corrugations using
 ## Installation
 
 ```bash
-# With uv (recommended)
-uv venv --python 3.14
-uv pip install -e ".[dev]"
+pip install pleat
+```
 
-# Or with pip
-pip install -e ".[dev]"
+To run the [example notebooks](https://imagirom.github.io/pleat/) locally
+(they use sample graphs shipped in the repository), clone instead:
+
+```bash
+git clone https://github.com/imagirom/pleat.git && cd pleat
+uv venv --python 3.14
+uv pip install -e ".[notebook]"
+jupyter lab docs/notebooks
 ```
 
 ## Quick start
@@ -76,6 +81,7 @@ mkdocs serve                      # dev server at http://127.0.0.1:8000
 ## Development
 
 ```bash
+uv venv --python 3.14 && uv pip install -e ".[dev]"   # contributor setup (in a clone)
 uv run pytest -m "not slow"                    # tests (drop the -m flag for the full suite)
 uv run --extra dev black --check pleat tests   # formatting check
 pre-commit install                             # install git hooks
