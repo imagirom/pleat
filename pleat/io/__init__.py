@@ -10,16 +10,7 @@ from .circlepack import (
     save_circlepack,
     write_p_file,
 )
-from .fold import (
-    fold_to_graph,
-    graph_to_fold,
-    load_fold,
-    open_in_origami_simulator,
-    origami_simulator_button,
-    origami_simulator_html,
-    origami_simulator_iframe,
-    save_fold,
-)
+from .fold import fold_to_graph, graph_to_fold, load_fold, save_fold
 from .heg import dict_to_graph, graph_to_dict, load_graph, save_graph
 
 __all__ = [
@@ -36,8 +27,4 @@ __all__ = [
     "fold_to_graph",
     "save_fold",
     "load_fold",
-    "origami_simulator_html",
-    "open_in_origami_simulator",
-    "origami_simulator_button",
-    "origami_simulator_iframe",
 ]

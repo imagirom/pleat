@@ -1682,11 +1682,11 @@ class EuclideanPositionHEG(GeometricHEG):
         """Create a Euclidean-geometry half-edge graph."""
         super().__init__(geometry=EuclideanGeometry, **super_kwargs)
 
-    def open_in_origami_simulator(self) -> str:
-        """Open this crease pattern in Origami Simulator (see :mod:`pleat.io.fold`)."""
-        from .io.fold import open_in_origami_simulator
+    def origami_simulator(self, *, height: int = 600, new_tab: bool = False) -> None:
+        """Show this crease pattern in Origami Simulator (see :mod:`pleat.origami_simulator`)."""
+        from .origami_simulator import origami_simulator
 
-        return open_in_origami_simulator(self)
+        origami_simulator(self, height=height, new_tab=new_tab)
 
 
 # ------------------------------------------------ cyclic graph example ------------------------------------------------

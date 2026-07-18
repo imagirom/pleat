@@ -1,18 +1,10 @@
-"""Tests for pleat.io.fold: FOLD round-trip, FOLD validity, and OS launcher HTML."""
+"""Tests for pleat.io.fold: FOLD round-trip and FOLD validity."""
 
 from __future__ import annotations
 
 from pleat.example_graphs import rosette
 from pleat.half import EuclideanPositionHEG
-from pleat.io.fold import (
-    fold_to_graph,
-    graph_to_fold,
-    load_fold,
-    open_in_origami_simulator,  # noqa: F401  (import-smoke; used in Task 3 tests)
-    origami_simulator_button,
-    origami_simulator_html,
-    save_fold,
-)
+from pleat.io.fold import fold_to_graph, graph_to_fold, load_fold, save_fold
 from pleat.overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
 
 VALID_ASSIGNMENTS = {"M", "V", "B", "F", "U"}
@@ -113,41 +105,3 @@ def test_fold_to_graph_rejects_faceless_frame():
         pass
     else:
         raise AssertionError("expected ValueError for a FOLD frame without faces_vertices")
-
-
-def test_origami_simulator_html_embeds_fold_and_importfold():
-    html = origami_simulator_html(_creased_rosette())
-    assert "importFold" in html
-    assert "origamisimulator.org" in html
-    assert "<iframe" in html
-    assert '"edges_assignment"' in html  # the FOLD JSON is embedded
-    # the embedded FOLD JSON must not contain "</" (would break out of <script>)
-    from pleat.io.fold import _fold_json
-
-    assert "</" not in _fold_json(_creased_rosette())
-
-
-def test_origami_simulator_button_repr_html():
-    html = origami_simulator_button(_creased_rosette())._repr_html_()
-    assert "importFold" in html
-    assert "<button" in html
-    assert "origamisimulator.org" in html
-
-
-def test_origami_simulator_iframe_html():
-    from pleat.io.fold import _origami_simulator_iframe_html
-
-    html = _origami_simulator_iframe_html(_creased_rosette(), height=555)
-    assert "<iframe" in html and "srcdoc=" in html
-    assert "height:555px" in html
-    # the embedded page (escaped into srcdoc) still carries the handshake + suppressed default
-    assert "importFold" in html
-    assert "origamisimulator.org/?model=" in html
-
-
-def test_origami_simulator_html_uses_fullscreen_not_popup():
-    # the enlarge button must use the Fullscreen API (works in sandboxed webviews),
-    # not window.open (blocked there)
-    html = origami_simulator_html(_creased_rosette())
-    assert "requestFullscreen" in html
-    assert "window.open" not in html

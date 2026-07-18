@@ -26,7 +26,12 @@ import pleat.intersecting_cylinders
 
 # I/O and rendering
 import pleat.io
-from pleat.io.fold import open_in_origami_simulator, origami_simulator_button, origami_simulator_iframe
+
+# Origami Simulator (a distinct feature from the FOLD format; depends on it).
+# Access via ``pleat.origami_simulator.origami_simulator`` / ``.origami_simulator_button``,
+# ``from pleat.origami_simulator import origami_simulator``, or the ``G.origami_simulator()``
+# method. Not re-exported at the top level: that name is the module itself.
+import pleat.origami_simulator
 
 # Layout, classification, coloring, search
 import pleat.layout
