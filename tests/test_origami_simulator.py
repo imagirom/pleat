@@ -57,7 +57,11 @@ def test_public_surface():
     # the OS feature lives in its own module, exposing exactly two entry points
     assert pleat.origami_simulator.__all__ == ["origami_simulator", "origami_simulator_button"]
     assert callable(origami_simulator) and callable(origami_simulator_button)
-    # available as a graph method
+    # available as a graph method on GeometricHEG (so every geometric graph has it,
+    # not only the EuclideanPositionHEG subclass)
+    from pleat.half import GeometricHEG
+
+    assert "origami_simulator" in vars(GeometricHEG)
     assert hasattr(EuclideanPositionHEG, "origami_simulator")
     # the OS names are gone from pleat.io (which is now FOLD/heg/circlepack I/O only)
     for gone in (

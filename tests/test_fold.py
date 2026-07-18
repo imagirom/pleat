@@ -105,3 +105,29 @@ def test_fold_to_graph_rejects_faceless_frame():
         pass
     else:
         raise AssertionError("expected ValueError for a FOLD frame without faces_vertices")
+
+
+def test_graph_to_fold_rejects_non_euclidean():
+    from pleat.example_graphs import from_tiles
+    from pleat.example_tilesets import curved_platonic
+
+    G = from_tiles(curved_platonic(7, 3), rings=1)  # hyperbolic (Poincaré) tiling
+    try:
+        graph_to_fold(G)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("expected ValueError exporting a non-Euclidean graph to FOLD")
+
+
+def test_g_save_dispatches_by_extension(tmp_path):
+    from pleat.io import load_fold, load_graph
+
+    G = _creased_rosette()
+    G.save(str(tmp_path / "r.heg"))
+    G.save(str(tmp_path / "r.fold"))
+    assert (tmp_path / "r.heg").exists() and (tmp_path / "r.fold").exists()
+    load_graph(str(tmp_path / "r.heg")).check_consistency()
+    G2 = load_fold(str(tmp_path / "r.fold"))
+    G2.check_consistency()
+    assert _crease_multiset(G) == _crease_multiset(G2)

@@ -12,6 +12,7 @@ import os
 
 import numpy as np
 
+from ..geometries import EuclideanGeometry
 from ..half import EuclideanPositionHEG, Face, HalfEdge, Vertex
 from ..overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
 
@@ -36,7 +37,18 @@ def graph_to_fold(G, *, title: str | None = None) -> dict:
     assignment comes from :data:`CREASE_ASSIGNMENT` (M/V), or ``"B"`` when either
     side is a border half-edge, or ``"U"`` otherwise. Faces are ``G.faces`` (the
     outer region is not a Face in pleat), each emitted as its CCW vertex loop.
+
+    Raises:
+        ValueError: if *G* is not a Euclidean 2D graph (FOLD has no notion of the
+            hyperbolic/spherical models pleat uses for curved tilings).
     """
+    geometry = getattr(G, "geometry", EuclideanGeometry)
+    if geometry is not EuclideanGeometry:
+        name = getattr(geometry, "__name__", geometry)
+        raise ValueError(
+            f"FOLD export requires a Euclidean 2D crease pattern; this graph uses "
+            f"{name} geometry. FOLD cannot represent hyperbolic/spherical models."
+        )
     verts = sorted(G.vertices, key=lambda v: v["id"])
     vidx = {v: i for i, v in enumerate(verts)}
 

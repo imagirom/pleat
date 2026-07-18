@@ -1646,16 +1646,43 @@ class GeometricHEG(InAngleHEG):
         """
         self.render(**style).show()
 
-    def save(self, path: str, **style: object) -> None:
-        """Render the graph and write it to *path*.
+    def save(self, path: str, **kwargs: object) -> None:
+        """Save the graph to *path*; the file **extension selects the format**:
 
-        ``path`` with no extension writes both ``path.svg`` and ``path.png``.
+        - ``.heg`` -- pleat's native half-edge serialization
+          (:func:`pleat.io.save_graph`). Kwargs: ``overwrite``, ``attributes_to_save``.
+        - ``.fold`` -- FOLD crease pattern for other origami tools / Origami
+          Simulator, Euclidean 2D only (:func:`pleat.io.save_fold`). Kwarg: ``overwrite``.
+        - ``.svg`` / ``.png`` -- a rendered picture; kwargs are forwarded to
+          :meth:`render` as style.
+        - no extension -- writes both ``path.svg`` and ``path.png``.
 
         Args:
-            path: Destination path; extension selects the format(s).
-            **style: Forwarded to :meth:`render`.
+            path: Destination path. Its extension picks the format -- ``.heg``,
+                ``.fold``, ``.svg``, ``.png``, or none (writes both ``.svg`` and ``.png``).
+            **kwargs: Format-specific options (see above): render style for images,
+                ``overwrite`` / ``attributes_to_save`` for ``.heg`` / ``.fold``.
         """
-        self.render(**style).save(path)
+        lower = path.lower()
+        if lower.endswith(".heg"):
+            from .io import save_graph
+
+            save_graph(path, self, **kwargs)
+        elif lower.endswith(".fold"):
+            from .io import save_fold
+
+            save_fold(path, self, **kwargs)
+        else:
+            self.render(**kwargs).save(path)
+
+    def origami_simulator(self, *, height: int = 600, new_tab: bool = False) -> None:
+        """Show this crease pattern in Origami Simulator (see :mod:`pleat.origami_simulator`).
+
+        Requires a Euclidean 2D crease pattern; raises ``ValueError`` otherwise.
+        """
+        from .origami_simulator import origami_simulator
+
+        origami_simulator(self, height=height, new_tab=new_tab)
 
     def central_face(self) -> Face:
         """Return the face whose midpoint is closest to the origin (Euclidean only)."""
@@ -1681,12 +1708,6 @@ class EuclideanPositionHEG(GeometricHEG):
     def __init__(self, **super_kwargs: object) -> None:
         """Create a Euclidean-geometry half-edge graph."""
         super().__init__(geometry=EuclideanGeometry, **super_kwargs)
-
-    def origami_simulator(self, *, height: int = 600, new_tab: bool = False) -> None:
-        """Show this crease pattern in Origami Simulator (see :mod:`pleat.origami_simulator`)."""
-        from .origami_simulator import origami_simulator
-
-        origami_simulator(self, height=height, new_tab=new_tab)
 
 
 # ------------------------------------------------ cyclic graph example ------------------------------------------------
