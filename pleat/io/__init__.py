@@ -17,6 +17,7 @@ from .fold import (
     open_in_origami_simulator,
     origami_simulator_button,
     origami_simulator_html,
+    origami_simulator_iframe,
     save_fold,
 )
 from .heg import dict_to_graph, graph_to_dict, load_graph, save_graph
@@ -38,4 +39,5 @@ __all__ = [
     "origami_simulator_html",
     "open_in_origami_simulator",
     "origami_simulator_button",
+    "origami_simulator_iframe",
 ]

@@ -26,7 +26,7 @@ import pleat.intersecting_cylinders
 
 # I/O and rendering
 import pleat.io
-from pleat.io.fold import open_in_origami_simulator, origami_simulator_button
+from pleat.io.fold import open_in_origami_simulator, origami_simulator_button, origami_simulator_iframe
 
 # Layout, classification, coloring, search
 import pleat.layout

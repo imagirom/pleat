@@ -6,6 +6,7 @@ Scope: Euclidean 2D crease patterns. See docs/superpowers/specs for the design.
 
 from __future__ import annotations
 
+import html
 import json
 import os
 import tempfile
@@ -291,3 +292,36 @@ def origami_simulator_button(G) -> _OrigamiSimulatorButton:
     Origami Simulator in a new tab and imports the crease pattern.
     """
     return _OrigamiSimulatorButton(G)
+
+
+class _OrigamiSimulatorIFrame:
+    """A displayable that embeds Origami Simulator live in the cell output.
+
+    The whole handshake page (:func:`origami_simulator_html`) is carried inside
+    the iframe's ``srcdoc``, so the import happens parent-to-child *within* the
+    iframe — there is no popup/opener link (the part that a sandboxed VS Code
+    webview severs). Works in classic Notebook and JupyterLab; whether it renders
+    in VS Code depends on that webview's iframe CSP.
+    """
+
+    def __init__(self, G, *, height: int = 600) -> None:
+        doc = html.escape(origami_simulator_html(G), quote=True)
+        self._html = (
+            f'<iframe srcdoc="{doc}" '
+            f'style="width:100%;height:{int(height)}px;border:1px solid #ccc" '
+            f'allow="fullscreen"></iframe>'
+        )
+
+    def _repr_html_(self) -> str:
+        return self._html
+
+
+def origami_simulator_iframe(G, *, height: int = 600) -> _OrigamiSimulatorIFrame:
+    """Return a displayable that embeds Origami Simulator inline, folding *G*.
+
+    Renders OS in an iframe in the notebook cell (resizable via *height*). The
+    embedded "pop out to full tab" button opens it full-screen. Best for live
+    notebooks; for the static online docs prefer :func:`origami_simulator_button`
+    (one WebGL instance per result on page load would be heavy).
+    """
+    return _OrigamiSimulatorIFrame(G, height=height)

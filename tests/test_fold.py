@@ -132,3 +132,14 @@ def test_origami_simulator_button_repr_html():
     assert "importFold" in html
     assert "<button" in html
     assert "origamisimulator.org" in html
+
+
+def test_origami_simulator_iframe_repr_html():
+    from pleat.io.fold import origami_simulator_iframe
+
+    html = origami_simulator_iframe(_creased_rosette(), height=555)._repr_html_()
+    assert "<iframe" in html and "srcdoc=" in html
+    assert "height:555px" in html
+    # the embedded page (escaped into srcdoc) still carries the handshake + suppressed default
+    assert "importFold" in html
+    assert "origamisimulator.org/?model=" in html
