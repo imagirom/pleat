@@ -188,7 +188,10 @@ def load_fold(path: str) -> EuclideanPositionHEG:
 # FOLD as JSON in a self-contained page and reply to whichever OS window reports
 # ready, so both the iframe and the popped-out tab import the same pattern.
 
-_OS_URL = "https://origamisimulator.org/"
+# The empty ``?model=`` query is load-bearing: it makes Origami Simulator skip
+# loading its default demo (the waterbomb), which would otherwise finish loading
+# *after* our importFold and clobber it. This mirrors erikdemaine.org's maze tool.
+_OS_URL = "https://origamisimulator.org/?model="
 
 
 def _fold_json(G) -> str:
