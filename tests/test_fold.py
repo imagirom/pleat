@@ -131,3 +131,24 @@ def test_g_save_dispatches_by_extension(tmp_path):
     G2 = load_fold(str(tmp_path / "r.fold"))
     G2.check_consistency()
     assert _crease_multiset(G) == _crease_multiset(G2)
+
+
+def test_g_save_no_extension_writes_whole_bundle(tmp_path):
+    from pleat.io import load_fold, load_graph
+
+    G = _creased_rosette()
+    G.save(str(tmp_path / "bundle"), height=64, width=64)
+    for ext in ("svg", "png", "heg", "fold"):
+        assert (tmp_path / f"bundle.{ext}").exists(), f"missing bundle.{ext}"
+    load_graph(str(tmp_path / "bundle.heg")).check_consistency()
+    load_fold(str(tmp_path / "bundle.fold")).check_consistency()
+
+
+def test_g_save_no_extension_skips_fold_when_non_euclidean(tmp_path):
+    from pleat.example_graphs import from_tiles
+    from pleat.example_tilesets import curved_platonic
+
+    G = from_tiles(curved_platonic(7, 3), rings=1)  # hyperbolic
+    G.save(str(tmp_path / "hyp"), height=64)
+    assert (tmp_path / "hyp.heg").exists()  # .heg works for any geometry
+    assert not (tmp_path / "hyp.fold").exists()  # .fold skipped: non-Euclidean

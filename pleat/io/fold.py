@@ -12,7 +12,6 @@ import os
 
 import numpy as np
 
-from ..geometries import EuclideanGeometry
 from ..half import EuclideanPositionHEG, Face, HalfEdge, Vertex
 from ..overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
 
@@ -39,17 +38,23 @@ def graph_to_fold(G, *, title: str | None = None) -> dict:
     outer region is not a Face in pleat), each emitted as its CCW vertex loop.
 
     Raises:
-        ValueError: if *G* is not a Euclidean 2D graph (FOLD has no notion of the
-            hyperbolic/spherical models pleat uses for curved tilings).
+        ValueError: if *G* does not have real 2D vertex positions -- FOLD cannot
+            represent the hyperbolic (complex Poincaré-disk) or spherical (3D)
+            coordinates pleat uses for curved tilings.
     """
-    geometry = getattr(G, "geometry", EuclideanGeometry)
-    if geometry is not EuclideanGeometry:
-        name = getattr(geometry, "__name__", geometry)
-        raise ValueError(
-            f"FOLD export requires a Euclidean 2D crease pattern; this graph uses "
-            f"{name} geometry. FOLD cannot represent hyperbolic/spherical models."
-        )
     verts = sorted(G.vertices, key=lambda v: v["id"])
+    if verts:
+        sample = np.asarray(verts[0]["pos"])
+        if np.iscomplexobj(sample):
+            raise ValueError(
+                "FOLD export requires a Euclidean 2D crease pattern, but this graph has "
+                "complex (hyperbolic / Poincaré-disk) vertex positions."
+            )
+        if sample.ravel().size != 2:
+            raise ValueError(
+                f"FOLD export requires 2D vertex positions, but this graph has "
+                f"{sample.ravel().size}D positions (e.g. a spherical tiling)."
+            )
     vidx = {v: i for i, v in enumerate(verts)}
 
     vertices_coords = [_coords2d(v["pos"]) for v in verts]
@@ -177,8 +182,9 @@ def save_fold(path: str, G, *, overwrite: bool = False) -> None:
         path += ".fold"
     if not overwrite and os.path.exists(path):
         raise FileExistsError(f"File exists: {path}. Set overwrite=True to overwrite.")
+    fold = graph_to_fold(G)  # build first, so a failure leaves no partial file
     with open(path, "w") as fh:
-        json.dump(graph_to_fold(G), fh)
+        json.dump(fold, fh)
 
 
 def load_fold(path: str) -> EuclideanPositionHEG:

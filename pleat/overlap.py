@@ -1000,12 +1000,15 @@ def save_results(
 
     folded_settings = render_settings.copy()
     folded_settings["line_width"] /= 2
+    # folded views and the backlit composite are renderings, not crease patterns:
+    # render straight to svg+png (render(...).save) rather than G.save's bundle,
+    # so we don't emit a meaningless top.heg / top.fold for a folded layer.
     if "folded_view_top" in results:
         rotate_graph(results["folded_view_top"], folded_angle)
-        results["folded_view_top"].save(os.path.join(path, "top"), **folded_settings)
+        results["folded_view_top"].render(**folded_settings).save(os.path.join(path, "top"))
     if "folded_view_bottom" in results:
         rotate_graph(results["folded_view_bottom"], folded_angle)
-        results["folded_view_bottom"].save(os.path.join(path, "bottom"), **folded_settings)
+        results["folded_view_bottom"].render(**folded_settings).save(os.path.join(path, "bottom"))
 
     backlight_settings = copy(render_settings)
     backlight_settings["render_edges"] = False
@@ -1016,7 +1019,7 @@ def save_results(
             f["color_key"] = [0, 0, 0, 1 - (1 - opacity) ** (len(f["original_faces"]))]
         else:
             f["color_key"] = [0, 0, 0, opacity]
-    results["folded_state"].save(os.path.join(path, "backlit"), **backlight_settings)
+    results["folded_state"].render(**backlight_settings).save(os.path.join(path, "backlit"))
 
     if "CP_for_origami_simulator" in results:
         optimize_rotation(results["CP_for_origami_simulator"], angle_offset=0)

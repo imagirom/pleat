@@ -1655,11 +1655,15 @@ class GeometricHEG(InAngleHEG):
           Simulator, Euclidean 2D only (:func:`pleat.io.save_fold`). Kwarg: ``overwrite``.
         - ``.svg`` / ``.png`` -- a rendered picture; kwargs are forwarded to
           :meth:`render` as style.
-        - no extension -- writes both ``path.svg`` and ``path.png``.
+        - no extension -- writes the whole bundle: ``path.svg``, ``path.png``,
+          ``path.heg``, and ``path.fold`` (the ``.fold`` skipped for non-Euclidean
+          graphs). ``overwrite`` (default ``True``) applies to the ``.heg`` / ``.fold``
+          files; the remaining kwargs are render style.
 
         Args:
             path: Destination path. Its extension picks the format -- ``.heg``,
-                ``.fold``, ``.svg``, ``.png``, or none (writes both ``.svg`` and ``.png``).
+                ``.fold``, ``.svg``, ``.png``, or none (writes the whole bundle:
+                ``.svg`` + ``.png`` + ``.heg`` + ``.fold``).
             **kwargs: Format-specific options (see above): render style for images,
                 ``overwrite`` / ``attributes_to_save`` for ``.heg`` / ``.fold``.
         """
@@ -1672,8 +1676,19 @@ class GeometricHEG(InAngleHEG):
             from .io import save_fold
 
             save_fold(path, self, **kwargs)
-        else:
+        elif lower.endswith((".svg", ".png")):
             self.render(**kwargs).save(path)
+        else:
+            # no extension: write the whole bundle
+            from .io import save_fold, save_graph
+
+            overwrite = bool(kwargs.pop("overwrite", True))
+            self.render(**kwargs).save(path)  # path.svg + path.png
+            save_graph(path, self, overwrite=overwrite)
+            try:
+                save_fold(path, self, overwrite=overwrite)
+            except ValueError:
+                pass  # non-Euclidean geometry: FOLD not applicable, skip it
 
     def origami_simulator(self, *, height: int = 600, new_tab: bool = False) -> None:
         """Show this crease pattern in Origami Simulator (see :mod:`pleat.origami_simulator`).
