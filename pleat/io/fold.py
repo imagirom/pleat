@@ -214,20 +214,23 @@ def origami_simulator_html(G) -> str:
 <style>
   html,body{{margin:0;height:100%}}
   #os{{border:0;width:100vw;height:100vh;display:block}}
-  #pop{{position:fixed;top:8px;right:8px;z-index:9;font:14px sans-serif;
+  #pop{{position:fixed;bottom:8px;right:8px;z-index:9;font:14px sans-serif;
        padding:6px 10px;cursor:pointer}}
 </style></head><body>
-<button id="pop">Open in full tab &#8599;</button>
+<button id="pop">&#9974; Fullscreen</button>
 <iframe id="os" src="{_OS_URL}"></iframe>
 <script>
   const FOLD = {fold_json};
-  const OS_URL = "{_OS_URL}";
   function post(win){{ win.postMessage({{op:'importFold', fold: FOLD}}, '*'); }}
   window.addEventListener('message', function(e){{
     if (e.data && e.data.from === 'OrigamiSimulator' && e.data.status === 'ready') post(e.source);
   }});
   document.getElementById('pop').addEventListener('click', function(){{
-    window.open(OS_URL, 'origami_simulator');   // its 'ready' arrives via the listener
+    // Enlarge via the Fullscreen API (Esc to exit). Unlike opening a popup, this
+    // works inside a sandboxed webview (e.g. VS Code), where popups are suppressed.
+    var el = document.documentElement;
+    var req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
+    if (req) req.call(el);
   }});
 </script></body></html>"""
 
@@ -294,34 +297,31 @@ def origami_simulator_button(G) -> _OrigamiSimulatorButton:
     return _OrigamiSimulatorButton(G)
 
 
-class _OrigamiSimulatorIFrame:
-    """A displayable that embeds Origami Simulator live in the cell output.
+def _origami_simulator_iframe_html(G, *, height: int = 600) -> str:
+    """The ``<iframe>`` markup embedding Origami Simulator, folding *G*.
 
     The whole handshake page (:func:`origami_simulator_html`) is carried inside
     the iframe's ``srcdoc``, so the import happens parent-to-child *within* the
-    iframe — there is no popup/opener link (the part that a sandboxed VS Code
-    webview severs). Works in classic Notebook and JupyterLab; whether it renders
-    in VS Code depends on that webview's iframe CSP.
+    iframe — no popup/opener link (the part a sandboxed VS Code webview severs).
     """
-
-    def __init__(self, G, *, height: int = 600) -> None:
-        doc = html.escape(origami_simulator_html(G), quote=True)
-        self._html = (
-            f'<iframe srcdoc="{doc}" '
-            f'style="width:100%;height:{int(height)}px;border:1px solid #ccc" '
-            f'allow="fullscreen"></iframe>'
-        )
-
-    def _repr_html_(self) -> str:
-        return self._html
+    doc = html.escape(origami_simulator_html(G), quote=True)
+    return (
+        f'<iframe srcdoc="{doc}" '
+        f'style="width:100%;height:{int(height)}px;border:1px solid #ccc" '
+        f'allow="fullscreen"></iframe>'
+    )
 
 
-def origami_simulator_iframe(G, *, height: int = 600) -> _OrigamiSimulatorIFrame:
-    """Return a displayable that embeds Origami Simulator inline, folding *G*.
+def origami_simulator_iframe(G, *, height: int = 600) -> None:
+    """Display Origami Simulator inline in the current cell, folding *G*.
 
-    Renders OS in an iframe in the notebook cell (resizable via *height*). The
-    embedded "pop out to full tab" button opens it full-screen. Best for live
-    notebooks; for the static online docs prefer :func:`origami_simulator_button`
-    (one WebGL instance per result on page load would be heavy).
+    Renders OS in a resizable iframe (via *height*) right where it is called, so
+    it works off the last line of a cell and can be called several times in one
+    cell to show multiple simulators. The embedded "Fullscreen" button (bottom
+    right) enlarges it in place. Works in classic Notebook, JupyterLab, and VS
+    Code. For the static online docs prefer :func:`origami_simulator_button` (one
+    WebGL instance per result on page load would be heavy).
     """
-    return _OrigamiSimulatorIFrame(G, height=height)
+    from IPython.display import HTML, display
+
+    display(HTML(_origami_simulator_iframe_html(G, height=height)))

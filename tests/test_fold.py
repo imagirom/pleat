@@ -134,12 +134,20 @@ def test_origami_simulator_button_repr_html():
     assert "origamisimulator.org" in html
 
 
-def test_origami_simulator_iframe_repr_html():
-    from pleat.io.fold import origami_simulator_iframe
+def test_origami_simulator_iframe_html():
+    from pleat.io.fold import _origami_simulator_iframe_html
 
-    html = origami_simulator_iframe(_creased_rosette(), height=555)._repr_html_()
+    html = _origami_simulator_iframe_html(_creased_rosette(), height=555)
     assert "<iframe" in html and "srcdoc=" in html
     assert "height:555px" in html
     # the embedded page (escaped into srcdoc) still carries the handshake + suppressed default
     assert "importFold" in html
     assert "origamisimulator.org/?model=" in html
+
+
+def test_origami_simulator_html_uses_fullscreen_not_popup():
+    # the enlarge button must use the Fullscreen API (works in sandboxed webviews),
+    # not window.open (blocked there)
+    html = origami_simulator_html(_creased_rosette())
+    assert "requestFullscreen" in html
+    assert "window.open" not in html
