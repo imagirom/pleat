@@ -1292,6 +1292,16 @@ def test_open_sink_inverts_the_interior():
     assert inverted, "expected the interior of the sink to be inverted"
 
 
+def test_open_sink_does_not_invert_the_whole_graph():
+    """Catches a flood fill that escaped past the rim."""
+    G = _grid()
+    _assign_all(G, MOUNTAIN)
+    open_sink(G, _start(G), 0.5, np.array([SQRT_HALF, SQRT_HALF]), strict=False)
+    values = [h.get(CREASE_ASSIGNMENT) for h in G.halfedges]
+    assert MOUNTAIN in values, "the outside should keep its assignment"
+    assert VALLEY in values, "the inside should have been inverted"
+
+
 def test_open_sink_geometry_is_the_same_with_and_without_strict():
     a, b = _grid(), _grid()
     _assign_all(a)
@@ -1327,7 +1337,12 @@ import logging
 from .flat_foldable import local_assignment_valid
 from .half import Face, HalfEdge
 from .overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
-from .ray_casting import RAY_CREASE, add_ray_creases
+from .ray_casting import (
+    RAY_CREASE,
+    add_ray_creases,
+    halfedge_direction,
+    signed_angle,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1336,22 +1351,68 @@ class InvalidSinkError(ValueError):
     """The requested sink fold does not yield a valid crease pattern."""
 
 
-def _interior_faces(rim: list[HalfEdge]) -> set[Face]:
-    """Flood fill the faces enclosed by *rim*, bounded by the rim and the border."""
-    blocked = {h for h in rim} | {h.rev for h in rim}
+def _flood(seeds, blocked):
+    """Flood fill from *seeds*, never crossing *blocked*, yielding the set so far.
+
+    Yielding at every step lets two fills be raced against each other.
+    """
     seen: set[Face] = set()
-    stack = [h.face for h in rim if h.face is not None]
+    stack = [f for f in seeds if f is not None]
     while stack:
         f = stack.pop()
         if f in seen:
             continue
         seen.add(f)
         for h in list(f.halfedge_iter()):
-            if h in blocked or h.rev.face is None:
+            if h in blocked or h.rev.face is None or h.rev.face in seen:
                 continue
-            if h.rev.face not in seen:
-                stack.append(h.rev.face)
-    return seen
+            stack.append(h.rev.face)
+        yield seen
+
+
+def _rim_is_ccw(rim: list[HalfEdge]) -> bool:
+    """Return True if a closed *rim* turns counter-clockwise (turning number +1)."""
+    turning = sum(
+        signed_angle(halfedge_direction(a), halfedge_direction(b))
+        for a, b in zip(rim, rim[1:] + rim[:1])
+    )
+    return turning > 0
+
+
+def _interior_faces(rim: list[HalfEdge], closed: bool) -> set[Face]:
+    """Return the faces enclosed by *rim*, bounded by the rim and the paper border.
+
+    For a closed rim the inside is determined exactly: a face lies to the left
+    of a half-edge, so a counter-clockwise rim (turning number ``+1``) encloses
+    ``h.face`` and a clockwise one encloses ``h.rev.face``.
+
+    An open rim runs from border to border and has no canonical inside, so both
+    fills are raced against each other one face at a time and the side that
+    finishes first -- the smaller one -- is taken as the interior.  Racing costs
+    the same as the smaller fill even when the other side is huge.
+    """
+    blocked = {h for h in rim} | {h.rev for h in rim}
+
+    if closed:
+        seeds = [h.face for h in rim] if _rim_is_ccw(rim) else [h.rev.face for h in rim]
+        result: set[Face] = set()
+        for result in _flood(seeds, blocked):
+            pass
+        return result
+
+    left = _flood([h.face for h in rim], blocked)
+    right = _flood([h.rev.face for h in rim], blocked)
+    seen_left: set[Face] = set()
+    seen_right: set[Face] = set()
+    while True:
+        try:
+            seen_left = next(left)
+        except StopIteration:
+            return seen_left
+        try:
+            seen_right = next(right)
+        except StopIteration:
+            return seen_right
 
 
 def _rim_nodes(rim: list[HalfEdge]):
@@ -1401,7 +1462,7 @@ def open_sink(
     if "max_steps" in path.ends:
         raise InvalidSinkError("the sink rim did not terminate within max_steps")
 
-    interior = _interior_faces(rim)
+    interior = _interior_faces(rim, path.closed)
     rim_edges = {h for h in rim} | {h.rev for h in rim}
     inner = [
         h
@@ -1448,7 +1509,7 @@ def open_sink(
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `uv run pytest tests/test_sink.py -v`
-Expected: PASS, 5 passed
+Expected: PASS, 6 passed
 
 - [ ] **Step 5: Run the full suite**
 
@@ -1536,6 +1597,6 @@ git commit -m "docs: document ray_casting and sink modules"
 
 - **The test oracle in Task 2 is hand-computed.** If `test_fan_transmits_through_several_creases_at_one_vertex` fails, re-derive rather than adjusting the expected value: `theta` should run 120° → 165° → 120° → 210°, and the direction 60° → 120° → −30° → 30°.
 - **Task 7 changes existing behaviour.** `is_locally_flat_foldable` becomes stricter. `test_shrink_rotate_pattern_is_locally_flat_foldable` is the canary — it must keep passing.
-- **Task 8's `_interior_faces` seeds from `h.face` for every rim half-edge.** Whether that is the inside or the outside depends on the rim's orientation, and the rim is traced consistently, so it is the same side throughout. If the flood fill escapes to the whole graph, the seed side is wrong — seed from `h.rev.face` instead and add a test pinning the orientation.
+- **`_interior_faces` resolves orientation two different ways on purpose.** A closed rim uses the turning number, which is exact and stays right even when the sink encloses most of the paper. An open rim has no canonical inside, so it races the two fills and takes the smaller — a documented convention, not a derived fact. Do not "simplify" the closed case into the race; that would silently pick the wrong side for a large sink.
 - The `RayHit.t` for a vertex hit refers to `halfedges[0]`, which at a fan is only the first crease transmitted through. Consumers should branch on `hit.vertex is not None` before using `t`.
 - **Task 7 assumes `angles[i]` is the sector between crease `i` and crease `i+1`.** That holds if `h["in_angle"]` for an incoming half-edge is the sector immediately counter-clockwise of `h`, matching `incoming_iter`'s counter-clockwise order. If the crimp recursion rejects patterns it should accept, an off-by-one in this alignment is the first thing to check — try `angles = angles[1:] + angles[:1]`.
