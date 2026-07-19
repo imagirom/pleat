@@ -122,8 +122,21 @@ while 0 < θ < π:
 return crossed, d, face
 ```
 
-Termination: `θ` alternates but each `w_k > 0`, and there are only `deg(v)`
-creases, so the walk visits each at most once.
+Termination: the walk is additionally capped at `deg(v)` crossings.
+
+The cap is load-bearing, not just a guard. Because the sum alternates, `θ` is
+not monotone and need not leave `(0, π)` at all. At a vertex whose sectors are
+all equal — `rosette(8)`, eight 45° sectors — `θ` oscillates between `θ_1` and
+`θ_1 + 45°` forever, and the walk wraps the whole vertex. That is not an
+artefact: the folded image of a flat-foldable vertex is a wedge holding
+`deg(v)` layers, and a ray whose angular sweep covers that wedge really does
+cut every one of them, which is exactly what a sink does to a folded point.
+
+Resolving where such a ray exits requires the holonomy of the full loop rather
+than the local walk, so it is **out of scope**: a full wrap raises
+`DegenerateRayError`. This costs nothing in practice — a sink ray crosses
+creases, and hitting an intermediate vertex generically exits within a few
+steps — but a ray aimed squarely at a flat-foldable apex is not supported.
 
 `side='right'` mirrors the whole rule: the crossing condition becomes
 `θ ∈ (-π, 0)` and the walk runs counter-clockwise.
@@ -273,6 +286,11 @@ So the tolerance question collapses to a single clustering of `{ψ_k}`.
 Downstream of it, the test is exact discrete combinatorics. This matters for
 symmetric vertices (two creases at right angles, three at 60°) where floating
 noise otherwise flips the verdict.
+
+`pleat.overlap.group_closeby` does this kind of clustering, but it is
+connected-components over a networkx graph, aimed at thousands of 2-D points.
+Here `n ≤ ~12` scalars, so a sorted-gap scan is exact, shorter, and returns the
+margin in the same pass.
 
 ### Diagnostic instead of a residual
 
