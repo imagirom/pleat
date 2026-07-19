@@ -941,6 +941,28 @@ def test_add_ray_creases_rejects_a_ray_that_crosses_its_own_path():
         add_ray_creases(G, start, 0.5, np.array([-2.0, 1.0]), max_steps=12)
 
 
+def test_add_ray_creases_leaves_the_graph_untouched_when_the_ray_crosses_itself():
+    """A rejected ray must not leave *G* part-materialized.
+
+    The crossing is a property of the cast trajectory alone, so it is decided
+    before phase 1 runs.  Detecting it mid-phase-2 instead -- where the missing
+    common face shows up -- left the graph subdivided and part-creased, with
+    nothing to identify and undo, and with the topology still consistent so that
+    no check downstream noticed.
+    """
+    G, v = _diagonal_loop_grid()
+    corner = next(w for w in G.vertices if np.allclose(w["pos"], v["pos"] + [-1.0, 1.0], atol=1e-9))
+    start = _outgoing_towards(corner, [1.0, 0.0])
+    before = (len(G.vertices), len(G.halfedges), len(G.faces))
+
+    with pytest.raises(DegenerateRayError, match="crosses itself"):
+        add_ray_creases(G, start, 0.5, np.array([-2.0, 1.0]), max_steps=12)
+
+    assert (len(G.vertices), len(G.halfedges), len(G.faces)) == before
+    assert not [h for h in G.halfedges if RAY_CREASE in h]
+    G.check_consistency()
+
+
 def test_add_ray_creases_rim_is_a_connected_path():
     G = _grid()
     _, north = _north_edge(G)
@@ -1080,12 +1102,15 @@ def test_add_ray_creases_orders_hits_recorded_on_opposite_halves_of_one_edge():
     vertex would land on the wrong side of the first, folding the edge back on
     itself.
 
-    Every mixed-halves ray found also crosses itself, so phase 2 rejects it
-    (0 materialisable mixed-halves casts in 15744 across five fixtures: the
-    square grid, the diagonal-loop grid and ``rosette(5..7)``).  Phase 1 has run
-    to completion by then, though, and a folded-back edge is visible in the
-    graph it left behind -- so the ordering is still pinned here, on the state
-    after the raise, rather than being dropped.
+    Every mixed-halves ray found also crosses itself (0 materialisable
+    mixed-halves casts in 15744 across five fixtures: the square grid, the
+    diagonal-loop grid and ``rosette(5..7)``), and the self-crossing pre-flight
+    now rejects those on the trajectory, before phase 1 runs -- so there is no
+    graph state left behind to inspect and this test can only pin the rejection.
+    Nothing else pins the ordering either: mutating it to sort by ``hit.t`` now
+    leaves the whole suite green, because every ray that would expose it is
+    rejected first.  The ordering stays because it is correct by construction
+    and free; it is, for now, unobservable.
     """
     G, v = _diagonal_loop_grid()
     # the north side of the square north-west of the central vertex, running east
@@ -1099,5 +1124,4 @@ def test_add_ray_creases_orders_hits_recorded_on_opposite_halves_of_one_edge():
         add_ray_creases(G, start, 0.5, np.array([-2.0, 1.0]), max_steps=12)
 
     G.check_consistency()
-    # a folded-back edge leaves the topology consistent and shows up only here
     _assert_subdivisions_are_ordered(G)

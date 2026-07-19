@@ -14,6 +14,7 @@ import numpy as np
 
 from .cutting import pointinpolygon
 from .half import Face, HalfEdge, Vertex
+from .overlap import line_segment_intersections
 
 
 class DegenerateRayError(ValueError):
@@ -526,6 +527,46 @@ def _face_containing_segment(a: Vertex, b: Vertex) -> Face | None:
     return candidates[0]
 
 
+def _touches(point: np.ndarray, segment: np.ndarray, tol: float) -> bool:
+    """Return True if *point* is within *tol* of an endpoint of *segment*."""
+    return bool(min(np.linalg.norm(point - segment[0]), np.linalg.norm(point - segment[1])) <= tol)
+
+
+def _reject_self_crossing(path: RayPath, vertex_tol: float) -> None:
+    """Raise if the cast trajectory crosses itself, before anything is materialized.
+
+    The ray is cast to completion on the untouched pattern, so its whole
+    trajectory is known as the polyline through the hit positions.  Whether it
+    crosses itself is therefore purely geometric, and can be decided before the
+    graph is touched -- which is the point: :func:`add_ray_creases` mutates in
+    two phases, and discovering the crossing halfway through phase 2 would leave
+    *G* subdivided, part-creased and impossible to unwind.
+
+    Segments that merely *share an endpoint* touch, they do not cross:
+    consecutive ones do so by construction, and a closed loop or a lasso brings
+    two segments that are far apart in the list back to a common point the same
+    way.  So the test is not index adjacency alone -- an intersection is ignored
+    when it lands on an endpoint of *both* segments, whichever pair they are.
+    """
+    points = [np.asarray(hit.position, dtype=float) for hit in path.hits]
+    segments = [np.stack((a, b)) for a, b in zip(points, points[1:]) if np.linalg.norm(b - a) > vertex_tol]
+    # ponytail: O(n^2) sweep, ~n^2/2 segment tests.  A rim is a few hundred
+    # segments at the very most -- the longest over a 180-cast `rosette(7)`
+    # sweep is 6 -- so this is at worst tens of thousands of jitted intersection
+    # tests against a cast that is itself O(n).  `get_potential_intersections`
+    # in `pleat.overlap` is the sweep line to reach for if rims ever get long.
+    for i, s1 in enumerate(segments):
+        for s2 in segments[i + 2 :]:
+            for point in line_segment_intersections(s1, s2, vertex_tol):
+                if _touches(point, s1, vertex_tol) and _touches(point, s2, vertex_tol):
+                    continue
+                raise DegenerateRayError(
+                    f"ray crosses itself at {tuple(map(float, point))}: the segment "
+                    f"{tuple(map(float, s1[0]))} -> {tuple(map(float, s1[1]))} meets "
+                    f"{tuple(map(float, s2[0]))} -> {tuple(map(float, s2[1]))}"
+                )
+
+
 def add_ray_creases(
     G,
     halfedge: HalfEdge,
@@ -568,8 +609,9 @@ def add_ray_creases(
             later segment has an endpoint on each side of it and cannot be laid.
             An origami sink rim is a simple curve, so a self-crossing ray is not
             a sink and rejecting it loses nothing real; splitting at
-            self-intersections is deliberately deferred.  *G* may already have
-            been modified when this is raised.
+            self-intersections is deliberately deferred.  The crossing is
+            detected on the cast trajectory before materialization begins, so
+            *G* is left untouched when this is raised.
     """
     if vertex_tol is None:
         vertex_tol = default_vertex_tol(G)
@@ -584,6 +626,9 @@ def add_ray_creases(
         vertex_tol=vertex_tol,
         max_steps=max_steps,
     )
+    # Before anything is materialized: a self-crossing trajectory cannot be laid,
+    # and finding that out mid-phase-2 would leave `G` half-modified.
+    _reject_self_crossing(path, vertex_tol)
 
     # ---- phase 1: vertices -------------------------------------------------
     vertices: dict[int, Vertex] = {}  # index into path.hits -> vertex
@@ -646,8 +691,11 @@ def add_ray_creases(
             # vertex at the self-intersection and nothing creates one.  Skipping
             # it silently leaves a gap in the rim, and callers flood-fill
             # bounded by the rim, so a gap leaks across the whole sheet.
+            # `_reject_self_crossing` should have caught this on the trajectory
+            # before any of this ran; reaching it means it missed one.
             raise DegenerateRayError(
-                f"ray crosses itself: no face contains the segment {tuple(a['pos'])} -> {tuple(b['pos'])}"
+                f"ray crosses itself: no face contains the segment "
+                f"{tuple(map(float, a['pos']))} -> {tuple(map(float, b['pos']))}"
             )
         h12, _ = G.subdivide_face(face, a, b, **{RAY_CREASE: True})
         rim.append(h12)
@@ -662,7 +710,8 @@ def add_ray_creases(
     for h1, h2 in zip(rim, rim[1:]):
         if h1.dest is not h2.orig:
             raise DegenerateRayError(
-                f"ray traces a discontinuous rim: {tuple(h1.dest['pos'])} != {tuple(h2.orig['pos'])}"
+                f"ray traces a discontinuous rim: "
+                f"{tuple(map(float, h1.dest['pos']))} != {tuple(map(float, h2.orig['pos']))}"
             )
 
     G.recompute_lengths_and_angles()
