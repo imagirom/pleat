@@ -37,67 +37,108 @@ Per the requirement, this is resolved as if the ray had passed at distance
 `ε` to the left of the vertex (side configurable). Naively offsetting the ray
 is unnecessary: **`ε` cancels out**, and the rule is purely angular.
 
-### Derivation
+### Transmission across a single crease
+
+Crossing a crease with unit direction `û`, an incoming direction `d` becomes
+
+```
+d' = d - 2·(d·û)·û
+```
+
+This keeps the component crossing the crease and flips the component along it.
+Note it is **not** `2(d·û)û - d`, the mirror image across the crease line:
+that flips the crossing component and sends the ray back into the face it came
+from.
+
+Derivation: let `M_k` be the folding map of the `k`-th face, so `M_k =
+M_{k-1} ∘ R_{c_k}` (both must agree on the shared crease `c_k`, which `R_{c_k}`
+fixes pointwise). Folding reverses orientation, so the folded image of the ray
+runs in direction `(-1)^k D` for a fixed `D`. Then
+
+```
+d_k = M_k⁻¹((-1)^k D) = R_{c_k}(M_{k-1}⁻¹((-1)^k D)) = R_{c_k}(-d_{k-1}) = -R_{c_k}(d_{k-1})
+```
+
+and `-R_c(d) = d - 2(d·û)û`.
+
+Sanity check on a square preliminary base (eight radial creases, 45° apart):
+a rim segment travelling `(1,0)` crosses the vertical book fold with `û ⊥ d`,
+giving `d' = d` — straight through; and crosses the 45° diagonal with
+`û = (1,1)/√2`, giving `d' = (0,-1)` — a 90° turn. Those trace the square rim
+of a square-base sink, which is correct.
+
+### Derivation of the fan rule
 
 A ray arrives at vertex `v` with unit direction `d`, travelling inside face
 `f`. Offset the ray laterally to `L = {v + ε·n̂ + t·d}` with `n̂` the left
-normal of `d`. Reflections about lines *through `v`* fix `v`, so instead of
-reflecting the ray, unfold the paper: reflect each successive sector into the
-plane and keep the ray straight. Every reflected copy of `v` coincides with
-`v`, so in unfolded coordinates the ray is the straight line `L`.
+normal of `d`. Every crease at `v` passes through `v`, so every folding map
+fixes `v`; in the folded picture the ray is the straight line `L` at distance
+`ε` from `v`.
 
-A ray leaving `v` in unfolded direction `u`, at angle `θ` measured
-counter-clockwise from `d`, meets `L` at
+Parametrize by angle from `v`. Every point of `L` lies at an angle in `(0, π)`
+measured counter-clockwise from `d`, and that angle decreases monotonically
+from `π` to `0` as `t` runs from `-∞` to `+∞`. A crease whose folded direction
+is at angle `θ` meets `L` at `t = ε·cot θ`, so it is met **iff `θ ∈ (0, π)`**.
+`ε` scales `t` but orders nothing, so it drops out of the combinatorics
+entirely and never appears in the implementation.
+
+The folded crease angles are an **alternating** prefix sum, because folding
+lays each sector back over its predecessor rather than unrolling it. Writing
+`w_k` for the sector angles encountered walking clockwise from `f`:
 
 ```
-s = ε / (d × u)                  (distance from v along u)
-t = ε · (d·u) / (d × u) = ε·cot θ (position along the ray)
+θ_{k+1} = θ_k + (-1)^{k+1} · w_k
 ```
 
-Hence:
+The ray arrives from within `f`, so `f` contains the angle `π`; its two
+boundary creases straddle `π`, and only the one at smaller `θ` can lie in
+`(0, π)`. That is `f`'s **clockwise** boundary half-edge — concretely, the
+outgoing half-edge `g` at `v` with `g.face is f`.
 
-- `s > 0` iff `d × u > 0`, i.e. **`u` is strictly left of `d`**: `θ ∈ (0, π)`.
-  Only left-side edges are crossed.
-- `cot` is strictly decreasing on `(0, π)`, so the crossings occur in order of
-  **decreasing `θ`**.
-
-`ε` scales `s` and `t` but orders neither, so it drops out of the combinatorics
-entirely. It never appears in the implementation.
-
-The ray arrives from within `f`, so `f`'s unfolded sector contains `θ = π`.
-Its two boundary rays therefore straddle `π`, and only the one at smaller `θ`
-lies in `(0, π)`. That is `f`'s **clockwise** boundary half-edge, so the ray
-leaves `f` there.
+This alternating sum is exactly the `ψ` of §4, so the fan rule and the local
+flat-foldability test share one helper.
 
 ### Algorithm
 
-Angles are tracked in *unfolded* coordinates, which differ from actual angles
-after the first reflection; the update is a running subtraction of the actual
-sector angles (`in_angle`, already stored on half-edges).
+`g.rev['in_angle']` is the sector angle at `v` of the next face clockwise
+(`in_angle` on a half-edge `e` is the angle at `e.dest` between `e` and
+`e.nex`), and `g.rev.nex` is the next outgoing half-edge clockwise, matching
+`Vertex.reverse_outgoing_iter`.
 
 ```
-θ   ← ccw_angle(d, direction of f's clockwise boundary half-edge at v)
+g     ← the outgoing half-edge at v with g.face is f
+θ     ← ccw_angle(d, direction of g)          # signed, in (-π, π)
+sign  ← +1
 crossed ← []
-while θ > 0:
-    h ← current clockwise boundary half-edge at v
-    d ← reflect(d, direction of h)      # actual direction, not unfolded
-    crossed.append(h)
-    step clockwise around v to the next face
-    θ ← θ - (in_angle of that sector)
-# the ray leaves v into the current face with direction d
-return crossed, d, current_face
+while 0 < θ < π:
+    d ← d - 2(d·û)û        with û = unit direction of g
+    crossed.append(g)
+    face ← g.rev.face
+    if face is None:                          # ran off the paper
+        break
+    θ    ← θ + sign · g.rev['in_angle']
+    sign ← -sign
+    g    ← g.rev.nex
+return crossed, d, face
 ```
 
-Termination: `θ < π` initially and every sector angle is positive, so the loop
-runs at most `deg(v)` times.
+Termination: `θ` alternates but each `w_k > 0`, and there are only `deg(v)`
+creases, so the walk visits each at most once.
 
-`side='right'` mirrors the whole rule: walk counter-clockwise, cross edges with
-`θ ∈ (-π, 0)`.
+`side='right'` mirrors the whole rule: the crossing condition becomes
+`θ ∈ (-π, 0)` and the walk runs counter-clockwise.
 
-The rule is **tolerance-free**. It reflects off however many edges the fan
-requires, which is the case a single "pick one edge to reflect off" rule gets
-wrong: after reflecting once, the ray frequently meets a further edge incident
-to the same vertex in immediate succession.
+The rule is **tolerance-free**. It transmits through however many creases the
+fan requires, which is what a single "pick one edge" rule gets wrong: after
+the first crossing the ray frequently meets further creases at the same vertex
+in immediate succession.
+
+An initial `θ ∉ (0, π)` means the ray merely grazes the corner: zero crossings,
+the direction is unchanged, and the ray continues inside `f` to a different
+edge. This falls out of the same loop with no special case.
+
+`θ_1 = 0` means the ray arrived along a crease. That is a degenerate input
+rather than a case to resolve, and raises `DegenerateRayError`.
 
 ## 2. Ray casting — `pleat/ray_casting.py`
 
@@ -140,8 +181,8 @@ State is `(point, direction, face)`. One step:
    touches geometry, and it touches only the current face.
 2. If the crossing lies within `vertex_tol` of the half-edge's `orig` or
    `dest`, snap to that vertex and apply the §1 fan rule.
-3. Otherwise reflect the direction about the half-edge and continue into
-   `h.rev.face`.
+3. Otherwise transmit the direction across the half-edge (§1,
+   `d' = d - 2(d·û)û`) and continue into `h.rev.face`.
 
 Implemented as a generator so §3 can mutate the graph between steps.
 
@@ -217,8 +258,9 @@ Given sector angles `a_1 … a_2n` around a vertex, define
 ψ_0 = 0,   ψ_k = ψ_{k-1} + (-1)^k · a_k
 ```
 
-`ψ_k` is where crease `k` lands on the line in the folded state. Two
-consequences:
+`ψ_k` is where crease `k` lands in the folded state. This is the same
+alternating prefix sum the fan rule of §1 walks, so both share the helper
+`folded_crease_angles`. Two consequences:
 
 - `ψ_{2n}` **is** the Kawasaki sum. Kawasaki is the statement that the cycle
   closes, i.e. the boundary case of this same construction, not an independent
@@ -348,8 +390,12 @@ existing vertex are handled by the same general test with no extra code.
   point returns to it after the expected number of crossings.
 - A ray aimed exactly at a vertex, from both `side='left'` and `side='right'`,
   giving mirrored paths.
-- A ray whose vertex fan crosses more than one edge (the multi-reflection
+- A ray whose vertex fan crosses more than one edge (the multi-transmission
   case), checked against a manually computed direction.
+- The square-preliminary-base check from §1: a ray crossing a perpendicular
+  crease continues straight; crossing a 45° crease turns by 90°.
+- A ray grazing a corner: zero crossings, direction unchanged, same face.
+- A ray arriving along a crease raises `DegenerateRayError`.
 - A ray that reaches the border, reporting `ends[1] == 'border'`.
 - `both_ways` on a ray that hits the border in both directions: `hits` runs
   border to border, `ends == ('border', 'border')`.
