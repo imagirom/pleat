@@ -5,9 +5,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from pleat.example_graphs import from_tiles, rosette
+from pleat.example_tilesets import platonic
 from pleat.ray_casting import (
     DegenerateRayError,
     cross2,
+    fan_at_vertex,
     halfedge_direction,
     signed_angle,
     transmit,
@@ -63,11 +66,6 @@ def test_transmit_normalises_the_crease_direction():
     np.testing.assert_allclose(transmit(d, np.array([0.0, 5.0])), transmit(d, np.array([0.0, 1.0])), atol=1e-12)
 
 
-from pleat.example_graphs import from_tiles
-from pleat.example_tilesets import platonic
-from pleat.ray_casting import fan_at_vertex
-
-
 def _grid():
     """Unit square grid; central vertex has degree 4 with four 90-degree sectors."""
     G = from_tiles(platonic(n=4), rings=2)
@@ -79,6 +77,15 @@ def _outgoing_towards(v, offset):
     """Return the outgoing half-edge at *v* whose destination is at *v + offset*."""
     target = np.asarray(v["pos"], dtype=float) + np.asarray(offset, dtype=float)
     return next(h for h in v.outgoing_iter() if np.allclose(h.dest["pos"], target, atol=1e-9))
+
+
+def _subdivide_corner(G, v, face, offset):
+    """Crease *face* from *v* to its corner at ``v + offset``; return the new half-edge."""
+    corner_pos = np.asarray(v["pos"], dtype=float) + offset
+    far_corner = next(w for w in face.vertex_iter() if np.allclose(w["pos"], corner_pos, atol=1e-9))
+    G.subdivide_face(face, v, far_corner)
+    G.recompute_lengths_and_angles()
+    return _outgoing_towards(v, offset)
 
 
 def test_fan_at_degree_4_vertex_transmits_through_exactly_one_crease():
@@ -108,12 +115,7 @@ def test_fan_transmits_through_several_creases_at_one_vertex():
     v = G.central_vertex()
     west = _outgoing_towards(v, [-1.0, 0.0])
     north = _outgoing_towards(v, [0.0, 1.0])
-    nw_face = north.face
-    corner_pos = np.asarray(v["pos"], dtype=float) + [-1.0, 1.0]
-    far_corner = next(w for w in nw_face.vertex_iter() if np.allclose(w["pos"], corner_pos, atol=1e-9))
-    G.subdivide_face(nw_face, v, far_corner)  # the 135-degree crease
-    G.recompute_lengths_and_angles()
-    diagonal = _outgoing_towards(v, [-1.0, 1.0])
+    diagonal = _subdivide_corner(G, v, north.face, [-1.0, 1.0])  # the 135-degree crease
 
     d = np.array([np.cos(np.pi / 3), np.sin(np.pi / 3)])
     crossed, d_out, face_out = fan_at_vertex(v, d, west.face)
@@ -144,11 +146,81 @@ def test_fan_side_right_mirrors_side_left():
     south = _outgoing_towards(v, [0.0, -1.0])
 
     d = np.array([SQRT_HALF, SQRT_HALF])
-    crossed, d_out, _ = fan_at_vertex(v, d, west.face, side="right")
+    crossed, d_out, face_out = fan_at_vertex(v, d, west.face, side="right")
 
     assert crossed == [south]
     # crossing a vertical crease flips the vertical component
     np.testing.assert_allclose(d_out, np.array([SQRT_HALF, -SQRT_HALF]), atol=1e-12)
+    assert face_out is south.face
+
+
+def test_fan_side_right_transmits_through_several_creases():
+    """The 3-crossing case mirrored about the horizontal axis, walked ccw.
+
+    Pins the ``side="right"`` stepping (``g = g.pre.rev``) and the mirrored
+    alternating sign, neither of which a single-crossing case reaches.
+    """
+    G = _grid()
+    v = G.central_vertex()
+    west = _outgoing_towards(v, [-1.0, 0.0])
+    north = _outgoing_towards(v, [0.0, 1.0])
+    south = _outgoing_towards(v, [0.0, -1.0])
+    diagonal = _subdivide_corner(G, v, west.face, [-1.0, -1.0])  # the 225-degree crease
+
+    d = np.array([np.cos(-np.pi / 3), np.sin(-np.pi / 3)])
+    crossed, d_out, face_out = fan_at_vertex(v, d, north.face, side="right")
+
+    assert crossed == [west, diagonal, south]
+    np.testing.assert_allclose(d_out, np.array([np.cos(-np.pi / 6), np.sin(-np.pi / 6)]), atol=1e-12)
+    assert face_out is south.face
+
+
+def test_fan_is_stable_when_theta_lands_exactly_on_pi():
+    """A 1-ulp nudge must not flip the crossing count.
+
+    In the 3-crossing fixture, arriving dead-centre of the south-west 90-degree
+    sector puts the second angle exactly on ``pi``: the crease is met at
+    ``t = eps*cot(pi) = -infinity``, i.e. not met, but the float sum lands
+    either side of the bound.  ``angle_tol`` makes the answer the same for all
+    three directions.
+    """
+    G = _grid()
+    v = G.central_vertex()
+    west = _outgoing_towards(v, [-1.0, 0.0])
+    north = _outgoing_towards(v, [0.0, 1.0])
+    _subdivide_corner(G, v, north.face, [-1.0, 1.0])
+
+    for nudge in (0.0, -1e-15, 1e-15):
+        angle = np.pi / 4 + nudge
+        d = np.array([np.cos(angle), np.sin(angle)])
+        crossed, d_out, face_out = fan_at_vertex(v, d, west.face)
+
+        assert crossed == [west], f"nudge {nudge}"
+        np.testing.assert_allclose(d_out, np.array([-SQRT_HALF, SQRT_HALF]), atol=1e-12)
+        assert face_out is west.rev.face
+
+
+def test_fan_returns_no_face_when_the_ray_runs_off_the_paper():
+    G = _grid()
+    # a boundary vertex on the top edge of the 5x5 grid, degree 3
+    v = next(w for w in G.vertices if np.allclose(w["pos"], [-1.5, 2.5], atol=1e-9))
+    west = _outgoing_towards(v, [-1.0, 0.0])
+
+    d = np.array([SQRT_HALF, SQRT_HALF])
+    crossed, d_out, face_out = fan_at_vertex(v, d, west.face)
+
+    assert crossed == [west]
+    np.testing.assert_allclose(d_out, np.array([-SQRT_HALF, SQRT_HALF]), atol=1e-12)
+    assert face_out is None
+
+
+def test_fan_rejects_an_unknown_side():
+    G = _grid()
+    v = G.central_vertex()
+    west = _outgoing_towards(v, [-1.0, 0.0])
+
+    with pytest.raises(ValueError, match="side must be"):
+        fan_at_vertex(v, np.array([SQRT_HALF, SQRT_HALF]), west.face, side="up")
 
 
 def test_fan_raises_when_the_ray_arrives_along_a_crease():
@@ -162,8 +234,6 @@ def test_fan_raises_when_the_ray_arrives_along_a_crease():
 
 
 def test_fan_raises_when_it_wraps_the_whole_vertex():
-    from pleat.example_graphs import rosette
-
     G = rosette(8)  # eight equal 45-degree sectors: theta oscillates forever
     G.recompute_lengths_and_angles()
     v = G.central_vertex()

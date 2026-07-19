@@ -3,8 +3,7 @@
 A ray carries only its current point, direction, and face, so every step is
 local: no global geometry query is ever made.  Crossing a crease transmits the
 direction by ``d - 2(d.u)u``; hitting a vertex is resolved by an angular fan
-walk in which the epsilon offset cancels out (see
-``.claude/superpowers/specs/2026-07-19-sink-folds-design.md``).
+walk in which the epsilon offset cancels out.
 """
 
 from __future__ import annotations
@@ -50,19 +49,31 @@ def fan_at_vertex(
     d: np.ndarray,
     face: Face,
     side: str = "left",
+    angle_tol: float = 1e-9,
 ) -> tuple[list[HalfEdge], np.ndarray, Face | None]:
     """Resolve a ray that hits vertex *v* head-on, as if it passed at distance eps.
 
     The ray arrives with direction *d* travelling inside *face*.  It is treated
     as passing an infinitesimal distance to the *side* of *v*, transmitting
     through every crease it would meet in quick succession.  The epsilon
-    cancels out, so the rule is exact and takes no tolerance.
+    cancels out exactly -- the result does not depend on how small it is, which
+    is the whole point of the rule.
+
+    What is *not* exact is the accumulating angle ``theta``, a float sum of
+    sector angles.  A crease at folded angle ``theta`` is met at
+    ``t = eps*cot(theta)``, so ``theta`` at ``0`` or ``pi`` means the crease is
+    met at ``-infinity``: not met.  Both are the boundary of the open interval
+    the walk runs on, so a ``theta`` whose true value lands there would have the
+    branch decided by rounding.  ``angle_tol`` widens the exit: ``theta`` within
+    it of ``0`` or ``pi`` counts as "not met" and ends the walk.
 
     Args:
         v: The vertex the ray hits.
         d: Unit direction of travel on arrival.
         face: The face the ray is travelling in on arrival.
         side: ``"left"`` or ``"right"`` -- which side of *v* the ray passes.
+        angle_tol: Radians; how close to ``0`` or ``pi`` the accumulated angle
+            may come before the crease counts as not met.
 
     Returns:
         ``(crossed, d_out, face_out)``: the half-edges transmitted through in
@@ -86,8 +97,8 @@ def fan_at_vertex(
 
     theta = s * signed_angle(d, halfedge_direction(g))
     # theta == 0 or +-pi both mean d is collinear with the crease g: the ray
-    # arrived along it, and the open test `0 < theta < pi` below would be
-    # decided by rounding rather than by geometry.
+    # arrived along it.  That is a degenerate *input*, not a mid-walk rounding
+    # question, so it raises rather than being absorbed by `angle_tol`.
     if abs(np.sin(theta)) < 1e-12:
         raise DegenerateRayError(f"ray arrives at {v} along a crease")
 
@@ -96,7 +107,7 @@ def fan_at_vertex(
     sign = 1.0
     degree = v.order()
 
-    while 0 < theta < np.pi:
+    while angle_tol < theta < np.pi - angle_tol:
         if len(crossed) >= degree:
             raise DegenerateRayError(
                 f"ray wraps the whole vertex {v}; resolving this needs the "
