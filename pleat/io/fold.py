@@ -13,7 +13,7 @@ import os
 import numpy as np
 
 from ..half import EuclideanPositionHEG, Face, HalfEdge, Vertex
-from ..overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
+from ..overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY, color_creases
 
 _ASSIGN_TO_LETTER = {MOUNTAIN: "M", VALLEY: "V"}
 _LETTER_TO_ASSIGN = {"M": MOUNTAIN, "V": VALLEY}
@@ -179,6 +179,7 @@ def fold_to_graph(fold: dict) -> EuclideanPositionHEG:
             he[(i, j)][CREASE_ASSIGNMENT] = val
             he[(j, i)][CREASE_ASSIGNMENT] = val
 
+    color_creases(G)  # set edge["color_key"] from CREASE_ASSIGNMENT
     G.check_consistency()
     return G
 
