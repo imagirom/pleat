@@ -62,7 +62,10 @@ def fan_at_vertex(
     What is *not* exact is the accumulating angle ``theta``, a float sum of
     sector angles.  A crease at folded angle ``theta`` is met at
     ``t = eps*cot(theta)``, so ``theta`` at ``0`` or ``pi`` means the crease is
-    met at ``-infinity``: not met.  Both are the boundary of the open interval
+    met at ``t = +-infinity``: not met.  (``cot`` has opposite signs at the two
+    ends -- ``theta -> 0`` is met infinitely far forward, ``theta -> pi``
+    infinitely far back -- but neither is met.)  Both are the boundary of the
+    open interval
     the walk runs on, so a ``theta`` whose true value lands there would have the
     branch decided by rounding.  ``angle_tol`` widens the exit: ``theta`` within
     it of ``0`` or ``pi`` counts as "not met" and ends the walk.
@@ -98,8 +101,10 @@ def fan_at_vertex(
     theta = s * signed_angle(d, halfedge_direction(g))
     # theta == 0 or +-pi both mean d is collinear with the crease g: the ray
     # arrived along it.  That is a degenerate *input*, not a mid-walk rounding
-    # question, so it raises rather than being absorbed by `angle_tol`.
-    if abs(np.sin(theta)) < 1e-12:
+    # question, so it raises rather than being absorbed by `angle_tol`.  The
+    # threshold tracks `angle_tol` so there is no band in which a near-collinear
+    # arrival is silently absorbed as a graze instead of raised.
+    if abs(np.sin(theta)) < angle_tol:
         raise DegenerateRayError(f"ray arrives at {v} along a crease")
 
     d = np.asarray(d, dtype=float)
