@@ -229,7 +229,9 @@ class RayPath:
     * ``"border"`` -- it ran off the paper;
     * ``"max_steps"`` -- it was still going when the safety cap ran out;
     * ``"degenerate"`` -- it stalled inside a face with no edge to leave
-      through (a malformed face, or a corner narrower than ``vertex_tol``).
+      through (a malformed face, or a corner narrower than ``vertex_tol``);
+    * ``"start"`` -- ``ends[0]`` only: that end was never traced, because the
+      cast was one-way.
 
     Only the first two mean the end was traced to completion, and more reasons
     may be added, so code that wants to know whether an end failed must test
@@ -390,12 +392,26 @@ def cast_ray(
     if vertex_tol is None:
         vertex_tol = default_vertex_tol(G)
 
-    hits: list[RayHit] = []
-    walker = _walk(halfedge, t, direction, side, vertex_tol, max_steps)
-    try:
-        while True:
-            hits.append(next(walker))
-    except StopIteration as stop:
-        forward_reason = stop.value
+    def run(d, side_):
+        collected: list[RayHit] = []
+        walker = _walk(halfedge, t, d, side_, vertex_tol, max_steps)
+        try:
+            while True:
+                collected.append(next(walker))
+        except StopIteration as stop:
+            return collected, stop.value
 
-    return RayPath(hits=hits, closed=forward_reason == "closed", ends=("start", forward_reason))
+    forward, forward_reason = run(direction, side)
+    if forward_reason == "closed":
+        # a closed loop is its own continuation: the forward pass already
+        # traced everything a backward one could reach, so both ends are closed
+        return RayPath(hits=forward, closed=True, ends=("closed", "closed"))
+    if not both_ways:
+        return RayPath(hits=forward, closed=False, ends=("start", forward_reason))
+
+    # the backward pass runs down the same offset line the other way round, so
+    # the side it passes vertices on is mirrored -- what was +eps to the left
+    # travelling along `d` is -eps, on the right, travelling along `-d`
+    backward, backward_reason = run(-np.asarray(direction, dtype=float), "right" if side == "left" else "left")
+    # both passes emit the shared start point first; drop the duplicate
+    return RayPath(hits=list(reversed(backward[1:])) + forward, closed=False, ends=(backward_reason, forward_reason))

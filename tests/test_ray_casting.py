@@ -531,3 +531,96 @@ def test_cast_ray_normalises_the_direction_it_is_given():
 
     assert path.closed
     assert len(path.hits) == 9
+
+
+def _positions(path):
+    return np.array([hit.position for hit in path.hits])
+
+
+def test_both_ways_extends_a_border_to_border_ray():
+    G = _grid()
+    _, north = _north_edge(G)
+    d = np.array([1.0, 0.0])
+
+    one_way = cast_ray(G, north, 0.5, d, both_ways=False)
+    backward_only = cast_ray(G, north, 0.5, -d, both_ways=False)
+    two_way = cast_ray(G, north, 0.5, d, both_ways=True)
+
+    assert two_way.ends == ("border", "border")
+    assert not two_way.closed
+    # the two passes spliced, with the shared start point counted once
+    assert len(two_way.hits) == len(one_way.hits) + len(backward_only.hits) - 1
+    xs = [hit.position[0] for hit in two_way.hits]
+    assert xs == sorted(xs)  # ordered backward end -> forward end
+    ys = [hit.position[1] for hit in two_way.hits]
+    assert np.allclose(ys, ys[0])
+
+
+def test_both_ways_emits_the_shared_start_point_only_once():
+    """Both passes set off from the start, so one of the two copies must be dropped."""
+    G = _grid()
+    _, north = _north_edge(G)
+    two_way = cast_ray(G, north, 0.5, np.array([1.0, 0.0]), both_ways=True)
+    start = cast_ray(G, north, 0.5, np.array([1.0, 0.0]), both_ways=False).hits[0].position
+
+    at_start = [hit for hit in two_way.hits if np.linalg.norm(hit.position - start) <= default_vertex_tol(G)]
+    assert len(at_start) == 1
+    # and no two consecutive hits coincide anywhere along the path, which is
+    # what a surviving duplicate would look like if the splice point moved
+    steps = np.linalg.norm(np.diff(_positions(two_way), axis=0), axis=1)
+    assert (steps > default_vertex_tol(G)).all()
+
+
+def test_both_ways_retraces_the_same_line_backwards_by_mirroring_the_side():
+    """Casting the same line the other way round must give the same trajectory.
+
+    A ray passing ``+eps`` to the left of a vertex while travelling along ``d``
+    is, travelling along ``-d`` down that same offset line, passing ``-eps``
+    from it -- on its right.  So ``cast_ray(d, side="left")`` and
+    ``cast_ray(-d, side="right")`` describe one and the same physical line and
+    must produce the same hits, in opposite order.  Reusing ``side`` unmirrored
+    for the backward pass breaks exactly this.
+    """
+    G = _grid()
+    _, _, start, d = _aimed_near_an_interior_vertex(G)
+
+    left = cast_ray(G, start, START_T, d, side="left", max_steps=6)
+    right = cast_ray(G, start, START_T, -d, side="right", max_steps=6)
+
+    # the test is only about the side rule if the path actually meets a vertex,
+    # and only bites if the two sides really do send the ray different ways
+    assert any(hit.vertex is not None for hit in left.hits)
+    wrong_side = _positions(cast_ray(G, start, START_T, d, side="right", max_steps=6))
+    assert wrong_side.shape != _positions(left).shape or not np.allclose(wrong_side, _positions(left))
+
+    np.testing.assert_allclose(_positions(left), _positions(right)[::-1], atol=1e-9)
+    assert left.ends == right.ends[::-1]
+
+
+def test_both_ways_does_not_cast_backwards_when_the_ray_closes():
+    G, v = _diagonal_loop_grid()
+    north = _outgoing_towards(v, [0.0, 1.0])
+    d = np.array([-1.0, 0.0])
+
+    closed = cast_ray(G, north, 0.5, d, both_ways=True)
+
+    assert closed.closed
+    assert closed.ends == ("closed", "closed")
+    # a closed loop is its own continuation: nothing is prepended to it
+    assert _positions(closed).tolist() == _positions(cast_ray(G, north, 0.5, d, both_ways=False)).tolist()
+
+
+def test_both_ways_reports_the_backward_end_first():
+    """`ends` is ordered like `hits`, so each reason must match its own end.
+
+    The ray below runs off the paper going backwards but is still going
+    forwards when the cap runs out, so the two reasons are distinct and each is
+    checkable against the hit at its end of the path.
+    """
+    G = _grid()
+    _, _, start, d = _aimed_near_an_interior_vertex(G)
+
+    path = cast_ray(G, start, START_T, d, max_steps=6)
+
+    assert path.ends[0] == "border" and path.hits[0].face is None
+    assert path.ends[1] != "border" and path.hits[-1].face is not None
