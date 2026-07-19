@@ -9,8 +9,11 @@ from pleat.example_graphs import from_tiles, rosette
 from pleat.example_tilesets import platonic
 from pleat.ray_casting import (
     DegenerateRayError,
+    RayHit,
+    _closes,
     cast_ray,
     cross2,
+    default_vertex_tol,
     fan_at_vertex,
     first_crossing,
     halfedge_direction,
@@ -344,10 +347,41 @@ def test_cast_ray_records_the_starting_point_as_its_first_hit():
 def test_cast_ray_respects_max_steps():
     G = _grid()
     _, north = _north_edge(G)
-    path = cast_ray(G, north, 0.5, np.array([1.0, 0.0]), both_ways=False, max_steps=2)
+    # one step is always short: `central_vertex` is tied four ways on this
+    # grid, so the ray has either two or three creases left to cross
+    path = cast_ray(G, north, 0.5, np.array([1.0, 0.0]), both_ways=False, max_steps=1)
 
     assert path.ends[1] == "max_steps"
-    assert len(path.hits) == 3  # the start plus two steps
+    assert len(path.hits) == 2  # the start plus one step
+
+
+def test_cast_ray_does_not_call_a_completed_path_a_max_steps_failure():
+    """The border test must not consume one of the permitted steps.
+
+    The smallest cap under which the straight-across ray still reports
+    ``"border"`` is exactly the number of crossings it makes; one fewer, and
+    only then, is it a genuinely truncated path.
+    """
+    G = _grid()
+    _, north = _north_edge(G)
+    # derived, not hardcoded: `central_vertex` is tied four ways on this grid,
+    # so the ray has either two or three creases left to cross
+    needed = len(cast_ray(G, north, 0.5, np.array([1.0, 0.0]), both_ways=False).hits) - 1
+
+    at_cap = cast_ray(G, north, 0.5, np.array([1.0, 0.0]), both_ways=False, max_steps=needed)
+    assert at_cap.ends[1] == "border"
+    assert len(at_cap.hits) == needed + 1
+
+    under_cap = cast_ray(G, north, 0.5, np.array([1.0, 0.0]), both_ways=False, max_steps=needed - 1)
+    assert under_cap.ends[1] == "max_steps"
+
+
+def test_cast_ray_rejects_a_direction_along_its_own_start_edge():
+    G = _grid()
+    _, north = _north_edge(G)
+
+    with pytest.raises(DegenerateRayError, match="along its own start edge"):
+        cast_ray(G, north, 0.5, halfedge_direction(north), both_ways=False)
 
 
 def _diagonal_loop_grid():
@@ -407,3 +441,93 @@ def test_cast_ray_starting_on_the_border_and_aimed_off_the_paper_stops_at_once()
     assert path.ends[1] == "border"
     assert len(path.hits) == 1
     assert path.hits[0].face is None
+
+
+#: how far off dead-centre the vertex-hitting ray is aimed; see `_aimed_near_an_interior_vertex`
+NEAR_MISS = 1e-12
+
+START_T = 0.5 + NEAR_MISS
+
+
+def _aimed_near_an_interior_vertex(G):
+    """A start half-edge and direction for a ray that snaps to an interior vertex.
+
+    The ray sets off from the west edge of the square south-west of *v*, at
+    ``START_T``, so it passes ``NEAR_MISS`` to the side of *v* rather than
+    through it: far inside the ``1e-9`` vertex tolerance, so the crossing is
+    snapped to *v*, but far enough out that the crossing parameter is nowhere
+    near exactly ``0`` or ``1``.  Aiming dead-centre instead leaves that
+    parameter to float luck -- it does land on exactly ``1.0`` for some of the
+    grids ``from_tiles`` builds -- and the point here is the tolerance.
+    """
+    v = next(w for w in G.vertices if np.allclose(w["pos"], [-0.5, 0.5], atol=1e-9))
+    west = _outgoing_towards(v, [-1.0, 0.0])
+    return v, west, _outgoing_towards(west.dest, [0.0, -1.0]), np.array([1.0, 0.5])
+
+
+def test_cast_ray_landing_on_a_vertex_resolves_it_with_the_fan():
+    """The vertex branch of the walk, reached through `cast_ray` rather than directly."""
+    G = _grid()
+    v, west, start, d = _aimed_near_an_interior_vertex(G)
+    crossed, d_out, face_out = fan_at_vertex(v, d / np.linalg.norm(d), west.face)
+
+    path = cast_ray(G, start, START_T, d, both_ways=False, max_steps=1)
+    hit = path.hits[1]
+
+    assert hit.vertex is v
+    assert hit.halfedges == crossed == [west]
+    # the hit reports the vertex's own position, not the interpolated crossing
+    np.testing.assert_array_equal(hit.position, v["pos"])
+    np.testing.assert_allclose(hit.direction_out, d_out, atol=1e-12)
+    assert hit.face is face_out
+    # the crossing sits a near-miss away from an end of whichever edge
+    # `first_crossing` found -- which is why the vertex test is a distance and
+    # not `s == 0.0` / `s == 1.0`
+    assert 1e-13 < min(hit.t, 1 - hit.t) < 1e-9
+
+
+def test_cast_ray_does_not_close_when_it_returns_to_its_start_on_another_heading():
+    """Passing back through the start point is a self-intersection, not a loop."""
+    G = _grid()
+    _, _, start, d = _aimed_near_an_interior_vertex(G)
+
+    path = cast_ray(G, start, START_T, d, both_ways=False, max_steps=8)
+
+    # the position half of the closure test passes -- only the heading half
+    # keeps this from being reported as a closed loop
+    back = path.hits[4]
+    assert np.linalg.norm(back.position - path.hits[0].position) <= default_vertex_tol(G)
+    assert np.dot(back.direction_in, path.hits[0].direction_out) < 1 - 1e-9
+    assert not path.closed
+    assert path.ends[1] == "max_steps"
+
+
+def test_the_closure_heading_check_is_a_tolerance_and_not_an_equality():
+    """Two headings a long path apart are the same heading; 1e-3 radians is not.
+
+    A closed loop on a fixture whose coordinates happen to be exact returns on
+    a bitwise-identical heading, so it cannot tell ``> 1 - 1e-9`` from
+    ``>= 1.0``.  Drift is what the tolerance is for, so it is tested directly:
+    1e-7 radians is far more than a real loop accumulates (measured: ``1 -
+    dot`` under 2.2e-16 over the loop fixture at several rotations) and far
+    less than the ~4.5e-5 radians the threshold allows.
+    """
+    origin, d0 = np.zeros(2), np.array([1.0, 0.0])
+
+    def hit_heading(angle):
+        d = np.array([np.cos(angle), np.sin(angle)])
+        return RayHit(halfedges=[], t=0.0, position=origin, vertex=None, direction_in=d, direction_out=d, face=None)
+
+    assert _closes(hit_heading(1e-7), origin, d0, vertex_tol=1e-9)
+    assert not _closes(hit_heading(1e-3), origin, d0, vertex_tol=1e-9)
+
+
+def test_cast_ray_normalises_the_direction_it_is_given():
+    """`_closes` reads a dot product as an angle, so a long `d` must not break it."""
+    G, v = _diagonal_loop_grid()
+    north = _outgoing_towards(v, [0.0, 1.0])
+
+    path = cast_ray(G, north, 0.5, np.array([-3.0, 0.0]), both_ways=False)
+
+    assert path.closed
+    assert len(path.hits) == 9

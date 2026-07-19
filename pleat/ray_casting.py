@@ -137,7 +137,20 @@ class RayHit:
 
     ``halfedges`` lists the creases transmitted through here, in order; it has
     more than one entry only at a vertex fan, and may be empty when the ray
-    merely grazes a corner.  ``t`` is the parameter along ``halfedges[0]``.
+    merely grazes a corner.
+
+    ``t`` is the parameter along the edge the ray *arrived* on, which is not
+    always ``halfedges[0]``:
+
+    * at a plain crossing the two coincide -- ``t`` runs along ``halfedges[0]``;
+    * at a vertex hit ``t`` is the parameter of the crossing ``first_crossing``
+      found on the edge it found it on (so ``t`` is within a tolerance of ``0``
+      or ``1``, not exactly either), while ``halfedges`` is the fan's crossing
+      list, whose first entry is a different edge in general -- and is empty
+      when the fan crosses nothing;
+    * on the starting hit ``t`` is the caller's parameter along the start edge.
+
+    Use ``position`` rather than ``t`` when what is wanted is the point.
     """
 
     halfedges: list[HalfEdge]
@@ -208,7 +221,21 @@ def first_crossing(
 
 @dataclass
 class RayPath:
-    """A cast ray: its crossings, whether it closed, and how each end stopped."""
+    """A cast ray: its crossings, whether it closed, and how each end stopped.
+
+    Each entry of ``ends`` is one of:
+
+    * ``"closed"`` -- the ray came back to its start on its original heading;
+    * ``"border"`` -- it ran off the paper;
+    * ``"max_steps"`` -- it was still going when the safety cap ran out;
+    * ``"degenerate"`` -- it stalled inside a face with no edge to leave
+      through (a malformed face, or a corner narrower than ``vertex_tol``).
+
+    Only the first two mean the end was traced to completion, and more reasons
+    may be added, so code that wants to know whether an end failed must test
+    ``ends[i] not in ("closed", "border")`` rather than looking for
+    ``"max_steps"`` specifically.
+    """
 
     hits: list[RayHit]
     closed: bool
@@ -239,25 +266,39 @@ def _closes(hit: RayHit, start: np.ndarray, d0: np.ndarray, vertex_tol: float) -
         np.linalg.norm(hit.position - start) <= vertex_tol
         # unit directions, so this is a tolerance of ~4e-5 radians -- far above
         # the drift a few thousand transmissions accumulate, far below the
-        # angle between two distinct headings at one point
+        # angle between two distinct headings at one point.  Measured on the
+        # closed-loop fixture rotated by 0.3/1.0/2.345 rad, `1 - dot` stayed
+        # between 0 and 2.2e-16; the binding tolerance for a long loop is the
+        # position check above (4.6e-16 of drift over 8 steps against a
+        # `vertex_tol` of 1.03e-9), never this one.
         and np.dot(hit.direction_in, d0) > 1 - 1e-9
     )
 
 
-def _walk(G, start_he, start_t, direction, side, vertex_tol, max_steps):
+def _walk(start_he, start_t, direction, side, vertex_tol, max_steps):
     """Yield ``RayHit``s from the start point onwards, ending with a stop reason.
 
     The generator's return value (via ``StopIteration.value``) is the reason:
-    ``'closed'``, ``'border'``, ``'degenerate'``, or ``'max_steps'``.
+    ``'closed'``, ``'border'``, ``'degenerate'``, or ``'max_steps'``.  A path
+    that finishes never reports ``'max_steps'``: the border test is made on
+    entry and after every step, so it costs no iteration of its own.
     """
     d = np.asarray(direction, dtype=float)
+    # `_closes` reads the dot product of two of these as an angle, and
+    # `first_crossing` reads the ray parameter as a distance: both need unit `d`
     d = d / np.linalg.norm(d)
     p = start = _point_on(start_he, start_t)
     d0 = d
 
     # `h.face` is the face to the left of `h`, so the ray sets off into
     # `start_he.face` exactly when `d` points to the left of the start edge
-    face = start_he.face if cross2(halfedge_direction(start_he), d) > 0 else start_he.rev.face
+    start_edge = halfedge_direction(start_he)
+    towards_left = cross2(start_edge, d)
+    if abs(towards_left) < 1e-12 * np.linalg.norm(start_edge):
+        # neither side is the one the ray goes into; picking one silently would
+        # send the ray along an edge it is supposed to be crossing
+        raise DegenerateRayError("ray sets off along its own start edge")
+    face = start_he.face if towards_left > 0 else start_he.rev.face
 
     yield RayHit(
         halfedges=[start_he],
@@ -269,9 +310,10 @@ def _walk(G, start_he, start_t, direction, side, vertex_tol, max_steps):
         face=face,
     )
 
+    if face is None:
+        return "border"
+
     for _ in range(max_steps):
-        if face is None:
-            return "border"
         found = first_crossing(face, p, d, vertex_tol)
         if found is None:
             # inside a face with no way out: not the paper's edge, but a
@@ -307,6 +349,8 @@ def _walk(G, start_he, start_t, direction, side, vertex_tol, max_steps):
         yield hit
         if _closes(hit, start, d0, vertex_tol):
             return "closed"
+        if face is None:
+            return "border"
     return "max_steps"
 
 
@@ -334,13 +378,20 @@ def cast_ray(
 
     Returns:
         A :class:`RayPath` whose hits run from the backward end to the forward
-        end.
+        end.  Each entry of its ``ends`` is ``"closed"``, ``"border"``,
+        ``"max_steps"`` or ``"degenerate"`` -- see :class:`RayPath`, and note
+        that testing for failure means ``not in ("closed", "border")``.
+
+    Raises:
+        DegenerateRayError: if *direction* runs along *halfedge*, so that
+            neither side of it is the one the ray sets off into, or if the ray
+            meets a vertex configuration :func:`fan_at_vertex` cannot resolve.
     """
     if vertex_tol is None:
         vertex_tol = default_vertex_tol(G)
 
     hits: list[RayHit] = []
-    walker = _walk(G, halfedge, t, direction, side, vertex_tol, max_steps)
+    walker = _walk(halfedge, t, direction, side, vertex_tol, max_steps)
     try:
         while True:
             hits.append(next(walker))
