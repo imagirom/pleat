@@ -76,7 +76,12 @@ def graph_to_fold(G, *, title: str | None = None) -> dict:
         edges_assignment.append(letter)
         edges_foldAngle.append(_FOLD_ANGLE.get(letter))
 
-    faces_vertices = [[vidx[v] for v in f.vertex_iter()] for f in sorted(G.faces, key=lambda f: f["id"])]
+    # Emit faces clockwise (pleat's vertex_iter is CCW, hence the reversal). Origami
+    # Simulator's importFold colors the face's CCW side as the *back* (white) and shows
+    # it up; feeding CW puts the front (coloured) side up, matching pleat's rendering.
+    # This only affects which side is coloured, not the fold -- mountain/valley is
+    # driven by edges_foldAngle, independent of winding. fold_to_graph reverses back.
+    faces_vertices = [[vidx[v] for v in f.vertex_iter()][::-1] for f in sorted(G.faces, key=lambda f: f["id"])]
 
     fold = {
         "file_spec": 1.2,
@@ -119,9 +124,11 @@ def fold_to_graph(fold: dict) -> EuclideanPositionHEG:
         v["pos"] = np.array(xy)
     G.add_vertices(verts)
 
-    # 1. interior half-edges from each face loop
+    # 1. interior half-edges from each face loop. graph_to_fold emits faces clockwise
+    #    (for Origami Simulator); reverse back to pleat's CCW convention here.
     he: dict[tuple[int, int], HalfEdge] = {}
-    for face_vs in faces_vertices:
+    for raw_face in faces_vertices:
+        face_vs = raw_face[::-1]
         n = len(face_vs)
         loop = []
         for k in range(n):

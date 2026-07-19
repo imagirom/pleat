@@ -89,6 +89,32 @@ def test_fold_roundtrip_preserves_topology_and_creases():
     assert _crease_multiset(G) == _crease_multiset(G2)
 
 
+def _signed_area(coords, face):
+    import numpy as np
+
+    p = np.asarray(coords)[face]
+    x, y = p[:, 0], p[:, 1]
+    return 0.5 * float(np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y))
+
+
+def test_graph_to_fold_emits_clockwise_faces_for_origami_simulator():
+    # Origami Simulator's importFold shows the CCW side as the back (white); we emit
+    # clockwise (negative signed area) so the coloured side faces up. Regression guard.
+    fold = graph_to_fold(_creased_rosette())
+    areas = [_signed_area(fold["vertices_coords"], f) for f in fold["faces_vertices"]]
+    assert all(a < 0 for a in areas), "exported FOLD faces must be clockwise"
+
+
+def test_fold_roundtrip_preserves_face_winding():
+    # export reverses to CW, import reverses back, so pleat's own winding is preserved
+    G = _creased_rosette()
+    before = graph_to_fold(G)
+    after = graph_to_fold(fold_to_graph(before))
+    a_before = _signed_area(before["vertices_coords"], before["faces_vertices"][0])
+    a_after = _signed_area(after["vertices_coords"], after["faces_vertices"][0])
+    assert (a_before < 0) == (a_after < 0)
+
+
 def test_save_load_fold_roundtrip(tmp_path):
     G = _creased_rosette()
     save_fold(str(tmp_path / "rose"), G)
