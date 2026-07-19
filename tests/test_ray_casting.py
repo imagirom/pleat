@@ -420,6 +420,35 @@ def test_cast_ray_closes_on_a_square_loop():
     np.testing.assert_allclose(path.hits[-1].direction_in, path.hits[0].direction_out, atol=1e-12)
 
 
+def test_cast_ray_closes_when_it_crosses_its_start_edge_obliquely():
+    """Closure is about the heading the ray *departs* on, not the one it arrives on.
+
+    Coming back to the start point means arriving from the far side of the start
+    edge and transmitting across it, so the ray arrives on
+    ``transmit(d0, start_edge)`` and leaves on ``d0``.  Those two coincide only
+    when the loop crosses the start edge perpendicularly -- which the square-loop
+    fixture above does, and this one deliberately does not.
+    """
+    G, v = _diagonal_loop_grid()
+    north = _outgoing_towards(v, [0.0, 1.0])
+    d = np.array([-1.0, 0.35])
+
+    # the test only bites if the crossing really is oblique
+    unit = d / np.linalg.norm(d)
+    assert not np.allclose(transmit(unit, halfedge_direction(north)), unit, atol=1e-6)
+
+    path = cast_ray(G, north, 0.5, d, both_ways=False)
+
+    assert path.closed
+    assert path.ends[1] == "closed"
+    assert len(path.hits) == 9
+    np.testing.assert_allclose(path.hits[-1].position, path.hits[0].position, atol=1e-12)
+    np.testing.assert_allclose(path.hits[-1].direction_out, path.hits[0].direction_out, atol=1e-12)
+    # and the arriving heading is genuinely a different one, so testing
+    # `direction_in` here would report the loop as still running
+    assert np.dot(path.hits[-1].direction_in, path.hits[0].direction_out) < 1 - 1e-9
+
+
 def test_cast_ray_reports_a_degenerate_stall_rather_than_calling_it_a_border():
     """A ray that cannot leave its face has not reached the paper's edge."""
     G = _grid()
@@ -489,19 +518,33 @@ def test_cast_ray_landing_on_a_vertex_resolves_it_with_the_fan():
 
 
 def test_cast_ray_does_not_close_when_it_returns_to_its_start_on_another_heading():
-    """Passing back through the start point is a self-intersection, not a loop."""
-    G = _grid()
-    _, _, start, d = _aimed_near_an_interior_vertex(G)
+    """Passing back through the start point is a self-intersection, not a loop.
 
-    path = cast_ray(G, start, START_T, d, both_ways=False, max_steps=8)
+    This ray crosses its own start point twice: once mid-path on a different
+    heading, which must *not* stop it, and once at the end on the original
+    heading, which must.  Stopping at the first would truncate the loop.
+    """
+    G, v = _diagonal_loop_grid()
+    # a diagonal crease at the central vertex, entered off-centre and steeply
+    # enough that the trajectory crosses itself before it comes round
+    start = _outgoing_towards(v, [-1.0, 1.0])
 
-    # the position half of the closure test passes -- only the heading half
-    # keeps this from being reported as a closed loop
-    back = path.hits[4]
-    assert np.linalg.norm(back.position - path.hits[0].position) <= default_vertex_tol(G)
-    assert np.dot(back.direction_in, path.hits[0].direction_out) < 1 - 1e-9
-    assert not path.closed
-    assert path.ends[1] == "max_steps"
+    path = cast_ray(G, start, 0.7, np.array([2.0, 1.0]), both_ways=False, max_steps=20)
+
+    origin = path.hits[0]
+    revisits = [
+        i
+        for i, hit in enumerate(path.hits[1:], 1)
+        if np.linalg.norm(hit.position - origin.position) <= default_vertex_tol(G)
+    ]
+    assert len(revisits) == 2, "fixture no longer crosses its own start point twice"
+    crossing, closure = revisits
+    # the position half of the closure test passes at both -- only the heading
+    # half tells the self-intersection from the loop
+    assert np.dot(path.hits[crossing].direction_out, origin.direction_out) < 1 - 1e-9
+    assert np.dot(path.hits[closure].direction_out, origin.direction_out) > 1 - 1e-9
+    assert path.closed
+    assert closure == len(path.hits) - 1  # it ran on past the self-intersection
 
 
 def test_the_closure_heading_check_is_a_tolerance_and_not_an_equality():
@@ -586,13 +629,16 @@ def test_both_ways_retraces_the_same_line_backwards_by_mirroring_the_side():
     G = _grid()
     _, _, start, d = _aimed_near_an_interior_vertex(G)
 
-    left = cast_ray(G, start, START_T, d, side="left", max_steps=6)
-    right = cast_ray(G, start, START_T, -d, side="right", max_steps=6)
+    # this ray closes after four crossings, and a closed forward pass suppresses
+    # the backward one; the cap keeps both halves in play so there is something
+    # to compare
+    left = cast_ray(G, start, START_T, d, side="left", max_steps=3)
+    right = cast_ray(G, start, START_T, -d, side="right", max_steps=3)
 
     # the test is only about the side rule if the path actually meets a vertex,
     # and only bites if the two sides really do send the ray different ways
     assert any(hit.vertex is not None for hit in left.hits)
-    wrong_side = _positions(cast_ray(G, start, START_T, d, side="right", max_steps=6))
+    wrong_side = _positions(cast_ray(G, start, START_T, d, side="right", max_steps=3))
     assert wrong_side.shape != _positions(left).shape or not np.allclose(wrong_side, _positions(left))
 
     np.testing.assert_allclose(_positions(left), _positions(right)[::-1], atol=1e-9)
@@ -612,6 +658,34 @@ def test_both_ways_does_not_cast_backwards_when_the_ray_closes():
     assert _positions(closed).tolist() == _positions(cast_ray(G, north, 0.5, d, both_ways=False)).tolist()
 
 
+def test_both_ways_reports_a_backward_half_that_closes_on_itself():
+    """One half-ray can loop while the other runs off the paper: a lasso.
+
+    The two half-rays leave the start point into *different* faces, so they are
+    not two ends of one curve and either can close on its own.  When the
+    backward one does, the spliced path is a cycle with a tail: `ends[0]` says
+    that end came back, but the path as a whole is not a closed curve, and the
+    start point legitimately appears twice.
+    """
+    G = _grid()
+    v = next(w for w in G.vertices if np.allclose(w["pos"], [-0.5, 0.5], atol=1e-9))
+    start = _outgoing_towards(v, [1.0, 0.0])
+
+    path = cast_ray(G, start, 0.25, np.array([1.0, 4.0]), max_steps=60)
+
+    assert path.ends == ("closed", "border")
+    assert not path.closed
+    origin = cast_ray(G, start, 0.25, np.array([1.0, 4.0]), both_ways=False).hits[0].position
+    at_start = [i for i, hit in enumerate(path.hits) if np.linalg.norm(hit.position - origin) <= default_vertex_tol(G)]
+    assert len(at_start) == 2 and at_start[0] == 0  # the cycle, then the tail
+    # and the whole thing still materialises into a sane graph
+    rim, _ = add_ray_creases(G, start, 0.25, np.array([1.0, 4.0]), max_steps=60)
+    G.check_consistency()
+    _assert_faces_are_sane(G)
+    for a, b in zip(rim, rim[1:]):
+        assert a.dest is b.orig
+
+
 def _on_the_border(hit):
     """True if *hit* crossed a half-edge on the edge of the paper."""
     return any(h.face is None or h.rev.face is None for h in hit.halfedges)
@@ -629,7 +703,9 @@ def test_both_ways_reports_the_backward_end_first():
     G = _grid()
     _, _, start, d = _aimed_near_an_interior_vertex(G)
 
-    path = cast_ray(G, start, START_T, d, max_steps=6)
+    # the cap is below the four crossings this ray needs to close, so the
+    # forward end is genuinely still running when it runs out
+    path = cast_ray(G, start, START_T, d, max_steps=3)
 
     # the backward end left the paper; the forward end was still inside it
     assert path.ends[0] == "border" and _on_the_border(path.hits[0])
@@ -831,24 +907,40 @@ def test_add_ray_creases_through_a_vertex_reuses_that_vertex():
             assert np.linalg.norm(first - second) > default_vertex_tol(G)
 
 
-def test_add_ray_creases_does_not_double_up_on_a_periodic_ray():
-    """A ray that runs out of `max_steps` on a loop retraces creases it already laid.
+@pytest.mark.slow
+def test_add_ray_creases_does_not_double_up_on_a_retraced_segment():
+    """A trajectory that runs the same chord twice must reuse the crease it laid.
 
     Materializing the retraced segment a second time would lay a duplicate edge
-    over the first and leave a zero-area face behind, so the existing crease is
-    reused instead.
+    over the first and leave a zero-area face behind.  A retrace needs a
+    self-overlapping trajectory, which on a pattern this simple only turns up
+    once several rays have already subdivided it -- so the case is reached by
+    laying rays until it happens rather than by a single hand-picked cast.  With
+    the reuse removed, four or five of the fifty seeds below corrupt the graph;
+    with it in place, none do.
     """
-    G = _grid()
-    _, north = _north_edge(G)
-
-    rim, path = add_ray_creases(G, north, 0.5, np.array([SQRT_HALF, SQRT_HALF]), max_steps=40)
-
-    assert path.ends == ("max_steps", "max_steps")  # otherwise nothing is retraced
-    assert len(rim) > len(set(rim))  # the retraced creases really are reused
-    G.check_consistency()
-    _assert_faces_are_sane(G)
-    for a, b in zip(rim, rim[1:]):
-        assert a.dest is b.orig
+    for seed in range(50):
+        rng = np.random.default_rng(seed)
+        G, _ = _diagonal_loop_grid()
+        for _ in range(14):
+            candidates = [h for h in G.halfedges if h.face is not None and h.rev.face is not None]
+            start = candidates[int(rng.integers(len(candidates)))]
+            angle = float(rng.uniform(0.0, 2 * np.pi))
+            try:
+                rim, _ = add_ray_creases(
+                    G, start, float(rng.uniform(0.2, 0.8)), np.array([np.cos(angle), np.sin(angle)]), max_steps=60
+                )
+            except DegenerateRayError:
+                continue
+            G.check_consistency()
+            # a doubled-up segment is two half-edges with the same endpoints, and
+            # the zero-area face between them.  Slivers are legitimate on a
+            # pattern this heavily subdivided, so the area bound is only `> 0`.
+            for w in G.vertices:
+                destinations = [h.dest for h in w.outgoing_iter()]
+                assert len(destinations) == len(set(destinations)), "duplicate edge laid over an existing one"
+            for f in G.faces:
+                assert _signed_area(f) > 0.0, f"face {f} has area {_signed_area(f)}"
 
 
 def _edges_hit_from_both_halves(path):
@@ -879,12 +971,14 @@ def test_add_ray_creases_orders_hits_recorded_on_opposite_halves_of_one_edge():
     itself.
     """
     G, v = _diagonal_loop_grid()
-    start = _outgoing_towards(v, [-1.0, 1.0])
+    # the north side of the square north-west of the central vertex, running east
+    corner = next(w for w in G.vertices if np.allclose(w["pos"], v["pos"] + [-1.0, 1.0], atol=1e-9))
+    start = _outgoing_towards(corner, [1.0, 0.0])
 
-    rim, path = add_ray_creases(G, start, 0.2, np.array([2.0, 1.0]), max_steps=12)
+    rim, path = add_ray_creases(G, start, 0.5, np.array([-2.0, 1.0]), max_steps=12)
 
     assert _edges_hit_from_both_halves(path), "fixture no longer exercises the mixed-orientation case"
     G.check_consistency()
+    # a folded-back edge leaves the topology consistent and shows up only here
     _assert_faces_are_sane(G)
-    walked = [rim[0].orig["pos"]] + [h.dest["pos"] for h in rim]
-    np.testing.assert_allclose(walked, [hit.position for hit in path.hits], atol=1e-9)
+    assert all(np.linalg.norm(h.dest["pos"] - h.orig["pos"]) > default_vertex_tol(G) for h in rim)

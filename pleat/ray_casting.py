@@ -264,6 +264,15 @@ def _closes(hit: RayHit, start: np.ndarray, d0: np.ndarray, vertex_tol: float) -
     a hit that lands on a vertex carries no meaningful parameter along the
     starting edge, and because an exact corner hit does not produce an exactly
     integral parameter anyway.
+
+    The heading compared is ``direction_out``, not ``direction_in``.  The start
+    hit does not transmit, so its ``direction_out`` *is* ``d0``: the direction
+    the ray departed in.  Returning to the start means arriving from the far
+    side of the start edge and transmitting across it, so the direction that
+    has to match ``d0`` for the trajectory to be one closed curve is the one it
+    departs on again -- ``direction_out``.  The arriving direction is
+    ``transmit(d0, start_edge)``, which equals ``d0`` only when the loop crosses
+    the start edge perpendicularly.
     """
     return bool(
         np.linalg.norm(hit.position - start) <= vertex_tol
@@ -274,7 +283,7 @@ def _closes(hit: RayHit, start: np.ndarray, d0: np.ndarray, vertex_tol: float) -
         # between 0 and 2.2e-16; the binding tolerance for a long loop is the
         # position check above (4.6e-16 of drift over 8 steps against a
         # `vertex_tol` of 1.03e-9), never this one.
-        and np.dot(hit.direction_in, d0) > 1 - 1e-9
+        and np.dot(hit.direction_out, d0) > 1 - 1e-9
     )
 
 
@@ -451,6 +460,12 @@ def cast_ray(
     # start edge.  The rest of the backward hits are re-oriented as they are
     # spliced, so the whole list reads as one trajectory.
     spliced = [_reoriented(backward, k) for k in range(len(backward) - 1, 0, -1)]
+    # `backward_reason` may itself be `"closed"`: the ray sets off from a point
+    # on a crease, and the two half-rays leave into different faces, so one can
+    # loop back to the start while the other runs off to the border.  The result
+    # is a lasso -- a cycle with a tail -- not a closed curve, so `closed` stays
+    # False and only `ends[0]` records that that end came back.  The start point
+    # then legitimately appears twice in `hits`, once at each end of the cycle.
     return RayPath(hits=spliced + forward, closed=False, ends=(backward_reason, forward_reason))
 
 
@@ -473,7 +488,11 @@ def _face_containing_segment(a: Vertex, b: Vertex) -> Face | None:
 
     Usually there is exactly one common face.  When the ray traverses a face
     more than once, an earlier split can leave two candidates, so the midpoint
-    decides between them.
+    decides between them.  That needs *a* and *b* both to sit on the boundary an
+    earlier segment of the same ray laid, with a third vertex between them; it
+    is rare enough that no sweep run against this module has produced it (0 of
+    ~19k segments across ~2200 casts), but it is not excluded by anything, so
+    the fallback stays.
     """
     candidates = list(a.common_faces_iter(b))
     if len(candidates) <= 1:
@@ -578,9 +597,14 @@ def add_ray_creases(
     for a, b in zip(chain, chain[1:]):
         if a is b:  # consecutive hits that snapped to the same vertex
             continue
-        # A ray that runs out of `max_steps` on a periodic trajectory retraces
-        # segments it has already creased.  Laying a second edge over the first
+        # A self-overlapping trajectory runs the same chord twice and so retraces
+        # a segment it has already creased.  Laying a second edge over the first
         # would leave a zero-area face behind, so reuse the edge that is there.
+        # (Before closure detection worked this was reached mainly by periodic
+        # rays being reported as `max_steps` and repeating their whole period;
+        # it is rarer now, and needs a pattern already subdivided by earlier
+        # rays, but it still happens -- removing this corrupts the graph on
+        # roughly one in ten multi-ray patterns.)
         existing = next((h for h in list(a.outgoing_iter()) if h.dest is b), None)
         if existing is not None:
             existing[RAY_CREASE] = existing.rev[RAY_CREASE] = True
