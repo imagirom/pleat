@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .half import HalfEdge
+from .half import Face, HalfEdge, Vertex
 
 
 class DegenerateRayError(ValueError):
@@ -43,3 +43,72 @@ def transmit(d: np.ndarray, u: np.ndarray) -> np.ndarray:
 def halfedge_direction(h: HalfEdge) -> np.ndarray:
     """Return the vector from ``h.orig`` to ``h.dest`` in position space."""
     return h.dest["pos"] - h.orig["pos"]
+
+
+def fan_at_vertex(
+    v: Vertex,
+    d: np.ndarray,
+    face: Face,
+    side: str = "left",
+) -> tuple[list[HalfEdge], np.ndarray, Face | None]:
+    """Resolve a ray that hits vertex *v* head-on, as if it passed at distance eps.
+
+    The ray arrives with direction *d* travelling inside *face*.  It is treated
+    as passing an infinitesimal distance to the *side* of *v*, transmitting
+    through every crease it would meet in quick succession.  The epsilon
+    cancels out, so the rule is exact and takes no tolerance.
+
+    Args:
+        v: The vertex the ray hits.
+        d: Unit direction of travel on arrival.
+        face: The face the ray is travelling in on arrival.
+        side: ``"left"`` or ``"right"`` -- which side of *v* the ray passes.
+
+    Returns:
+        ``(crossed, d_out, face_out)``: the half-edges transmitted through in
+        order, the outgoing direction, and the face the ray leaves into
+        (``None`` if it ran off the paper).
+
+    Raises:
+        DegenerateRayError: if the ray arrives exactly along a crease, or if it
+            wraps the whole vertex (see the spec -- resolving that needs the
+            holonomy of the full loop rather than this local walk).
+    """
+    if side not in ("left", "right"):
+        raise ValueError(f"side must be 'left' or 'right', got {side!r}")
+    s = 1.0 if side == "left" else -1.0
+
+    # the boundary half-edge of `face` at v that the offset ray reaches first
+    if s > 0:
+        g = next(h for h in v.outgoing_iter() if h.face is face)
+    else:
+        g = next(h for h in v.outgoing_iter() if h.rev.face is face)
+
+    theta = s * signed_angle(d, halfedge_direction(g))
+    # theta == 0 or +-pi both mean d is collinear with the crease g: the ray
+    # arrived along it, and the open test `0 < theta < pi` below would be
+    # decided by rounding rather than by geometry.
+    if abs(np.sin(theta)) < 1e-12:
+        raise DegenerateRayError(f"ray arrives at {v} along a crease")
+
+    d = np.asarray(d, dtype=float)
+    crossed: list[HalfEdge] = []
+    sign = 1.0
+    degree = v.order()
+
+    while 0 < theta < np.pi:
+        if len(crossed) >= degree:
+            raise DegenerateRayError(
+                f"ray wraps the whole vertex {v}; resolving this needs the "
+                "holonomy of the full loop, which is out of scope"
+            )
+        d = transmit(d, halfedge_direction(g))
+        crossed.append(g)
+        face = g.rev.face if s > 0 else g.face
+        if face is None:
+            return crossed, d, None
+        theta += sign * (g.rev["in_angle"] if s > 0 else g.pre["in_angle"])
+        sign = -sign
+        g = g.rev.nex if s > 0 else g.pre.rev
+
+    return crossed, d, face
