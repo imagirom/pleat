@@ -7,10 +7,12 @@ import pytest
 
 from pleat.example_graphs import from_tiles, rosette
 from pleat.example_tilesets import platonic
+from pleat.flat_foldable import kawasaki_sum
 from pleat.ray_casting import (
     RAY_CREASE,
     DegenerateRayError,
     RayHit,
+    _canonical,
     _closes,
     add_ray_creases,
     cast_ray,
@@ -517,7 +519,7 @@ def test_cast_ray_landing_on_a_vertex_resolves_it_with_the_fan():
     assert 1e-13 < min(hit.t, 1 - hit.t) < 1e-9
 
 
-def test_cast_ray_does_not_close_when_it_returns_to_its_start_on_another_heading():
+def test_cast_ray_runs_on_past_a_self_intersection_and_closes_only_on_its_own_heading():
     """Passing back through the start point is a self-intersection, not a loop.
 
     This ray crosses its own start point twice: once mid-path on a different
@@ -620,20 +622,24 @@ def test_both_ways_retraces_the_same_line_backwards_by_mirroring_the_side():
     """Casting the same line the other way round must give the same trajectory.
 
     A ray passing ``+eps`` to the left of a vertex while travelling along ``d``
-    is, travelling along ``-d`` down that same offset line, passing ``-eps``
-    from it -- on its right.  So ``cast_ray(d, side="left")`` and
-    ``cast_ray(-d, side="right")`` describe one and the same physical line and
-    must produce the same hits, in opposite order.  Reusing ``side`` unmirrored
-    for the backward pass breaks exactly this.
+    is, travelling the other way down that same offset line, passing ``-eps``
+    from it -- on its right.  So the two casts below describe one and the same
+    physical line and must produce the same hits, in opposite order.  Reusing
+    ``side`` unmirrored for the backward pass breaks exactly this.
+
+    The reversed heading is ``-transmit(d, E)`` and not ``-d``: the start point
+    lies *on* the start edge ``E``, so the trajectory crosses it there, and the
+    heading that retraces the line is the one it arrived on, negated.
     """
     G = _grid()
     _, _, start, d = _aimed_near_an_interior_vertex(G)
+    reversed_d = -transmit(d / np.linalg.norm(d), halfedge_direction(start))
 
     # this ray closes after four crossings, and a closed forward pass suppresses
     # the backward one; the cap keeps both halves in play so there is something
     # to compare
     left = cast_ray(G, start, START_T, d, side="left", max_steps=3)
-    right = cast_ray(G, start, START_T, -d, side="right", max_steps=3)
+    right = cast_ray(G, start, START_T, reversed_d, side="right", max_steps=3)
 
     # the test is only about the side rule if the path actually meets a vertex,
     # and only bites if the two sides really do send the ray different ways
@@ -658,28 +664,43 @@ def test_both_ways_does_not_cast_backwards_when_the_ray_closes():
     assert _positions(closed).tolist() == _positions(cast_ray(G, north, 0.5, d, both_ways=False)).tolist()
 
 
-def test_both_ways_reports_a_backward_half_that_closes_on_itself():
-    """One half-ray can loop while the other runs off the paper: a lasso.
+def test_both_ways_crosses_the_start_edge_rather_than_kinking_at_it():
+    """The spliced path is one line through the start point, not two glued at it.
 
-    The two half-rays leave the start point into *different* faces, so they are
-    not two ends of one curve and either can close on its own.  When the
-    backward one does, the spliced path is a cycle with a tail: `ends[0]` says
-    that end came back, but the path as a whole is not a closed curve, and the
-    start point legitimately appears twice.
+    The start point lies *on* the start edge ``E``, so the trajectory crosses
+    ``E`` there: the segment arriving and the segment leaving are related by
+    transmission across ``E``, exactly as at every other crossing on the path.
+    That is what forces the backward heading to be ``transmit(-d, E)``; sending
+    the backward half off on ``-d`` puts a kink here instead, at the one place
+    the rim is guaranteed to cross an existing crease.
+
+    Deliberately oblique: with ``d`` perpendicular to ``E`` the transmitted and
+    negated headings coincide and there is nothing to see.
     """
     G = _grid()
     v = next(w for w in G.vertices if np.allclose(w["pos"], [-0.5, 0.5], atol=1e-9))
     start = _outgoing_towards(v, [1.0, 0.0])
+    d = np.array([1.0, 4.0])
 
-    path = cast_ray(G, start, 0.25, np.array([1.0, 4.0]), max_steps=60)
+    unit = d / np.linalg.norm(d)
+    assert not np.allclose(transmit(unit, halfedge_direction(start)), unit, atol=1e-6)
 
-    assert path.ends == ("closed", "border")
-    assert not path.closed
-    origin = cast_ray(G, start, 0.25, np.array([1.0, 4.0]), both_ways=False).hits[0].position
-    at_start = [i for i, hit in enumerate(path.hits) if np.linalg.norm(hit.position - origin) <= default_vertex_tol(G)]
-    assert len(at_start) == 2 and at_start[0] == 0  # the cycle, then the tail
+    path = cast_ray(G, start, 0.25, d, max_steps=60)
+
+    origin = cast_ray(G, start, 0.25, d, both_ways=False).hits[0].position
+    (at_start,) = [i for i, h in enumerate(path.hits) if np.linalg.norm(h.position - origin) <= default_vertex_tol(G)]
+    assert 0 < at_start < len(path.hits) - 1, "both halves must be present for this to bite"
+
+    def heading(a, b):
+        step = path.hits[b].position - path.hits[a].position
+        return step / np.linalg.norm(step)
+
+    arriving = heading(at_start - 1, at_start)
+    leaving = heading(at_start, at_start + 1)
+    np.testing.assert_allclose(leaving, transmit(arriving, halfedge_direction(start)), atol=1e-9)
+
     # and the whole thing still materialises into a sane graph
-    rim, _ = add_ray_creases(G, start, 0.25, np.array([1.0, 4.0]), max_steps=60)
+    rim, _ = add_ray_creases(G, start, 0.25, d, max_steps=60)
     G.check_consistency()
     _assert_faces_are_sane(G)
     for a, b in zip(rim, rim[1:]):
@@ -701,11 +722,16 @@ def test_both_ways_reports_the_backward_end_first():
     it survives the re-orientation of the backward half, unlike ``face``.
     """
     G = _grid()
-    _, _, start, d = _aimed_near_an_interior_vertex(G)
+    # a vertical edge one column in from the west border: one crossing takes the
+    # backward half off the paper, while the forward half has the width of the
+    # sheet still to cross
+    west_but_one = sorted({round(float(w["pos"][0]), 6) for w in G.vertices})[1]
+    v = next(w for w in G.vertices if np.allclose(w["pos"], [west_but_one, 0.5], atol=1e-9))
+    start = _outgoing_towards(v, [0.0, 1.0])
 
-    # the cap is below the four crossings this ray needs to close, so the
-    # forward end is genuinely still running when it runs out
-    path = cast_ray(G, start, START_T, d, max_steps=3)
+    # the cap is below the crossings the forward half needs, so that end is
+    # genuinely still running when it runs out
+    path = cast_ray(G, start, 0.5, np.array([1.0, 0.35]), max_steps=2)
 
     # the backward end left the paper; the forward end was still inside it
     assert path.ends[0] == "border" and _on_the_border(path.hits[0])
@@ -805,6 +831,23 @@ def _assert_faces_are_sane(G):
         assert _signed_area(f) > 1e-9, f"face {f} has area {_signed_area(f)}"
 
 
+def _assert_subdivisions_are_ordered(G):
+    """Every interior degree-2 vertex must sit *between* its two neighbours.
+
+    Those are exactly the vertices phase 1 inserted along an existing edge.  One
+    inserted on the wrong side of an earlier one folds the edge back on itself,
+    which leaves the topology consistent and -- while phase 2 has yet to cut any
+    face along it -- leaves every face simple too.  The only trace is that the
+    two edges at the new vertex run the same way instead of opposite ways.
+    """
+    for v in G.vertices:
+        if v.order() != 2 or v.on_border():
+            continue
+        a, b = (h.dest["pos"] - v["pos"] for h in v.outgoing_iter())
+        cosine = float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+        assert cosine < -1 + 1e-9, f"edge folded back at {v['pos']} (cos {cosine:.3f})"
+
+
 def _crossings_per_edge(path):
     counts: dict[int, int] = {}
     for hit in path.hits:
@@ -829,6 +872,73 @@ def test_add_ray_creases_keeps_the_graph_consistent():
     assert rim, "expected at least one rim half-edge"
     assert all(h[RAY_CREASE] for h in rim)
     assert all(h.rev[RAY_CREASE] for h in rim)
+
+
+def test_canonical_agrees_on_both_halves_of_an_edge():
+    """Hits reference whichever half the ray crossed, so the grouping key must not.
+
+    Under an identity mapping the two hits on one edge land in two groups, each
+    subdividing from its own end, so the second splits a half-edge the first has
+    already made stale.
+    """
+    G = _grid()
+    _, north = _north_edge(G)
+
+    assert _canonical(north) is _canonical(north.rev)
+    assert _canonical(north) in (north, north.rev)
+    assert _canonical(north)["id"] == min(north["id"], north.rev["id"])
+
+
+def test_add_ray_creases_leaves_a_flat_foldable_vertex_at_an_oblique_start():
+    """The backward half departs along ``transmit(-d, E)``, not ``-d``.
+
+    Materializing makes the start point a degree-4 vertex -- the two halves of
+    the start edge ``E`` plus the two rim segments -- and the full trajectory
+    crosses ``E`` there, arriving on ``transmit(d, E)`` and departing on ``d``.
+    Only that pairing satisfies Kawasaki.  Sending the backward half off on
+    ``-d`` instead puts a kink in the rim at the one place it is guaranteed to
+    cross an existing crease, and the vertex is then not locally flat-foldable.
+
+    A start perpendicular to ``E`` is the degenerate case where
+    ``transmit(d, E) == d`` and the difference is invisible, so this ray
+    deliberately crosses its start edge obliquely.
+    """
+    G = _grid()
+    v, north = _north_edge(G)
+    d = np.array([1.0, 0.35])
+
+    # the test only bites if the crossing really is oblique
+    unit = d / np.linalg.norm(d)
+    assert not np.allclose(transmit(unit, halfedge_direction(north)), unit, atol=1e-6)
+
+    start_pos = np.asarray(v["pos"], dtype=float) + [0.0, 0.5]
+    _, path = add_ray_creases(G, north, 0.5, d)
+
+    # a closed forward pass casts no backward half, which would make this vacuous
+    assert not path.closed
+    (start,) = [w for w in G.vertices if np.allclose(w["pos"], start_pos, atol=1e-9)]
+    assert start.order() == 4  # the two halves of the start edge, and two rim segments
+    assert abs(kawasaki_sum(start)) < 1e-9
+
+
+def test_add_ray_creases_rejects_a_ray_that_crosses_its_own_path():
+    """A self-crossing ray cannot be materialized, and must not be half-materialized.
+
+    The earlier chord has already split the face, so a later segment across it
+    has one endpoint on each side and no common face.  Skipping the segment
+    leaves a gap in the rim, and callers flood-fill bounded by the rim, so a gap
+    leaks across the whole sheet.
+    """
+    G, v = _diagonal_loop_grid()
+    corner = next(w for w in G.vertices if np.allclose(w["pos"], v["pos"] + [-1.0, 1.0], atol=1e-9))
+    start = _outgoing_towards(corner, [1.0, 0.0])
+
+    # the cast itself is fine; it is materializing it that cannot be done
+    path = cast_ray(G, start, 0.5, np.array([-2.0, 1.0]), max_steps=12)
+    assert len(path.hits) > 3
+
+    with pytest.raises(DegenerateRayError, match="crosses itself"):
+        add_ray_creases(G, start, 0.5, np.array([-2.0, 1.0]), max_steps=12)
 
 
 def test_add_ray_creases_rim_is_a_connected_path():
@@ -969,16 +1079,25 @@ def test_add_ray_creases_orders_hits_recorded_on_opposite_halves_of_one_edge():
     would otherwise be sorted against each other backwards and the second
     vertex would land on the wrong side of the first, folding the edge back on
     itself.
+
+    Every mixed-halves ray found also crosses itself, so phase 2 rejects it
+    (0 materialisable mixed-halves casts in 15744 across five fixtures: the
+    square grid, the diagonal-loop grid and ``rosette(5..7)``).  Phase 1 has run
+    to completion by then, though, and a folded-back edge is visible in the
+    graph it left behind -- so the ordering is still pinned here, on the state
+    after the raise, rather than being dropped.
     """
     G, v = _diagonal_loop_grid()
     # the north side of the square north-west of the central vertex, running east
     corner = next(w for w in G.vertices if np.allclose(w["pos"], v["pos"] + [-1.0, 1.0], atol=1e-9))
     start = _outgoing_towards(corner, [1.0, 0.0])
 
-    rim, path = add_ray_creases(G, start, 0.5, np.array([-2.0, 1.0]), max_steps=12)
-
+    path = cast_ray(G, start, 0.5, np.array([-2.0, 1.0]), max_steps=12)
     assert _edges_hit_from_both_halves(path), "fixture no longer exercises the mixed-orientation case"
+
+    with pytest.raises(DegenerateRayError):
+        add_ray_creases(G, start, 0.5, np.array([-2.0, 1.0]), max_steps=12)
+
     G.check_consistency()
     # a folded-back edge leaves the topology consistent and shows up only here
-    _assert_faces_are_sane(G)
-    assert all(np.linalg.norm(h.dest["pos"] - h.orig["pos"]) > default_vertex_tol(G) for h in rim)
+    _assert_subdivisions_are_ordered(G)

@@ -238,6 +238,14 @@ class RayPath:
     may be added, so code that wants to know whether an end failed must test
     ``ends[i] not in ("closed", "border")`` rather than looking for
     ``"max_steps"`` specifically.
+
+    ``closed`` is *not* implied by ``"closed"`` appearing in ``ends``.  The two
+    half-rays leave the start point into different faces, so the backward one
+    can loop back on itself while the forward one runs off the paper: a lasso, a
+    cycle with a tail, which is ``ends[0] == "closed"`` with ``closed=False``.
+    The start point then legitimately appears twice in ``hits``, once at each
+    end of the cycle.  ``closed`` is True only when the *forward* ray came back,
+    which is the case where the path really is one closed curve.
     """
 
     hits: list[RayHit]
@@ -450,10 +458,21 @@ def cast_ray(
     if not both_ways:
         return RayPath(hits=forward, closed=False, ends=("start", forward_reason))
 
-    # the backward pass runs down the same offset line the other way round, so
-    # the side it passes vertices on is mirrored -- what was +eps to the left
-    # travelling along `d` is -eps, on the right, travelling along `-d`
-    backward, backward_reason = run(-np.asarray(direction, dtype=float), "right" if side == "left" else "left")
+    # The backward heading is `transmit(-d, E)`, not `-d`.  The start point lies
+    # *on* the start edge `E`, so the full trajectory crosses `E` there: it
+    # arrives from the far side along `transmit(d, E)` and departs along `d`.
+    # Retracing that arrival means leaving along `-transmit(d, E)`.  This is
+    # forced, not cosmetic: materializing makes the start point a degree-4
+    # vertex -- the two halves of `E` plus the two rim segments -- and only the
+    # transmitted heading makes that vertex satisfy Kawasaki.  It is also what
+    # makes the early return above correct: the two halves are then one line, so
+    # a forward pass that closed really has traced the whole trajectory.
+    #
+    # The side is mirrored as well, for a separate reason: the backward pass
+    # runs down the same offset line the other way round, so what was +eps to
+    # the left travelling forwards is -eps, on the right, travelling back.
+    back_direction = -transmit(np.asarray(direction, dtype=float), halfedge_direction(halfedge))
+    backward, backward_reason = run(back_direction, "right" if side == "left" else "left")
     # Both passes emit the shared start point first.  Keep the *forward* copy:
     # its directions and its face are already in the trajectory's sense, while
     # the backward one's point the wrong way and sit on the wrong side of the
@@ -542,6 +561,15 @@ def add_ray_creases(
     Returns:
         ``(rim, path)`` -- the new half-edges in traversal order, each tagged
         with :data:`RAY_CREASE`, and the :class:`RayPath` that was cast.
+
+    Raises:
+        DegenerateRayError: from the cast itself, or if the ray crosses its own
+            earlier path -- the earlier chord has already split the face, so the
+            later segment has an endpoint on each side of it and cannot be laid.
+            An origami sink rim is a simple curve, so a self-crossing ray is not
+            a sink and rejecting it loses nothing real; splitting at
+            self-intersections is deliberately deferred.  *G* may already have
+            been modified when this is raised.
     """
     if vertex_tol is None:
         vertex_tol = default_vertex_tol(G)
@@ -612,9 +640,30 @@ def add_ray_creases(
             continue
         face = _face_containing_segment(a, b)
         if face is None:
-            continue
+            # No common face means the ray crossed its own earlier path inside
+            # this face: that chord already split the face, so `a` and `b` now
+            # sit on opposite sides of it.  Laying the segment would need a
+            # vertex at the self-intersection and nothing creates one.  Skipping
+            # it silently leaves a gap in the rim, and callers flood-fill
+            # bounded by the rim, so a gap leaks across the whole sheet.
+            raise DegenerateRayError(
+                f"ray crosses itself: no face contains the segment {tuple(a['pos'])} -> {tuple(b['pos'])}"
+            )
         h12, _ = G.subdivide_face(face, a, b, **{RAY_CREASE: True})
         rim.append(h12)
+
+    # The general check, against the specific one above: it also catches the two
+    # half-rays failing to meet at the start point, which a graph that is not a
+    # proper crease pattern can produce.  The rim is documented as "half-edges in
+    # traversal order", so a discontinuous one breaks this function's own
+    # contract and must never be returned.  It may legitimately be a path rather
+    # than a cycle (a border-to-border ray), so `rim[-1].dest is rim[0].orig` is
+    # deliberately *not* required.
+    for h1, h2 in zip(rim, rim[1:]):
+        if h1.dest is not h2.orig:
+            raise DegenerateRayError(
+                f"ray traces a discontinuous rim: {tuple(h1.dest['pos'])} != {tuple(h2.orig['pos'])}"
+            )
 
     G.recompute_lengths_and_angles()
     return rim, path
