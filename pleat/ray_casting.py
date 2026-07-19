@@ -8,6 +8,8 @@ walk in which the epsilon offset cancels out.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 
 from .half import Face, HalfEdge, Vertex
@@ -128,3 +130,78 @@ def fan_at_vertex(
         g = g.rev.nex if s > 0 else g.pre.rev
 
     return crossed, d, face
+
+
+@dataclass
+class RayHit:
+    """One point at which a ray meets the graph.
+
+    ``halfedges`` lists the creases transmitted through here, in order; it has
+    more than one entry only at a vertex fan, and may be empty when the ray
+    merely grazes a corner.  ``t`` is the parameter along ``halfedges[0]``.
+    """
+
+    halfedges: list[HalfEdge]
+    t: float
+    position: np.ndarray
+    vertex: Vertex | None
+    direction_in: np.ndarray
+    direction_out: np.ndarray
+    face: Face | None
+
+
+def first_crossing(
+    face: Face,
+    p: np.ndarray,
+    d: np.ndarray,
+    vertex_tol: float,
+) -> tuple[HalfEdge, float] | None:
+    """Return the first crossing of the ray ``p + t*d`` with the boundary of *face*.
+
+    Only *face* is inspected, which is what keeps the caster local.
+
+    ``vertex_tol`` is a **distance** in position space, and both comparisons it
+    appears in are done in distance:
+
+    * along the ray, *d* is normalised first so the ray parameter ``t`` is a
+      distance; a crossing within ``vertex_tol`` of *p* is discarded, which is
+      the slack that stops a ray leaving a vertex from immediately re-detecting
+      the edge it just left.  Normalising also makes the result independent of
+      ``|d|``, which callers have no reason to control.
+    * across the edge, the edge parameter ``s`` is normalised to ``[0, 1]``, so
+      the tolerance is converted to ``vertex_tol / |e|`` before comparing.  An
+      ``s`` outside ``[0, 1]`` by less than that is a crossing which passes
+      within ``vertex_tol`` of an endpoint; it is kept and clamped, so the
+      caller sees a vertex hit rather than a miss.
+
+    Args:
+        face: The face the ray is currently inside.
+        p: Point on the ray.
+        d: Direction of travel; need not be normalised.
+        vertex_tol: Distance; slack for both comparisons above.
+
+    Returns:
+        ``(halfedge, s)`` where *s* is the parameter along the half-edge, or
+        ``None`` if the ray leaves through no edge (which should not happen in
+        a well-formed face).
+    """
+    d = np.asarray(d, dtype=float)
+    d = d / np.linalg.norm(d)
+    best: tuple[HalfEdge, float] | None = None
+    best_t = np.inf
+    for h in face.halfedge_iter():
+        a = h.orig["pos"]
+        e = h.dest["pos"] - a
+        edge_len = float(np.linalg.norm(e))
+        denom = cross2(d, e)
+        # |denom| = |e| sin(angle), so the threshold scales with the edge
+        if edge_len == 0.0 or abs(denom) < 1e-15 * edge_len:
+            continue  # degenerate, or the ray runs parallel to this edge
+        t = cross2(a - p, e) / denom
+        if t <= vertex_tol or t >= best_t:
+            continue
+        s = cross2(a - p, d) / denom
+        if not -vertex_tol / edge_len <= s <= 1 + vertex_tol / edge_len:
+            continue
+        best, best_t = (h, float(np.clip(s, 0.0, 1.0))), t
+    return best

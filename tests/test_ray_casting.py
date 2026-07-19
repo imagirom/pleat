@@ -11,6 +11,7 @@ from pleat.ray_casting import (
     DegenerateRayError,
     cross2,
     fan_at_vertex,
+    first_crossing,
     halfedge_direction,
     signed_angle,
     transmit,
@@ -245,3 +246,65 @@ def test_fan_raises_when_it_wraps_the_whole_vertex():
 
     with pytest.raises(DegenerateRayError):
         fan_at_vertex(v, d, g.face)
+
+
+def _sw_face(v):
+    """Return the unit square face whose top-right corner is *v*, and its centre."""
+    west = _outgoing_towards(v, [-1.0, 0.0])
+    return west.face, np.asarray(v["pos"], dtype=float) + [-0.5, -0.5]
+
+
+def test_first_crossing_finds_the_forward_edge_of_the_face():
+    G = _grid()
+    v = G.central_vertex()
+    face, p = _sw_face(v)
+
+    h, s = first_crossing(face, p, np.array([1.0, 0.0]), vertex_tol=1e-9)
+
+    # the east edge of the face runs between v and v + (0, -1)
+    corner = np.asarray(v["pos"], dtype=float) + [0.0, -1.0]
+    assert np.allclose(h.orig["pos"], corner) or np.allclose(h.dest["pos"], corner)
+    crossing = h.orig["pos"] + s * halfedge_direction(h)
+    np.testing.assert_allclose(crossing, np.asarray(v["pos"], dtype=float) + [0.0, -0.5], atol=1e-12)
+
+
+def test_first_crossing_ignores_edges_behind_the_ray():
+    G = _grid()
+    face, p = _sw_face(G.central_vertex())
+
+    forward, _ = first_crossing(face, p, np.array([1.0, 0.0]), vertex_tol=1e-9)
+    backward, _ = first_crossing(face, p, np.array([-1.0, 0.0]), vertex_tol=1e-9)
+    assert forward is not backward
+
+
+def test_first_crossing_returns_t_within_the_unit_interval():
+    G = _grid()
+    face, p = _sw_face(G.central_vertex())
+
+    _, s = first_crossing(face, p, np.array([0.3, 1.0]), vertex_tol=1e-9)
+    assert 0.0 <= s <= 1.0
+
+
+def test_first_crossing_is_invariant_to_the_length_of_the_direction():
+    """``vertex_tol`` is a distance, so scaling *d* must not change the answer."""
+    G = _grid()
+    face, p = _sw_face(G.central_vertex())
+
+    h1, s1 = first_crossing(face, p, np.array([0.3, 1.0]), vertex_tol=1e-6)
+    h2, s2 = first_crossing(face, p, np.array([0.3, 1.0]) * 1e-4, vertex_tol=1e-6)
+    assert h1 is h2
+    assert s1 == pytest.approx(s2)
+
+
+def test_first_crossing_skips_an_edge_closer_than_vertex_tol():
+    """The slack is measured in distance along the ray, not in ray parameter."""
+    G = _grid()
+    v = G.central_vertex()
+    face, _ = _sw_face(v)
+    # a hair west of the east edge of the face, aimed east with a tiny |d|
+    p = np.asarray(v["pos"], dtype=float) + [-1e-6, -0.5]
+    d = np.array([1e-4, 0.0])
+
+    assert first_crossing(face, p, d, vertex_tol=1e-3) is None
+    h, _ = first_crossing(face, p, d, vertex_tol=1e-9)
+    assert np.allclose(h.orig["pos"] + halfedge_direction(h) / 2, v["pos"] + np.array([0.0, -0.5]))
