@@ -61,6 +61,22 @@ def test_save_appends_heg_extension(tmp_path):
     assert (tmp_path / "noext.heg").exists()
 
 
+def test_save_load_string_and_array_attributes(tmp_path):
+    # colour_key may be a hex string (e.g. "#cc2222") or an RGBA array; both must
+    # survive .heg round-trip. Regression for float()-ing a string scalar.
+    G = EuclideanPositionHEG(other=rosette(n=4))
+    hs = list(G.halfedges)
+    hs[0]["color_key"] = "#cc2222"
+    hs[1]["color_key"] = np.array([0.0, 0.0, 0.0, 0.15])
+    filename = str(tmp_path / "colored.heg")
+    save_graph(filename, G)
+    G2 = load_graph(filename)
+    G2.check_consistency()
+    keys = [h.attributes.get("color_key") for h in G2.halfedges if "color_key" in h.attributes]
+    assert any(isinstance(k, str) and k == "#cc2222" for k in keys)
+    assert any(isinstance(k, np.ndarray) and np.allclose(k, [0, 0, 0, 0.15]) for k in keys)
+
+
 def test_roundtrip_curved(tmp_path):
     """Curved tilings (complex hyperbolic and 3D spherical positions) survive a save/load cycle."""
     from pleat.example_graphs import from_tiles

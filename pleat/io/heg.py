@@ -49,7 +49,9 @@ def graph_to_dict(
                 if isinstance(value, np.ndarray):
                     value = value.tolist()
                 if np.isscalar(value):
-                    if np.iscomplexobj(value):
+                    if isinstance(value, (str, bytes, bool)):
+                        pass  # e.g. a hex colour_key like "#cc2222" -- keep as-is
+                    elif np.iscomplexobj(value):
                         c = complex(value)  # type: ignore[arg-type]
                         value = {"complex": [c.real, c.imag]}
                     else:
