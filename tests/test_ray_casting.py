@@ -8,9 +8,11 @@ import pytest
 from pleat.example_graphs import from_tiles, rosette
 from pleat.example_tilesets import platonic
 from pleat.ray_casting import (
+    RAY_CREASE,
     DegenerateRayError,
     RayHit,
     _closes,
+    add_ray_creases,
     cast_ray,
     cross2,
     default_vertex_tol,
@@ -704,3 +706,185 @@ def test_both_ways_keeps_the_forward_pass_copy_of_the_start_point():
     assert np.dot(at_start.direction_in, d) > 0
     assert np.dot(at_start.direction_out, d) > 0
     assert at_start.face is start.face
+
+
+# ------------------------------------------------ add_ray_creases ------------------------------------------------
+
+
+def _signed_area(f):
+    poly = np.stack([w["pos"] for w in f.vertex_iter()])
+    x, y = poly[:, 0], poly[:, 1]
+    return 0.5 * float(np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y))
+
+
+def _assert_faces_are_sane(G):
+    """Every face must stay simple and positively oriented.
+
+    This is the geometric half of correctness that `check_consistency` cannot
+    see: inserting two vertices on one edge in the wrong order leaves the
+    topology perfectly consistent but folds the edge back on itself, which
+    shows up here as a face of non-positive area.
+    """
+    for f in G.faces:
+        assert _signed_area(f) > 1e-9, f"face {f} has area {_signed_area(f)}"
+
+
+def _crossings_per_edge(path):
+    counts: dict[int, int] = {}
+    for hit in path.hits:
+        if hit.vertex is not None or not hit.halfedges:
+            continue
+        h = hit.halfedges[0]
+        key = min(h["id"], h.rev["id"])
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def test_add_ray_creases_keeps_the_graph_consistent():
+    G = _grid()
+    _, north = _north_edge(G)
+
+    before = len(G.vertices)
+    rim, path = add_ray_creases(G, north, 0.5, np.array([1.0, 0.0]))
+
+    G.check_consistency()
+    _assert_faces_are_sane(G)
+    assert len(G.vertices) > before  # vertices were inserted along the way
+    assert rim, "expected at least one rim half-edge"
+    assert all(h[RAY_CREASE] for h in rim)
+    assert all(h.rev[RAY_CREASE] for h in rim)
+
+
+def test_add_ray_creases_rim_is_a_connected_path():
+    G = _grid()
+    _, north = _north_edge(G)
+    rim, _ = add_ray_creases(G, north, 0.5, np.array([1.0, 0.0]))
+
+    for a, b in zip(rim, rim[1:]):
+        assert a.dest is b.orig
+
+
+def test_add_ray_creases_puts_the_rim_where_the_ray_went():
+    G = _grid()
+    _, north = _north_edge(G)
+    rim, path = add_ray_creases(G, north, 0.5, np.array([1.0, 0.0]))
+
+    walked = [rim[0].orig["pos"]] + [h.dest["pos"] for h in rim]
+    np.testing.assert_allclose(walked, [hit.position for hit in path.hits], atol=1e-9)
+
+
+def test_add_ray_creases_tags_only_the_rim():
+    G = _grid()
+    _, north = _north_edge(G)
+    rim, _ = add_ray_creases(G, north, 0.5, np.array([1.0, 0.0]))
+
+    tagged = {h for h in G.halfedges if RAY_CREASE in h}
+    assert tagged == {h for h in rim} | {h.rev for h in rim}
+
+
+def test_add_ray_creases_handles_a_ray_crossing_the_same_edge_twice():
+    """The stale-parameter case: a 45-degree ray revisits edges it has split."""
+    G = _grid()
+    _, north = _north_edge(G)
+
+    rim, path = add_ray_creases(G, north, 0.5, np.array([SQRT_HALF, SQRT_HALF]), max_steps=6)
+
+    counts = _crossings_per_edge(path)
+    assert max(counts.values()) >= 2, "fixture no longer re-crosses an edge; test is vacuous"
+    G.check_consistency()
+    _assert_faces_are_sane(G)
+    for a, b in zip(rim, rim[1:]):
+        assert a.dest is b.orig
+
+
+def test_add_ray_creases_closes_the_rim_on_a_closed_loop():
+    G, v = _diagonal_loop_grid()
+    start = _outgoing_towards(v, [0.0, 1.0])
+
+    rim, path = add_ray_creases(G, start, 0.5, np.array([1.0, 0.0]))
+
+    assert path.closed
+    G.check_consistency()
+    _assert_faces_are_sane(G)
+    for a, b in zip(rim, rim[1:]):
+        assert a.dest is b.orig
+    assert rim[-1].dest is rim[0].orig  # the loop really is a cycle
+
+
+def test_add_ray_creases_through_a_vertex_reuses_that_vertex():
+    G = _grid()
+    v, _, start, d = _aimed_near_an_interior_vertex(G)
+
+    before = len(G.vertices)
+    rim, path = add_ray_creases(G, start, START_T, d, max_steps=6)
+
+    G.check_consistency()
+    _assert_faces_are_sane(G)
+    assert any(hit.vertex is v for hit in path.hits)
+    # the fan hit lands on the existing vertex rather than inserting a duplicate
+    assert any(h.orig is v or h.dest is v for h in rim)
+    # every hit got a vertex, and no crossing inserted a second vertex on top of
+    # one already there
+    assert len(vertices := [w["pos"] for w in G.vertices]) > before
+    for j, first in enumerate(vertices):
+        for second in vertices[j + 1 :]:
+            assert np.linalg.norm(first - second) > default_vertex_tol(G)
+
+
+def test_add_ray_creases_does_not_double_up_on_a_periodic_ray():
+    """A ray that runs out of `max_steps` on a loop retraces creases it already laid.
+
+    Materializing the retraced segment a second time would lay a duplicate edge
+    over the first and leave a zero-area face behind, so the existing crease is
+    reused instead.
+    """
+    G = _grid()
+    _, north = _north_edge(G)
+
+    rim, path = add_ray_creases(G, north, 0.5, np.array([SQRT_HALF, SQRT_HALF]), max_steps=40)
+
+    assert path.ends == ("max_steps", "max_steps")  # otherwise nothing is retraced
+    assert len(rim) > len(set(rim))  # the retraced creases really are reused
+    G.check_consistency()
+    _assert_faces_are_sane(G)
+    for a, b in zip(rim, rim[1:]):
+        assert a.dest is b.orig
+
+
+def _edges_hit_from_both_halves(path):
+    """Return the undirected edges the path crossed at distinct points on both halves."""
+    groups: dict[int, list[tuple[bool, np.ndarray]]] = {}
+    for hit in path.hits:
+        if hit.vertex is not None or not hit.halfedges:
+            continue
+        h = hit.halfedges[0]
+        canonical = h["id"] < h.rev["id"]
+        groups.setdefault(min(h["id"], h.rev["id"]), []).append((canonical, hit.position))
+    return [
+        key
+        for key, entries in groups.items()
+        if len({side for side, _ in entries}) > 1
+        and max(np.linalg.norm(a - b) for _, a in entries for _, b in entries) > 1e-6
+    ]
+
+
+def test_add_ray_creases_orders_hits_recorded_on_opposite_halves_of_one_edge():
+    """Two hits on one edge may be recorded on opposite half-edges.
+
+    Phase 1 subdivides an edge left to right and walks the tail, so it must
+    order the hits along the edge itself, not by each hit's own ``t`` -- ``t``
+    is measured on whichever half the hit happened to reference, so the two
+    would otherwise be sorted against each other backwards and the second
+    vertex would land on the wrong side of the first, folding the edge back on
+    itself.
+    """
+    G, v = _diagonal_loop_grid()
+    start = _outgoing_towards(v, [-1.0, 1.0])
+
+    rim, path = add_ray_creases(G, start, 0.2, np.array([2.0, 1.0]), max_steps=12)
+
+    assert _edges_hit_from_both_halves(path), "fixture no longer exercises the mixed-orientation case"
+    G.check_consistency()
+    _assert_faces_are_sane(G)
+    walked = [rim[0].orig["pos"]] + [h.dest["pos"] for h in rim]
+    np.testing.assert_allclose(walked, [hit.position for hit in path.hits], atol=1e-9)

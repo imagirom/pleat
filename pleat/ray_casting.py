@@ -12,6 +12,7 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 
+from .cutting import pointinpolygon
 from .half import Face, HalfEdge, Vertex
 
 
@@ -451,3 +452,145 @@ def cast_ray(
     # spliced, so the whole list reads as one trajectory.
     spliced = [_reoriented(backward, k) for k in range(len(backward) - 1, 0, -1)]
     return RayPath(hits=spliced + forward, closed=False, ends=(backward_reason, forward_reason))
+
+
+RAY_CREASE = "ray_crease"
+
+
+def _canonical(h: HalfEdge) -> HalfEdge:
+    """Return one representative of the undirected edge, the same for both halves.
+
+    Hits reference whichever half the ray happened to cross, so grouping them
+    needs a key that does not depend on that choice.  ``id()`` would serve while
+    the objects are alive, but the graph's own ``"id"`` attribute is stable,
+    readable and reproducible across runs, so use that instead.
+    """
+    return h if h["id"] < h.rev["id"] else h.rev
+
+
+def _face_containing_segment(a: Vertex, b: Vertex) -> Face | None:
+    """Return the face the segment ``a -> b`` runs through.
+
+    Usually there is exactly one common face.  When the ray traverses a face
+    more than once, an earlier split can leave two candidates, so the midpoint
+    decides between them.
+    """
+    candidates = list(a.common_faces_iter(b))
+    if len(candidates) <= 1:
+        return candidates[0] if candidates else None
+    midpoint = 0.5 * (a["pos"] + b["pos"])
+    for f in candidates:
+        polygon = np.stack([w["pos"] for w in f.vertex_iter()])
+        if pointinpolygon(midpoint[0], midpoint[1], polygon):
+            return f
+    # only reachable if the midpoint sits on a shared boundary, where the two
+    # candidates are equally (in)valid
+    return candidates[0]
+
+
+def add_ray_creases(
+    G,
+    halfedge: HalfEdge,
+    t: float,
+    direction: np.ndarray,
+    side: str = "left",
+    both_ways: bool = True,
+    vertex_tol: float | None = None,
+    max_steps: int = 10_000,
+) -> tuple[list[HalfEdge], RayPath]:
+    """Cast a ray and add it to *G* as new vertices and creases.
+
+    The ray is cast to completion on the original pattern, then materialized:
+    its own creases must not deflect it, and a materialized segment would break
+    :func:`fan_at_vertex`'s "inside a face" precondition, since the ray would
+    lie exactly on the boundary between two sub-faces rather than inside one.
+
+    The price is that a hit's ``(halfedge, t)`` goes stale as soon as an earlier
+    hit splits the same edge, so materialization runs in two phases: first every
+    vertex, edge by edge and in order along each edge, then one crease between
+    each consecutive pair of vertices.
+
+    Args:
+        G: The crease pattern; modified in place.
+        halfedge: The edge the ray starts on.
+        t: Parameter along *halfedge*.
+        direction: Initial direction of travel.
+        side: Which side of a vertex the ray passes when it hits one head-on.
+        both_ways: Cast backwards too if the forward ray does not close.
+        vertex_tol: Distance below which a crossing snaps to an existing vertex.
+        max_steps: Safety cap on the number of crossings per direction.
+
+    Returns:
+        ``(rim, path)`` -- the new half-edges in traversal order, each tagged
+        with :data:`RAY_CREASE`, and the :class:`RayPath` that was cast.
+    """
+    if vertex_tol is None:
+        vertex_tol = default_vertex_tol(G)
+
+    path = cast_ray(
+        G,
+        halfedge,
+        t,
+        direction,
+        side=side,
+        both_ways=both_ways,
+        vertex_tol=vertex_tol,
+        max_steps=max_steps,
+    )
+
+    # ---- phase 1: vertices -------------------------------------------------
+    vertices: dict[int, Vertex] = {}  # index into path.hits -> vertex
+    by_edge: dict[HalfEdge, list[tuple[float, int]]] = {}
+    for i, hit in enumerate(path.hits):
+        if hit.vertex is not None:
+            vertices[i] = hit.vertex  # the ray landed on a vertex that exists already
+            continue
+        if not hit.halfedges:  # a fan grazing a corner crosses nothing
+            continue
+        h = _canonical(hit.halfedges[0])
+        # Order along the edge by distance from the canonical origin rather than
+        # by `hit.t`: `t` is measured on whichever half the hit referenced, so
+        # two hits recorded on opposite halves would otherwise be sorted against
+        # each other backwards -- and the walk below depends on that order.
+        by_edge.setdefault(h, []).append((float(np.linalg.norm(hit.position - h.orig["pos"])), i))
+
+    for canonical, entries in by_edge.items():
+        cur = canonical
+        for _, i in sorted(entries):
+            position = path.hits[i].position
+            # Only the `orig` end needs a snap.  `_walk` ran on the same
+            # `vertex_tol`, so anything that close to an endpoint of the
+            # *original* edge was already reported as a vertex hit; the only
+            # coincidence left is with a vertex this loop inserted itself, and
+            # since the loop walks forward along the edge that vertex is always
+            # `cur.orig`.
+            if np.linalg.norm(position - cur.orig["pos"]) <= vertex_tol:
+                vertices[i] = cur.orig
+                continue
+            h2, v = G.subdivide_edge(cur)
+            v["pos"] = position  # exact; no parameter arithmetic
+            vertices[i] = v
+            cur = h2  # the remaining hits on this edge lie on the tail
+
+    # ---- phase 2: creases --------------------------------------------------
+    rim: list[HalfEdge] = []
+    chain = [vertices[i] for i in sorted(vertices)]
+    for a, b in zip(chain, chain[1:]):
+        if a is b:  # consecutive hits that snapped to the same vertex
+            continue
+        # A ray that runs out of `max_steps` on a periodic trajectory retraces
+        # segments it has already creased.  Laying a second edge over the first
+        # would leave a zero-area face behind, so reuse the edge that is there.
+        existing = next((h for h in list(a.outgoing_iter()) if h.dest is b), None)
+        if existing is not None:
+            existing[RAY_CREASE] = existing.rev[RAY_CREASE] = True
+            rim.append(existing)
+            continue
+        face = _face_containing_segment(a, b)
+        if face is None:
+            continue
+        h12, _ = G.subdivide_face(face, a, b, **{RAY_CREASE: True})
+        rim.append(h12)
+
+    G.recompute_lengths_and_angles()
+    return rim, path
