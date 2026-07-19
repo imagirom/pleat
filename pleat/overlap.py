@@ -21,6 +21,8 @@ from numba import jit
 from scipy.cluster.hierarchy import fcluster
 from tqdm.auto import tqdm
 
+# from pleat.origami_simulator import origami_simulator_button
+
 from .base import orientation
 from .conversions import EHEG_from_nx
 from .layout import angle_to_height, min_edge_length, optimize_rotation, rotate_graph
@@ -866,6 +868,7 @@ class FoldResult(dict):
         ncols: int | None = 2,
         suptitle: str | None = None,
         cell_size: float = 4.0,
+        show_origami_simulator_button: bool = True,
     ) -> None:
         """Display the available result graphs side-by-side via :func:`multi_show`.
 
@@ -881,6 +884,7 @@ class FoldResult(dict):
             ncols: Number of columns in the matplotlib grid.
             suptitle: Optional figure-level title.
             cell_size: Per-cell size in matplotlib inches.
+            show_origami_simulator_button: If True, display a button that launches the Origami Simulator with the crease pattern.
         """
         if render_settings is None:
             render_settings = dict(face_inset=0, render_vertices=False, render_faces=True, height=512)
@@ -942,6 +946,13 @@ class FoldResult(dict):
             per_subplot_kwargs=per_subplot,
             **render_settings,
         )
+
+        if show_origami_simulator_button:
+            cp_to_simulate = self.CP_for_origami_simulator if self.CP_for_origami_simulator is not None else self.CP
+            if cp_to_simulate is not None:
+                from pleat.origami_simulator import origami_simulator_button
+
+                origami_simulator_button(cp_to_simulate)
 
     def save(self, path: str, **save_results_kwargs):
         """Convenience wrapper around :func:`save_results`."""

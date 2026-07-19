@@ -82,12 +82,12 @@ def _iframe_html(G, *, height: int = 600) -> str:
     )
 
 
-def _button_html(G, *, height: int = 600) -> str:
+def _button_html(G, *, height: int = 600, title: str = "Load Origami Simulator") -> str:
     """A button that injects the OS iframe inline when clicked (no popup)."""
     payload = json.dumps(_iframe_html(G, height=height)).replace("</", "<\\/")
     uid = uuid.uuid4().hex[:8]
     return f"""<div id="pleat-os-{uid}">
-<button style="font:14px sans-serif;padding:6px 10px;cursor:pointer">&#9654; Load Origami Simulator</button>
+<button style="font:14px sans-serif;padding:6px 10px;cursor:pointer">&#9654; {html.escape(title)}</button>
 </div>
 <script>
 (function(){{
@@ -135,12 +135,8 @@ def origami_simulator(G, *, height: int = 600, new_tab: bool = False) -> None:
     cell output (resizable via *height*); it can be called off any line and several
     times in one cell. From a plain script it opens OS in the system browser.
 
-    Pass ``new_tab=True`` to force the browser even from a notebook -- useful in VS
+    Pass ``new_tab=True`` to force the browser even from a notebook - useful in VS
     Code, where the inline Fullscreen button is blocked by the webview.
-
-    Note: opening the browser needs a local kernel; with a remote kernel (SSH /
-    cluster) it would open on the server -- use :func:`pleat.io.save_fold` and drag
-    the file into origamisimulator.org instead.
     """
     if new_tab or not _in_notebook():
         _open_in_browser(G)
@@ -148,11 +144,11 @@ def origami_simulator(G, *, height: int = 600, new_tab: bool = False) -> None:
         _display_html(_iframe_html(G, height=height))
 
 
-def origami_simulator_button(G, *, height: int = 600) -> None:
+def origami_simulator_button(G, *, height: int = 600, title: str = "Load Origami Simulator") -> None:
     """Display a button that embeds Origami Simulator inline when clicked.
 
     Like :func:`origami_simulator` but lazy -- nothing loads until the reader
     clicks, so a page with many patterns does not spin up a WebGL instance for each
-    on load. Works in Notebook, Lab, VS Code, and the static online docs.
+    on load. *title* sets the button label.
     """
-    _display_html(_button_html(G, height=height))
+    _display_html(_button_html(G, height=height, title=title))
