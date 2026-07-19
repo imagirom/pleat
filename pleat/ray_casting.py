@@ -67,10 +67,9 @@ def fan_at_vertex(
     met at ``t = +-infinity``: not met.  (``cot`` has opposite signs at the two
     ends -- ``theta -> 0`` is met infinitely far forward, ``theta -> pi``
     infinitely far back -- but neither is met.)  Both are the boundary of the
-    open interval
-    the walk runs on, so a ``theta`` whose true value lands there would have the
-    branch decided by rounding.  ``angle_tol`` widens the exit: ``theta`` within
-    it of ``0`` or ``pi`` counts as "not met" and ends the walk.
+    open interval the walk runs on, so a ``theta`` whose true value lands there
+    would have the branch decided by rounding.  ``angle_tol`` widens the exit:
+    ``theta`` within it of ``0`` or ``pi`` counts as "not met" and ends the walk.
 
     Args:
         v: The vertex the ray hits.
