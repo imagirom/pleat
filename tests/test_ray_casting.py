@@ -610,17 +610,97 @@ def test_both_ways_does_not_cast_backwards_when_the_ray_closes():
     assert _positions(closed).tolist() == _positions(cast_ray(G, north, 0.5, d, both_ways=False)).tolist()
 
 
+def _on_the_border(hit):
+    """True if *hit* crossed a half-edge on the edge of the paper."""
+    return any(h.face is None or h.rev.face is None for h in hit.halfedges)
+
+
 def test_both_ways_reports_the_backward_end_first():
     """`ends` is ordered like `hits`, so each reason must match its own end.
 
     The ray below runs off the paper going backwards but is still going
     forwards when the cap runs out, so the two reasons are distinct and each is
-    checkable against the hit at its end of the path.
+    checkable against the hit at its end of the path.  The anchor is which
+    half-edge each terminal hit crossed -- an orientation-independent field, so
+    it survives the re-orientation of the backward half, unlike ``face``.
     """
     G = _grid()
     _, _, start, d = _aimed_near_an_interior_vertex(G)
 
     path = cast_ray(G, start, START_T, d, max_steps=6)
 
-    assert path.ends[0] == "border" and path.hits[0].face is None
-    assert path.ends[1] != "border" and path.hits[-1].face is not None
+    # the backward end left the paper; the forward end was still inside it
+    assert path.ends[0] == "border" and _on_the_border(path.hits[0])
+    assert path.ends[1] != "border" and not _on_the_border(path.hits[-1])
+    assert path.hits[-1].face is not None
+
+
+def test_both_ways_reorients_the_backward_half_into_the_forward_sense():
+    """`hits` must read as one trajectory, not two glued back to back.
+
+    Reversing the *order* of the backward hits is not enough: each one still
+    records `direction_in`/`direction_out`/`face` in the sense the backward
+    pass was travelling, which is the opposite of the sense `hits` is ordered
+    in.
+    """
+    G = _grid()
+    _, north = _north_edge(G)
+    d = np.array([1.0, 0.0])
+
+    two_way = cast_ray(G, north, 0.5, d, both_ways=True)
+
+    # this ray meets only vertical creases, so it transmits straight through
+    # every one of them: a coherent trajectory heads east at every hit
+    assert len(two_way.hits) > 3  # there is a backward half to get wrong
+    for hit in two_way.hits:
+        assert np.dot(hit.direction_in, d) > 0
+        assert np.dot(hit.direction_out, d) > 0
+
+    # and each hit's `face` is the one the next segment runs through, so the
+    # off-paper `None` sits at the forward end only
+    for here, nxt in zip(two_way.hits, two_way.hits[1:]):
+        assert here.face is not None
+        assert any(h is nxt.halfedges[0] or h is nxt.halfedges[0].rev for h in here.face.halfedge_iter())
+    assert two_way.hits[-1].face is None
+
+
+def test_both_ways_chains_directions_along_the_segments_between_hits():
+    """Each hit's directions must point along the segments that meet at it.
+
+    The straight-line fixture cannot see this: there `direction_in` and
+    `direction_out` are equal at every hit, so negating them without also
+    swapping them looks identical.  This ray turns at the vertex it hits, in
+    both halves, which is what makes the swap observable.
+    """
+    G = _grid()
+    _, _, start, d = _aimed_near_an_interior_vertex(G)
+
+    path = cast_ray(G, start, START_T, d, max_steps=6)
+
+    turns = [h for h in path.hits if not np.allclose(h.direction_in, h.direction_out)]
+    assert len(turns) > 1  # otherwise in/out are interchangeable and this is vacuous
+    for here, nxt in zip(path.hits, path.hits[1:]):
+        segment = nxt.position - here.position
+        segment = segment / np.linalg.norm(segment)
+        np.testing.assert_allclose(here.direction_out, segment, atol=1e-6)
+        np.testing.assert_allclose(nxt.direction_in, segment, atol=1e-6)
+
+
+def test_both_ways_keeps_the_forward_pass_copy_of_the_start_point():
+    """Of the two copies of the shared start, the forward one is the right one.
+
+    Their positions are identical, so nothing geometric distinguishes them --
+    but the backward copy points backwards and its `face` is on the other side
+    of the start edge.
+    """
+    G = _grid()
+    _, north = _north_edge(G)
+    d = np.array([1.0, 0.0])
+
+    two_way = cast_ray(G, north, 0.5, d, both_ways=True)
+    start = cast_ray(G, north, 0.5, d, both_ways=False).hits[0]
+
+    (at_start,) = [h for h in two_way.hits if np.linalg.norm(h.position - start.position) <= default_vertex_tol(G)]
+    assert np.dot(at_start.direction_in, d) > 0
+    assert np.dot(at_start.direction_out, d) > 0
+    assert at_start.face is start.face

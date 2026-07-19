@@ -8,7 +8,7 @@ walk in which the epsilon offset cancels out.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 
@@ -356,6 +356,36 @@ def _walk(start_he, start_t, direction, side, vertex_tol, max_steps):
     return "max_steps"
 
 
+def _reoriented(backward: list[RayHit], k: int) -> RayHit:
+    """Return backward-pass hit ``backward[k]`` re-expressed in the forward sense.
+
+    The backward pass records its fields in the sense it was travelling, which
+    is the opposite of the order the spliced ``hits`` runs in.  Reversing the
+    order alone would leave a list that looks like one trajectory but is two
+    glued back to back.
+
+    Directions negate *and* swap.  ``face`` becomes ``backward[k - 1].face``:
+    the backward pass at ``k`` went ``face[k-1] -> hit k -> face[k]``, so the
+    same hit traversed forwards is entered from the other side and leaves into
+    ``face[k-1]``.  ``halfedges``, ``t``, ``position`` and ``vertex`` are
+    orientation-independent and carry over unchanged.
+
+    A copy is returned rather than the hit being mutated in place, so casting
+    twice from the same start yields the same thing twice.
+    """
+    # `backward[0]` is the shared start point, which the splice drops in favour
+    # of the forward pass's copy; it is therefore never re-oriented, and
+    # `k - 1` is always a real index.
+    assert k >= 1, "the backward pass's start hit is dropped, not re-oriented"
+    hit = backward[k]
+    return replace(
+        hit,
+        direction_in=-hit.direction_out,
+        direction_out=-hit.direction_in,
+        face=backward[k - 1].face,
+    )
+
+
 def cast_ray(
     G,
     halfedge: HalfEdge,
@@ -381,8 +411,9 @@ def cast_ray(
     Returns:
         A :class:`RayPath` whose hits run from the backward end to the forward
         end.  Each entry of its ``ends`` is ``"closed"``, ``"border"``,
-        ``"max_steps"`` or ``"degenerate"`` -- see :class:`RayPath`, and note
-        that testing for failure means ``not in ("closed", "border")``.
+        ``"max_steps"``, ``"degenerate"``, or -- for ``ends[0]`` on a one-way
+        cast -- ``"start"``; see :class:`RayPath`, and note that testing for
+        failure means ``not in ("closed", "border")``.
 
     Raises:
         DegenerateRayError: if *direction* runs along *halfedge*, so that
@@ -413,5 +444,10 @@ def cast_ray(
     # the side it passes vertices on is mirrored -- what was +eps to the left
     # travelling along `d` is -eps, on the right, travelling along `-d`
     backward, backward_reason = run(-np.asarray(direction, dtype=float), "right" if side == "left" else "left")
-    # both passes emit the shared start point first; drop the duplicate
-    return RayPath(hits=list(reversed(backward[1:])) + forward, closed=False, ends=(backward_reason, forward_reason))
+    # Both passes emit the shared start point first.  Keep the *forward* copy:
+    # its directions and its face are already in the trajectory's sense, while
+    # the backward one's point the wrong way and sit on the wrong side of the
+    # start edge.  The rest of the backward hits are re-oriented as they are
+    # spliced, so the whole list reads as one trajectory.
+    spliced = [_reoriented(backward, k) for k in range(len(backward) - 1, 0, -1)]
+    return RayPath(hits=spliced + forward, closed=False, ends=(backward_reason, forward_reason))
