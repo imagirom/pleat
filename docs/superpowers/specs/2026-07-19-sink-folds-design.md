@@ -8,7 +8,8 @@ Add crease-pattern manipulation built on a strictly local ray caster over the
 existing DCEL (`pleat.half`):
 
 1. Cast a ray from a point on the graph, mirroring its direction at every edge
-   it crosses, returning the crossings.
+   it crosses, returning the crossings. Optionally cast both ways, so a ray
+   that runs off the edge of the paper still yields its full trajectory.
 2. Materialize such a ray as new vertices and edges in the graph.
 3. An **open sink fold**: cast, materialize, invert the crease assignments
    inside, infer the rim assignment, and reject invalid sinks.
@@ -121,9 +122,9 @@ class RayHit:
 
 @dataclass
 class RayPath:
-    hits: list[RayHit]
+    hits: list[RayHit]            # ordered backward end → forward end
     closed: bool
-    stop_reason: str              # 'closed' | 'border' | 'max_steps'
+    ends: tuple[str, str]         # each 'closed' | 'border' | 'max_steps'
 ```
 
 `len(halfedges) > 1` only at a vertex fan. A `RayHit` at a vertex contributes a
@@ -150,6 +151,24 @@ Implemented as a generator so §3 can mutate the graph between steps.
 - **border** — the next face is `None`.
 - **max_steps** — safety cap, default 10 000.
 
+### Both ways
+
+`both_ways: bool = True`. If the forward ray does not close, cast a second ray
+from the same start point in direction `-d` and prepend its hits reversed, so
+`hits` runs from the backward end to the forward end.
+
+The backward ray must use the **mirrored side**: a forward ray with
+`side='left'` retraces as a backward ray with `side='right'`. A ray passing at
+`+ε` laterally while travelling along `d` is, travelling along `-d` down the
+same offset line, passing at `-ε`. Reusing the same side would trace a
+different path rather than the continuation of this one.
+
+The backward pass is skipped when the forward ray closes: a closed path already
+covers the whole trajectory, and casting backwards would retrace it.
+
+`ends` reports how each end terminated. A path is `closed` iff the forward ray
+returned to the start point.
+
 ### Tolerances
 
 `vertex_tol` (absolute distance, default derived from the graph's mean edge
@@ -175,6 +194,12 @@ The start point is subdivided first, yielding `v₀`; closure then reduces to
 "arrived back at `v₀`", an identity check rather than a distance check.
 
 New half-edges are tagged so the caller can find the rim afterwards.
+
+With `both_ways`, the forward pass is materialized first and the backward pass
+then runs on the already-modified graph. This needs no special handling: the
+backward ray may well cross edges the forward pass has split, and the
+`h.rev.face` rule resolves those the same way it resolves a ray re-entering a
+face it has already cut.
 
 Returns the list of rim half-edges in traversal order, plus the `RayPath`.
 
@@ -258,21 +283,53 @@ Maekawa-only check. Maekawa is implied by the crimp reduction, but
 ## 5. Open sink — `pleat/sink.py`
 
 ```python
-def open_sink(G, halfedge, t, direction, side='left', ...) -> list[HalfEdge]:
+def open_sink(G, halfedge, t, direction, side='left', strict=True, ...) -> list[HalfEdge]:
 ```
 
-1. Cast and materialize the rim (§2, §3). If the path does not close, raise
-   `InvalidSinkError`.
+1. Cast and materialize the rim (§2, §3).
 2. Invert `CREASE_ASSIGNMENT` on every crease strictly inside the rim. The
    inside is found by flood fill over faces, seeded from the faces on the
    inward side of the rim and bounded by rim half-edges. Rim-adjacent, so
    still local — no polygon containment test over the graph.
 3. The rim of an open sink is uniformly `MOUNTAIN` or uniformly `VALLEY`.
-   Set the whole rim to `MOUNTAIN` and run §4 at every rim node; if any node
-   fails, flip the whole rim to `VALLEY` and retest.
+   Set the whole rim to `MOUNTAIN` and run §4 at every interior rim node; if
+   any node fails, flip the whole rim to `VALLEY` and retest.
 4. If neither works, raise `InvalidSinkError` naming the failing vertices and
    their `margin`. If a node reports a `margin` near the tolerance, log that
    the verdict is degenerate.
+
+### Open rims
+
+The rim does not have to close. If the ray reaches the border, `both_ways`
+casts backwards from the start point; if that reaches the border too, the rim
+is a path from border to border rather than a cycle, and the sink is still
+well-defined. Nothing in steps 2–4 assumes a cycle:
+
+- The flood fill is bounded by rim half-edges **and** border half-edges, and
+  still terminates because the enclosed region is finite.
+- The rim endpoints lie on the border and carry no local flat-foldability
+  condition, so step 3 tests interior rim nodes only.
+
+Only `max_steps` is a genuine failure, and it raises.
+
+### `strict`
+
+`strict: bool = True` controls what happens when the crease assignment is
+absent or cannot be made valid:
+
+- **Missing assignments.** With `strict=False`, edges lacking
+  `CREASE_ASSIGNMENT` are left alone by the inversion in step 2, and rim nodes
+  where not every incident crease is assigned are skipped in step 3. This makes
+  `open_sink` usable as a pure geometric operation on a pattern whose creases
+  have not been assigned yet. With `strict=True`, a missing assignment on an
+  edge that step 2 or 3 needs raises `InvalidSinkError`.
+- **Unsatisfiable assignments.** With `strict=False`, step 4 logs a warning
+  naming the failing vertices and leaves the rim at `MOUNTAIN` instead of
+  raising, so the caller still gets the geometry and can inspect or repair the
+  result. With `strict=True` it raises.
+
+`strict=False` never changes the geometry produced — steps 1 and 2 are
+unaffected — only whether a crease problem aborts the operation.
 
 The degree-4 case falls out of §4 rather than being special-cased: at a new rim
 node the radial crease is split into `c_in` (inverted) and `c_out`, so
@@ -293,7 +350,11 @@ existing vertex are handled by the same general test with no extra code.
   giving mirrored paths.
 - A ray whose vertex fan crosses more than one edge (the multi-reflection
   case), checked against a manually computed direction.
-- A ray that reaches the border, reporting `stop_reason == 'border'`.
+- A ray that reaches the border, reporting `ends[1] == 'border'`.
+- `both_ways` on a ray that hits the border in both directions: `hits` runs
+  border to border, `ends == ('border', 'border')`.
+- `both_ways` on a closing ray casts no backward pass — the hit count matches
+  the one-way result.
 - A ray crossing the same edge twice, verifying `add_ray_creases` produces a
   consistent graph (`check_consistency`).
 
@@ -311,7 +372,11 @@ existing vertex are handled by the same general test with no extra code.
   `is_locally_flat_foldable`.
 - The rim comes out uniform, and matches the hand-derived M/V.
 - A deliberately invalid sink raises `InvalidSinkError` naming the bad
-  vertices.
+  vertices, and with `strict=False` warns and still returns the geometry.
+- `open_sink` on a pattern with no `CREASE_ASSIGNMENT` at all: raises with
+  `strict=True`, produces the same geometry with `strict=False`.
+- A sink whose ray reaches the border in both directions: open rim, interior
+  nodes still locally flat-foldable.
 - `IdObject.reset_ids()` in fixtures, per the project's test convention.
 
 ## Open questions
