@@ -4,7 +4,7 @@ A ray carries only its current point, direction, and face, so every step is
 local: no global geometry query is ever made.  Crossing a crease transmits the
 direction by ``d - 2(d.u)u``; hitting a vertex is resolved by an angular fan
 walk in which the epsilon offset cancels out (see
-``docs/superpowers/specs/2026-07-19-sink-folds-design.md``).
+``.claude/superpowers/specs/2026-07-19-sink-folds-design.md``).
 """
 
 from __future__ import annotations
