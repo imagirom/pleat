@@ -9,6 +9,7 @@ from pleat.example_graphs import from_tiles, rosette
 from pleat.example_tilesets import platonic
 from pleat.ray_casting import (
     DegenerateRayError,
+    cast_ray,
     cross2,
     fan_at_vertex,
     first_crossing,
@@ -308,3 +309,101 @@ def test_first_crossing_skips_an_edge_closer_than_vertex_tol():
     assert first_crossing(face, p, d, vertex_tol=1e-3) is None
     h, _ = first_crossing(face, p, d, vertex_tol=1e-9)
     assert np.allclose(h.orig["pos"] + halfedge_direction(h) / 2, v["pos"] + np.array([0.0, -0.5]))
+
+
+def _north_edge(G):
+    """Return the central vertex and its outgoing half-edge pointing north."""
+    v = G.central_vertex()
+    return v, _outgoing_towards(v, [0.0, 1.0])
+
+
+def test_cast_ray_straight_across_a_grid_reaches_the_border():
+    G = _grid()
+    _, north = _north_edge(G)
+
+    # start at the midpoint of a vertical edge, heading east: every crease it
+    # meets is vertical, so it transmits straight through and never turns
+    path = cast_ray(G, north, 0.5, np.array([1.0, 0.0]), both_ways=False)
+
+    assert not path.closed
+    assert path.ends[1] == "border"
+    ys = [hit.position[1] for hit in path.hits]
+    assert np.allclose(ys, ys[0])  # it really did travel in a straight line
+
+
+def test_cast_ray_records_the_starting_point_as_its_first_hit():
+    G = _grid()
+    v, north = _north_edge(G)
+    path = cast_ray(G, north, 0.5, np.array([1.0, 0.0]), both_ways=False)
+
+    assert path.hits[0].halfedges[0] in (north, north.rev)
+    expected = np.asarray(v["pos"], dtype=float) + [0.0, 0.5]
+    np.testing.assert_allclose(path.hits[0].position, expected, atol=1e-12)
+
+
+def test_cast_ray_respects_max_steps():
+    G = _grid()
+    _, north = _north_edge(G)
+    path = cast_ray(G, north, 0.5, np.array([1.0, 0.0]), both_ways=False, max_steps=2)
+
+    assert path.ends[1] == "max_steps"
+    assert len(path.hits) == 3  # the start plus two steps
+
+
+def _diagonal_loop_grid():
+    """Grid with all four diagonals at the central vertex.
+
+    Each diagonal turns a passing ray by 90 degrees, and the four together
+    steer a ray around a closed square loop of side 1 centred on the vertex.
+    """
+    G = _grid()
+    v = G.central_vertex()
+    for towards, corner in (
+        ([0.0, 1.0], [-1.0, 1.0]),  # north-west square
+        ([-1.0, 0.0], [-1.0, -1.0]),  # south-west square
+        ([0.0, -1.0], [1.0, -1.0]),  # south-east square
+        ([1.0, 0.0], [1.0, 1.0]),  # north-east square
+    ):
+        face = _outgoing_towards(v, towards).face
+        _subdivide_corner(G, v, face, np.asarray(corner))
+    return G, v
+
+
+def test_cast_ray_closes_on_a_square_loop():
+    G, v = _diagonal_loop_grid()
+    north = _outgoing_towards(v, [0.0, 1.0])
+
+    # heading west from the midpoint of the north crease: the ray turns left at
+    # each of the four diagonals and comes back to where it started
+    path = cast_ray(G, north, 0.5, np.array([-1.0, 0.0]), both_ways=False)
+
+    assert path.closed
+    assert path.ends[1] == "closed"
+    assert len(path.hits) == 9  # the start, four turns, four straight-throughs
+    np.testing.assert_allclose(path.hits[-1].position, path.hits[0].position, atol=1e-12)
+    np.testing.assert_allclose(path.hits[-1].direction_in, path.hits[0].direction_out, atol=1e-12)
+
+
+def test_cast_ray_reports_a_degenerate_stall_rather_than_calling_it_a_border():
+    """A ray that cannot leave its face has not reached the paper's edge."""
+    G = _grid()
+    _, north = _north_edge(G)
+    # a tolerance wider than the face swallows every candidate crossing
+    path = cast_ray(G, north, 0.5, np.array([1.0, 0.0]), both_ways=False, vertex_tol=10.0)
+
+    assert path.ends[1] == "degenerate"
+    assert len(path.hits) == 1
+
+
+def test_cast_ray_starting_on_the_border_and_aimed_off_the_paper_stops_at_once():
+    G = _grid()
+    border = next(h for h in G.halfedges if h.face is None)
+    # `border` has no face on its left, so its left normal points off the paper
+    along = halfedge_direction(border)
+    outwards = np.array([-along[1], along[0]])
+
+    path = cast_ray(G, border, 0.5, outwards, both_ways=False)
+
+    assert path.ends[1] == "border"
+    assert len(path.hits) == 1
+    assert path.hits[0].face is None

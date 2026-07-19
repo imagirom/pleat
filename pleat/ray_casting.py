@@ -204,3 +204,147 @@ def first_crossing(
             continue
         best, best_t = (h, float(np.clip(s, 0.0, 1.0))), t
     return best
+
+
+@dataclass
+class RayPath:
+    """A cast ray: its crossings, whether it closed, and how each end stopped."""
+
+    hits: list[RayHit]
+    closed: bool
+    ends: tuple[str, str]
+
+
+def default_vertex_tol(G) -> float:
+    """Return a vertex-snapping tolerance scaled to the graph's edge lengths."""
+    lengths = [h["length"] for h in G.halfedges if "length" in h]
+    return 1e-9 * (float(np.mean(lengths)) if lengths else 1.0)
+
+
+def _point_on(h: HalfEdge, t: float) -> np.ndarray:
+    return h.orig["pos"] + t * (h.dest["pos"] - h.orig["pos"])
+
+
+def _closes(hit: RayHit, start: np.ndarray, d0: np.ndarray, vertex_tol: float) -> bool:
+    """Return True if *hit* is back at the ray's starting point, travelling the same way.
+
+    Both conditions are needed: a ray may pass through its own start point on a
+    different heading, which is a self-intersection, not a closed loop.  The
+    test is geometric rather than a comparison of half-edge parameters, because
+    a hit that lands on a vertex carries no meaningful parameter along the
+    starting edge, and because an exact corner hit does not produce an exactly
+    integral parameter anyway.
+    """
+    return bool(
+        np.linalg.norm(hit.position - start) <= vertex_tol
+        # unit directions, so this is a tolerance of ~4e-5 radians -- far above
+        # the drift a few thousand transmissions accumulate, far below the
+        # angle between two distinct headings at one point
+        and np.dot(hit.direction_in, d0) > 1 - 1e-9
+    )
+
+
+def _walk(G, start_he, start_t, direction, side, vertex_tol, max_steps):
+    """Yield ``RayHit``s from the start point onwards, ending with a stop reason.
+
+    The generator's return value (via ``StopIteration.value``) is the reason:
+    ``'closed'``, ``'border'``, ``'degenerate'``, or ``'max_steps'``.
+    """
+    d = np.asarray(direction, dtype=float)
+    d = d / np.linalg.norm(d)
+    p = start = _point_on(start_he, start_t)
+    d0 = d
+
+    # `h.face` is the face to the left of `h`, so the ray sets off into
+    # `start_he.face` exactly when `d` points to the left of the start edge
+    face = start_he.face if cross2(halfedge_direction(start_he), d) > 0 else start_he.rev.face
+
+    yield RayHit(
+        halfedges=[start_he],
+        t=start_t,
+        position=p,
+        vertex=None,
+        direction_in=d,
+        direction_out=d,
+        face=face,
+    )
+
+    for _ in range(max_steps):
+        if face is None:
+            return "border"
+        found = first_crossing(face, p, d, vertex_tol)
+        if found is None:
+            # inside a face with no way out: not the paper's edge, but a
+            # configuration this caster cannot step through
+            return "degenerate"
+        h, s = found
+        d_in = d
+        edge = halfedge_direction(h)
+        edge_len = np.linalg.norm(edge)
+
+        vertex = None
+        if s * edge_len <= vertex_tol:
+            vertex = h.orig
+        elif (1 - s) * edge_len <= vertex_tol:
+            vertex = h.dest
+
+        if vertex is not None:
+            p = vertex["pos"]
+            crossed, d, face = fan_at_vertex(vertex, d, face, side=side)
+        else:
+            p = _point_on(h, s)
+            crossed, d, face = [h], transmit(d, edge), h.rev.face
+
+        hit = RayHit(
+            halfedges=crossed,
+            t=s,
+            position=p,
+            vertex=vertex,
+            direction_in=d_in,
+            direction_out=d,
+            face=face,
+        )
+        yield hit
+        if _closes(hit, start, d0, vertex_tol):
+            return "closed"
+    return "max_steps"
+
+
+def cast_ray(
+    G,
+    halfedge: HalfEdge,
+    t: float,
+    direction: np.ndarray,
+    side: str = "left",
+    both_ways: bool = True,
+    vertex_tol: float | None = None,
+    max_steps: int = 10_000,
+) -> RayPath:
+    """Cast a ray from a point on an edge, transmitting at every crease it meets.
+
+    Args:
+        G: The crease pattern.
+        halfedge: The edge the ray starts on.
+        t: Parameter along *halfedge*; ``0`` and ``1`` mean its endpoints.
+        direction: Initial direction of travel.
+        side: Which side of a vertex the ray passes when it hits one head-on.
+        both_ways: Cast backwards too if the forward ray does not close.
+        vertex_tol: Distance below which a crossing snaps to a vertex.
+        max_steps: Safety cap on the number of crossings per direction.
+
+    Returns:
+        A :class:`RayPath` whose hits run from the backward end to the forward
+        end.
+    """
+    if vertex_tol is None:
+        vertex_tol = default_vertex_tol(G)
+
+    hits: list[RayHit] = []
+    walker = _walk(G, halfedge, t, direction, side, vertex_tol, max_steps)
+    try:
+        while True:
+            hits.append(next(walker))
+    except StopIteration as stop:
+        forward_reason = stop.value
+
+    return RayPath(hits=hits, closed=forward_reason == "closed", ends=("start", forward_reason))
