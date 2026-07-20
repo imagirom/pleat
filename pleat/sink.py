@@ -13,6 +13,7 @@ deliberately out of scope.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -20,6 +21,9 @@ from .flat_foldable import local_assignment_valid
 from .half import Face, HalfEdge, Vertex
 from .overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
 from .ray_casting import add_ray_creases
+
+if TYPE_CHECKING:
+    from .half import EuclideanPositionHEG
 
 logger = logging.getLogger(__name__)
 
@@ -119,13 +123,13 @@ def _rim_nodes(rim: list[HalfEdge]) -> list[Vertex]:
 
 
 def open_sink(
-    G,
+    G: "EuclideanPositionHEG",
     halfedge: HalfEdge,
     t: float,
-    direction,
+    direction: np.ndarray,
     side: str = "left",
     strict: bool = True,
-    **cast_kwargs,
+    **cast_kwargs: object,
 ) -> list[HalfEdge]:
     """Add an open sink fold to *G*, starting from a point on *halfedge*.
 

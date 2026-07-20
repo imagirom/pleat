@@ -23,6 +23,8 @@ import pleat.gjh
 import pleat.half
 import pleat.instructions
 import pleat.intersecting_cylinders
+import pleat.ray_casting
+import pleat.sink
 
 # I/O and rendering
 import pleat.io

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import subprocess
+import sys
 
 import numpy as np
 import pytest
@@ -414,3 +416,12 @@ def test_open_sink_rejects_a_ray_that_hits_the_step_cap():
 
     with pytest.raises(InvalidSinkError, match="terminate"):
         open_sink(G, start, 0.5, np.array([np.sqrt(0.5), np.sqrt(0.5)]), max_steps=3)
+
+
+def test_modules_are_importable_from_the_package():
+    # In-process this is vacuous -- importing pleat.sink above already set the
+    # attributes -- so ask a fresh interpreter whether ``import pleat`` alone does.
+    subprocess.run(
+        [sys.executable, "-c", "import pleat; pleat.ray_casting; pleat.sink"],
+        check=True,
+    )

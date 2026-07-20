@@ -9,12 +9,16 @@ walk in which the epsilon offset cancels out.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from .cutting import pointinpolygon
 from .half import Face, HalfEdge, Vertex
 from .overlap import line_segment_intersections
+
+if TYPE_CHECKING:
+    from .half import EuclideanPositionHEG
 
 
 class DegenerateRayError(ValueError):
@@ -254,7 +258,7 @@ class RayPath:
     ends: tuple[str, str]
 
 
-def default_vertex_tol(G) -> float:
+def default_vertex_tol(G: "EuclideanPositionHEG") -> float:
     """Return a vertex-snapping tolerance scaled to the graph's edge lengths."""
     lengths = [h["length"] for h in G.halfedges if "length" in h]
     return 1e-9 * (float(np.mean(lengths)) if lengths else 1.0)
@@ -406,7 +410,7 @@ def _reoriented(backward: list[RayHit], k: int) -> RayHit:
 
 
 def cast_ray(
-    G,
+    G: "EuclideanPositionHEG",
     halfedge: HalfEdge,
     t: float,
     direction: np.ndarray,
@@ -568,7 +572,7 @@ def _reject_self_crossing(path: RayPath, vertex_tol: float) -> None:
 
 
 def add_ray_creases(
-    G,
+    G: "EuclideanPositionHEG",
     halfedge: HalfEdge,
     t: float,
     direction: np.ndarray,
