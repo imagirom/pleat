@@ -9,9 +9,10 @@ import pytest
 
 from pleat.example_graphs import from_tiles
 from pleat.example_tilesets import platonic
-from pleat.flat_foldable import local_assignment_valid
+from pleat.flat_foldable import is_locally_flat_foldable, local_assignment_valid
 from pleat.overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
-from pleat.ray_casting import RAY_CREASE
+from pleat.ray_casting import RAY_CREASE, add_ray_creases
+from pleat.shrink_rotate import assign_this_way_by_bfs, shrink_rotate_pattern
 from pleat.sink import InvalidSinkError, _interior_faces, open_sink
 
 from .test_ray_casting import (
@@ -151,6 +152,11 @@ def test_open_sink_raises_when_no_uniform_rim_assignment_works():
     with pytest.raises(InvalidSinkError, match="uniform"):
         open_sink(G, start, 0.5, np.array([-1.0, 0.0]))
 
+    # the rim stays in the graph, so it must be left in the same state the
+    # strict=False path leaves it in, not in whichever candidate failed last
+    rim = [h for h in G.halfedges if h.get(RAY_CREASE)]
+    assert rim and {h[CREASE_ASSIGNMENT] for h in rim} == {MOUNTAIN}
+
 
 def test_open_sink_warns_instead_of_raising_when_not_strict(caplog):
     G, v, start = _sink_fixture()
@@ -222,13 +228,21 @@ def test_open_sink_on_a_border_to_border_ray_leaves_an_open_rim():
 
     G.check_consistency()
     assert rim[-1].dest is not rim[0].orig  # a path, not a cycle
-    assert len({h[CREASE_ASSIGNMENT] for h in rim}) == 1
+    # Every node on this rim is a symmetric degree-4 crossing, so *both* uniform
+    # assignments fold flat and only the order of the two candidates decides the
+    # answer.  MOUNTAIN is tried first, deliberately: it is the tie-break.
+    assert {h[CREASE_ASSIGNMENT] for h in rim} == {MOUNTAIN}
     assert _both_halves_agree(G)
+    nodes = [w for h in rim for w in (h.orig, h.dest) if not w.on_border()]
+    for w in nodes:
+        valid, _ = local_assignment_valid(w)
+        assert valid
+    # the tie is real, not an artefact: VALLEY would have done just as well
     for h in rim:
-        for w in (h.orig, h.dest):
-            if not w.on_border():
-                valid, _ = local_assignment_valid(w)
-                assert valid
+        h[CREASE_ASSIGNMENT] = h.rev[CREASE_ASSIGNMENT] = VALLEY
+    for w in nodes:
+        valid, _ = local_assignment_valid(w)
+        assert valid, "rim is not symmetric after all; this no longer pins the tie-break"
 
 
 def test_open_sink_on_an_open_rim_inverts_only_the_smaller_side():
@@ -302,7 +316,95 @@ def test_interior_of_a_closed_rim_is_exact_even_when_the_sink_swallows_the_sheet
     assert len(_interior_faces(rim, closed=False)) == 32, "the race would take the other side"
 
 
+# ------------------------------------------------ end to end ------------------------------------------------
+
+
+def _shrink_rotate_base():
+    """A pattern that is genuinely locally flat-foldable to start with.
+
+    Every other fixture here is all-MOUNTAIN, which satisfies Maekawa nowhere,
+    so sinking into one can only ever be checked node by node.  This is the
+    same graph as ``tests/test_flat_foldable.py::_srg``.
+    """
+    G = from_tiles(platonic(n=6), rings=2)
+    assign_this_way_by_bfs(G, G.central_face())
+    return shrink_rotate_pattern(G, simplify_boundary=True, alpha=np.pi / 5, factor=0.5)
+
+
+def _central_start(G):
+    """A deterministic interior half-edge near the middle of the pattern.
+
+    The vertex is picked by proximity to a point that only one vertex is
+    anywhere near (the next is ten times further off), so this is not the
+    tie-prone argmin that ``central_vertex`` would be; the outgoing half-edge
+    is then picked by direction, which is unique.
+    """
+    v = min(G.vertices, key=lambda w: float(np.linalg.norm(np.asarray(w["pos"]) - [0.5, 0.05])))
+    return min(v.outgoing_iter(), key=lambda h: float(np.linalg.norm(np.asarray(h.dest["pos"]) - [0.3, -0.4])))
+
+
+@pytest.mark.parametrize("angle", [225.0, 240.0, 255.0])
+def test_open_sink_leaves_a_flat_foldable_pattern_flat_foldable(angle):
+    """The end-to-end origami claim: a successful sink yields a valid crease pattern.
+
+    Checking the rim nodes is not enough -- the inversion touches creases at
+    vertices the rim never meets, and a wrongly seeded or skipped inversion
+    breaks those instead.
+    """
+    G = _shrink_rotate_base()
+    assert is_locally_flat_foldable(G)[0], "fixture is not flat-foldable before the sink"
+    d = np.array([np.cos(np.radians(angle)), np.sin(np.radians(angle))])
+
+    rim = open_sink(G, _central_start(G), 0.5, d)
+
+    G.check_consistency()
+    assert len(rim) == 4 and rim[-1].dest is rim[0].orig
+    ok, violations = is_locally_flat_foldable(G)
+    assert ok, {tuple(map(float, v["pos"])): msg for v, msg in violations.items()}
+
+
 # ------------------------------------------------ bad rays ------------------------------------------------
+
+
+def test_open_sink_refuses_to_cast_one_way():
+    """``both_ways=False`` would leave the rim with a loose end in mid-sheet.
+
+    Such a rim does not separate the paper: the interior fill leaks around the
+    dangling end, every face comes out "inside", and the sink inverts the whole
+    model -- which no local flat-foldability check can see, because a global
+    M/V flip preserves every local condition.  So the argument is refused
+    rather than honoured.
+    """
+    G = _grid()
+    _assign_all(G, MOUNTAIN)
+    start = _outgoing_towards(_interior_vertex(G), [0.0, 1.0])
+
+    with pytest.raises(TypeError, match="both ways"):
+        open_sink(G, start, 0.5, np.array([1.0, 0.0]), both_ways=False)
+
+    assert all(h[CREASE_ASSIGNMENT] == MOUNTAIN for h in G.halfedges), "G was touched before the refusal"
+
+
+def test_open_sink_rejects_an_untraced_rim_end(monkeypatch):
+    """``ends[0] == "start"`` is a failure, not a clean end.
+
+    It is unreachable through ``open_sink`` now that the cast is always
+    two-way, so the end check is exercised directly: only ``"closed"`` and
+    ``"border"`` mean an end was traced to completion.
+    """
+
+    def one_way(*args, **kwargs):
+        rim, path = add_ray_creases(*args, **kwargs)
+        path.ends = ("start", path.ends[1])
+        return rim, path
+
+    monkeypatch.setattr("pleat.sink.add_ray_creases", one_way)
+    G = _grid()
+    _assign_all(G, MOUNTAIN)
+    start = _outgoing_towards(_interior_vertex(G), [0.0, 1.0])
+
+    with pytest.raises(InvalidSinkError, match="terminate"):
+        open_sink(G, start, 0.5, np.array([1.0, 0.0]))
 
 
 def test_open_sink_rejects_a_ray_that_hits_the_step_cap():

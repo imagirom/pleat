@@ -153,7 +153,9 @@ def open_sink(
             this makes ``open_sink`` usable on a pattern whose creases have not
             been assigned yet.
         **cast_kwargs: Forwarded to :func:`pleat.ray_casting.add_ray_creases`
-            (``both_ways``, ``vertex_tol``, ``max_steps``).
+            (``vertex_tol``, ``max_steps``).  ``both_ways`` is *not* accepted:
+            a sink rim has to be traced in both directions or it does not
+            separate the paper, so passing it raises ``TypeError``.
 
     Returns:
         The rim half-edges in traversal order.  A closed rim is a cycle; a ray
@@ -165,7 +167,10 @@ def open_sink(
             *strict* -- a needed crease assignment is missing or no uniform rim
             assignment folds flat.  *G* has already been modified when this is
             raised: the rim is materialised, and the interior may already be
-            inverted.
+            inverted.  There is no undo, so a caller that needs to recover
+            should sink into a copy of *G* and keep the original until the call
+            has returned.
+        TypeError: if ``both_ways`` is passed; see *cast_kwargs*.
         pleat.ray_casting.DegenerateRayError: propagated from the cast, most
             often because the ray crossed its own path.  It is deliberately not
             wrapped: it is also a ``ValueError``, it carries the geometry of the
@@ -173,12 +178,21 @@ def open_sink(
             before *G* is touched -- so a caller that has to tell "no sink here"
             from "the pattern is now half-sunk" can.
     """
-    rim, path = add_ray_creases(G, halfedge, t, direction, side=side, **cast_kwargs)
-    # `closed` and `border` are traced-to-completion; `start` is what the
-    # backward end reports on a one-way cast and is fine too.  Anything else
-    # (`max_steps`, `degenerate`) is a failure.  Testing for `"max_steps"`
-    # specifically would let `"degenerate"` through as a success.
-    bad = [reason for reason in path.ends if reason not in ("closed", "border", "start")]
+    # A one-way cast leaves the backward end untraced (`ends[0] == "start"`), so
+    # the rim is a path with a loose end in the middle of the sheet: it does not
+    # separate the paper, the interior fill leaks around the dangling end, and
+    # the sink inverts the whole model.  A global M/V flip satisfies every local
+    # condition, so nothing downstream catches it -- rejecting the argument
+    # outright is the only place it can be caught.
+    if "both_ways" in cast_kwargs:
+        raise TypeError(
+            "open_sink always casts both ways: a one-way rim has a loose end and does not separate the paper"
+        )
+    rim, path = add_ray_creases(G, halfedge, t, direction, side=side, both_ways=True, **cast_kwargs)
+    # Only `closed` and `border` are traced to completion.  Anything else
+    # (`max_steps`, `degenerate`, `start`) is a failure.  Testing for
+    # `"max_steps"` specifically would let the others through as a success.
+    bad = [reason for reason in path.ends if reason not in ("closed", "border")]
     if bad:
         raise InvalidSinkError(f"the sink rim did not terminate cleanly: {bad}")
 
@@ -209,6 +223,9 @@ def open_sink(
             h[CREASE_ASSIGNMENT] = -h[CREASE_ASSIGNMENT]
 
     failures: list[tuple[Vertex, float]] = []
+    # A fully symmetric rim -- every node a symmetric degree-4 crossing -- admits
+    # both candidates, and then the order below is the whole answer.  MOUNTAIN
+    # first is the deliberate tie-break; a test pins it.
     for candidate in (MOUNTAIN, VALLEY):
         for h in rim:
             h[CREASE_ASSIGNMENT] = h.rev[CREASE_ASSIGNMENT] = candidate
@@ -229,9 +246,11 @@ def open_sink(
     message = "no uniform rim assignment folds flat; as VALLEY these nodes fail: " + ", ".join(
         f"{tuple(map(float, v['pos']))} (margin {margin:.3e})" for v, margin in failures
     )
+    # Reset before deciding what to do about it, so the rim is left MOUNTAIN
+    # either way rather than keeping whatever the last candidate happened to be.
+    for h in rim:
+        h[CREASE_ASSIGNMENT] = h.rev[CREASE_ASSIGNMENT] = MOUNTAIN
     if strict:
         raise InvalidSinkError(message)
     logger.warning("%s; leaving the rim MOUNTAIN", message)
-    for h in rim:
-        h[CREASE_ASSIGNMENT] = h.rev[CREASE_ASSIGNMENT] = MOUNTAIN
     return rim
