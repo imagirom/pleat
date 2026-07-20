@@ -22,8 +22,7 @@ from ..base import rotation_matrix
 from ..conway import shrink_rotate_graph
 from ..flat_foldable import max_kawasaki_sum
 from ..half import EuclideanPositionHEG, GeometricHEG, HalfEdgeGraph
-from ..overlap import BORDER, CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
-from ..rendering import BORDER_COLOR, MOUNTAIN_COLOR, VALLEY_COLOR
+from ..overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY, color_creases
 from ..utils import invert_mapping
 from .crease_orientation import THIS_WAY
 from .reciprocal_figures import reciprocal_figure
@@ -105,14 +104,7 @@ def shrink_rotate_pattern(
 
     if assign_creases:
         assign_shrink_rotate_creases(SRG)
-
-        colors = {
-            BORDER: BORDER_COLOR,
-            MOUNTAIN: MOUNTAIN_COLOR,
-            VALLEY: VALLEY_COLOR,
-        }
-        for e in SRG.halfedges:
-            e["color_key"] = colors[e.attributes.get(CREASE_ASSIGNMENT, BORDER)]
+        color_creases(SRG)
 
     if simplify_boundary:
         SRG.join_order_2_boundary_vertices()

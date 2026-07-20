@@ -21,10 +21,13 @@ from numba import jit
 from scipy.cluster.hierarchy import fcluster
 from tqdm.auto import tqdm
 
+# from pleat.origami_simulator import origami_simulator_button
+
 from .base import orientation
 from .conversions import EHEG_from_nx
 from .layout import angle_to_height, min_edge_length, optimize_rotation, rotate_graph
 from .rendering import BORDER_COLOR, MOUNTAIN_COLOR, VALLEY_COLOR, CairoRenderer, SvgwriteRenderer, multi_show
+from .utils import in_notebook
 
 if TYPE_CHECKING:
     from .half import EuclideanPositionHEG, Face
@@ -866,6 +869,7 @@ class FoldResult(dict):
         ncols: int | None = 2,
         suptitle: str | None = None,
         cell_size: float = 4.0,
+        show_origami_simulator_button: bool = True,
     ) -> None:
         """Display the available result graphs side-by-side via :func:`multi_show`.
 
@@ -881,6 +885,7 @@ class FoldResult(dict):
             ncols: Number of columns in the matplotlib grid.
             suptitle: Optional figure-level title.
             cell_size: Per-cell size in matplotlib inches.
+            show_origami_simulator_button: If True, display a button that launches the Origami Simulator with the crease pattern.
         """
         if render_settings is None:
             render_settings = dict(face_inset=0, render_vertices=False, render_faces=True, height=512)
@@ -943,6 +948,15 @@ class FoldResult(dict):
             **render_settings,
         )
 
+        # the button needs IPython (notebook display); skip it in scripts so show()
+        # still works there via matplotlib
+        if show_origami_simulator_button and in_notebook():
+            cp_to_simulate = self.CP_for_origami_simulator if self.CP_for_origami_simulator is not None else self.CP
+            if cp_to_simulate is not None:
+                from pleat.origami_simulator import origami_simulator_button
+
+                origami_simulator_button(cp_to_simulate)
+
     def save(self, path: str, **save_results_kwargs):
         """Convenience wrapper around :func:`save_results`."""
         save_results(self, path=path, **save_results_kwargs)
@@ -1000,12 +1014,15 @@ def save_results(
 
     folded_settings = render_settings.copy()
     folded_settings["line_width"] /= 2
+    # folded views and the backlit composite are renderings, not crease patterns:
+    # render straight to svg+png (render(...).save) rather than G.save's bundle,
+    # so we don't emit a meaningless top.heg / top.fold for a folded layer.
     if "folded_view_top" in results:
         rotate_graph(results["folded_view_top"], folded_angle)
-        results["folded_view_top"].save(os.path.join(path, "top"), **folded_settings)
+        results["folded_view_top"].render(**folded_settings).save(os.path.join(path, "top"))
     if "folded_view_bottom" in results:
         rotate_graph(results["folded_view_bottom"], folded_angle)
-        results["folded_view_bottom"].save(os.path.join(path, "bottom"), **folded_settings)
+        results["folded_view_bottom"].render(**folded_settings).save(os.path.join(path, "bottom"))
 
     backlight_settings = copy(render_settings)
     backlight_settings["render_edges"] = False
@@ -1016,7 +1033,7 @@ def save_results(
             f["color_key"] = [0, 0, 0, 1 - (1 - opacity) ** (len(f["original_faces"]))]
         else:
             f["color_key"] = [0, 0, 0, opacity]
-    results["folded_state"].save(os.path.join(path, "backlit"), **backlight_settings)
+    results["folded_state"].render(**backlight_settings).save(os.path.join(path, "backlit"))
 
     if "CP_for_origami_simulator" in results:
         optimize_rotation(results["CP_for_origami_simulator"], angle_offset=0)

@@ -61,6 +61,11 @@ hooks:
 extra_css:
   - stylesheets/extra.css
 
+# Collapses the API Reference nav section on page load (everything else
+# stays expanded via navigation.expand).
+extra_javascript:
+  - javascripts/collapse-api-nav.js
+
 markdown_extensions:
   - admonition
   - pymdownx.highlight:

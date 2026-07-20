@@ -29,6 +29,12 @@ import pleat.sink
 # I/O and rendering
 import pleat.io
 
+# Origami Simulator (a distinct feature from the FOLD format; depends on it).
+# Access via ``pleat.origami_simulator.origami_simulator`` / ``.origami_simulator_button``,
+# ``from pleat.origami_simulator import origami_simulator``, or the ``G.origami_simulator()``
+# method. Not re-exported at the top level: that name is the module itself.
+import pleat.origami_simulator
+
 # Layout, classification, coloring, search
 import pleat.layout
 import pleat.overlap
