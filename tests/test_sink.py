@@ -1,0 +1,314 @@
+"""Tests for the open sink fold."""
+
+from __future__ import annotations
+
+import logging
+
+import numpy as np
+import pytest
+
+from pleat.example_graphs import from_tiles
+from pleat.example_tilesets import platonic
+from pleat.flat_foldable import local_assignment_valid
+from pleat.overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
+from pleat.ray_casting import RAY_CREASE
+from pleat.sink import InvalidSinkError, _interior_faces, open_sink
+
+from .test_ray_casting import (
+    START_T,
+    _aimed_near_an_interior_vertex,
+    _diagonal_loop_grid,
+    _grid,
+    _outgoing_towards,
+)
+
+DIAGONALS = ([-1.0, 1.0], [-1.0, -1.0], [1.0, -1.0], [1.0, 1.0])
+AXES = ([0.0, 1.0], [-1.0, 0.0], [0.0, -1.0], [1.0, 0.0])
+
+
+def _interior_vertex(G):
+    """The interior grid vertex at ``(-0.5, 0.5)``.
+
+    Deliberately not ``G.central_vertex()``: that is an ``argmin`` over a set
+    with a four-way tie on this grid, so which of ``(+-0.5, +-0.5)`` it returns
+    varies between runs -- and the open-rim tests below need to know which side
+    of the sheet the rim cuts off.
+    """
+    return next(w for w in G.vertices if np.allclose(w["pos"], [-0.5, 0.5], atol=1e-9))
+
+
+def _assign_all(G, value=MOUNTAIN):
+    for h in G.halfedges:
+        h[CREASE_ASSIGNMENT] = value
+
+
+def _assign_radial(v, offsets, value):
+    for offset in offsets:
+        h = _outgoing_towards(v, offset)
+        h[CREASE_ASSIGNMENT] = h.rev[CREASE_ASSIGNMENT] = value
+
+
+def _sink_fixture(diagonals=MOUNTAIN):
+    """The square-loop sink: a closed rim of side 1 around a degree-8 vertex.
+
+    The ray leaves the midpoint of the north crease heading west and turns left
+    at each of the four diagonals, so the rim crosses all eight radial creases:
+    four head-on (90-degree sectors, which constrain nothing) and four at the
+    corners, where the sectors are 135/45/45/135 and big-little-big forces the
+    rim to match the outer half of the diagonal.
+    """
+    G, v = _diagonal_loop_grid()
+    _assign_all(G, MOUNTAIN)
+    _assign_radial(v, DIAGONALS, diagonals)
+    start = _outgoing_towards(v, [0.0, 1.0])
+    return G, v, start
+
+
+def _radial_halves(v):
+    """Both half-edges of every edge at *v* -- exactly the creases inside the rim."""
+    outgoing = list(v.outgoing_iter())
+    return {h for h in outgoing} | {h.rev for h in outgoing}
+
+
+def _both_halves_agree(G):
+    return all(h.get(CREASE_ASSIGNMENT) == h.rev.get(CREASE_ASSIGNMENT) for h in G.halfedges)
+
+
+# ------------------------------------------------ closed rim ------------------------------------------------
+
+
+def test_open_sink_keeps_the_graph_consistent_and_closes_the_rim():
+    G, v, start = _sink_fixture()
+
+    rim = open_sink(G, start, 0.5, np.array([-1.0, 0.0]))
+
+    G.check_consistency()
+    assert len(rim) == 8
+    assert all(h[RAY_CREASE] for h in rim)
+    for a, b in zip(rim, rim[1:]):
+        assert a.dest is b.orig
+    assert rim[-1].dest is rim[0].orig  # a closed sink rim really is a cycle
+
+
+def test_open_sink_inverts_exactly_the_creases_inside_the_rim():
+    """The eight radial half-edges inside the rim, and nothing else.
+
+    Seeding the flood fill from the wrong side of the rim inverts the whole rest
+    of the sheet instead, and skipping the inversion inverts nothing; both make
+    this set comparison fail.
+    """
+    G, v, start = _sink_fixture()
+
+    open_sink(G, start, 0.5, np.array([-1.0, 0.0]))
+
+    inverted = {h for h in G.halfedges if h[CREASE_ASSIGNMENT] == VALLEY}
+    assert inverted == _radial_halves(v)
+    assert _both_halves_agree(G)
+
+
+def test_open_sink_rim_is_uniformly_mountain_when_the_diagonals_are_mountain():
+    G, _, start = _sink_fixture(diagonals=MOUNTAIN)
+
+    rim = open_sink(G, start, 0.5, np.array([-1.0, 0.0]))
+
+    assert {h[CREASE_ASSIGNMENT] for h in rim} == {MOUNTAIN}
+    assert {h.rev[CREASE_ASSIGNMENT] for h in rim} == {MOUNTAIN}
+
+
+def test_open_sink_flips_the_rim_to_valley_when_the_diagonals_are_valley():
+    """The two-candidate test, with the answer forced by big-little-big.
+
+    At a corner node the crease assignment is ``[c_out, rim, c_in, rim]`` over
+    sectors ``135, 45, 45, 135``; the inversion makes ``c_in = -c_out``, and the
+    only weakly minimal sectors are the two 45s, both of which big-little-big
+    admits only when ``rim == c_out``.  So valley diagonals force a valley rim,
+    and a ``MOUNTAIN``-always implementation fails here.
+    """
+    G, _, start = _sink_fixture(diagonals=VALLEY)
+
+    rim = open_sink(G, start, 0.5, np.array([-1.0, 0.0]))
+
+    assert {h[CREASE_ASSIGNMENT] for h in rim} == {VALLEY}
+
+
+def test_open_sink_leaves_every_rim_node_locally_flat_foldable():
+    G, _, start = _sink_fixture(diagonals=VALLEY)
+
+    rim = open_sink(G, start, 0.5, np.array([-1.0, 0.0]))
+
+    nodes = {v for h in rim for v in (h.orig, h.dest)}
+    assert len(nodes) == 8
+    for v in nodes:
+        valid, _ = local_assignment_valid(v)
+        assert valid, f"rim node at {v['pos']} does not fold flat"
+
+
+def test_open_sink_raises_when_no_uniform_rim_assignment_works():
+    """Two diagonals mountain and two valley: the corners disagree on the rim."""
+    G, v, start = _sink_fixture()
+    _assign_radial(v, DIAGONALS[:2], VALLEY)
+
+    with pytest.raises(InvalidSinkError, match="uniform"):
+        open_sink(G, start, 0.5, np.array([-1.0, 0.0]))
+
+
+def test_open_sink_warns_instead_of_raising_when_not_strict(caplog):
+    G, v, start = _sink_fixture()
+    _assign_radial(v, DIAGONALS[:2], VALLEY)
+
+    with caplog.at_level(logging.WARNING, logger="pleat.sink"):
+        rim = open_sink(G, start, 0.5, np.array([-1.0, 0.0]), strict=False)
+
+    assert "uniform" in caplog.text
+    G.check_consistency()
+    assert {h[CREASE_ASSIGNMENT] for h in rim} == {MOUNTAIN}
+
+
+# ------------------------------------------------ assignments ------------------------------------------------
+
+
+def test_open_sink_raises_when_the_creases_are_unassigned_and_strict():
+    G, v = _diagonal_loop_grid()
+    start = _outgoing_towards(v, [0.0, 1.0])
+
+    with pytest.raises(InvalidSinkError, match="assignment"):
+        open_sink(G, start, 0.5, np.array([-1.0, 0.0]))
+
+
+def test_open_sink_raises_when_a_crease_outside_a_rim_node_is_unassigned_and_strict():
+    """Every crease *inside* the rim is assigned; one outside, at a rim node, is not.
+
+    The ray passes through an existing interior vertex, so that vertex ends up a
+    degree-6 rim node with creases on both sides of the rim -- the only way to
+    leave a rim node partially assigned, since a node the rim creates by
+    splitting an edge carries a copy of that edge's attributes on both halves.
+    Skipping such a node would let ``strict=True`` return a rim whose validity
+    was never actually tested.
+    """
+    G = _grid()
+    v, _, start, d = _aimed_near_an_interior_vertex(G)
+    _assign_all(G, MOUNTAIN)
+    del _outgoing_towards(v, [1.0, 0.0]).attributes[CREASE_ASSIGNMENT]
+
+    with pytest.raises(InvalidSinkError, match="assignment"):
+        open_sink(G, start, START_T, d)
+
+
+def test_open_sink_builds_the_same_geometry_with_and_without_an_assignment():
+    """``strict=False`` is a crease-assignment switch; it never changes the geometry."""
+    assigned, v, start = _sink_fixture()
+    bare, bare_v = _diagonal_loop_grid()
+    bare_start = _outgoing_towards(bare_v, [0.0, 1.0])
+
+    rim_a = open_sink(assigned, start, 0.5, np.array([-1.0, 0.0]))
+    rim_b = open_sink(bare, bare_start, 0.5, np.array([-1.0, 0.0]), strict=False)
+
+    bare.check_consistency()
+    assert len(rim_a) == len(rim_b)
+    assert len(assigned.vertices) == len(bare.vertices)
+    assert len(assigned.faces) == len(bare.faces)
+
+
+# ------------------------------------------------ open rim ------------------------------------------------
+
+
+def test_open_sink_on_a_border_to_border_ray_leaves_an_open_rim():
+    G = _grid()
+    v = _interior_vertex(G)
+    _assign_all(G, MOUNTAIN)
+    start = _outgoing_towards(v, [0.0, 1.0])
+
+    rim = open_sink(G, start, 0.5, np.array([1.0, 0.0]))
+
+    G.check_consistency()
+    assert rim[-1].dest is not rim[0].orig  # a path, not a cycle
+    assert len({h[CREASE_ASSIGNMENT] for h in rim}) == 1
+    assert _both_halves_agree(G)
+    for h in rim:
+        for w in (h.orig, h.dest):
+            if not w.on_border():
+                valid, _ = local_assignment_valid(w)
+                assert valid
+
+
+def test_open_sink_on_an_open_rim_inverts_only_the_smaller_side():
+    """The rim cuts the sheet above its middle, so the strip above it is the inside.
+
+    An open rim has no canonical inside, so the smaller of the two sides is
+    taken; racing the fills from the wrong seed would invert the larger strip
+    below the rim instead.
+    """
+    G = _grid()
+    v = _interior_vertex(G)
+    _assign_all(G, MOUNTAIN)
+    start = _outgoing_towards(v, [0.0, 1.0])
+    cut = 0.5 * float(start.orig["pos"][1] + start.dest["pos"][1])
+    ys = [float(w["pos"][1]) for w in G.vertices]
+    assert max(ys) - cut < cut - min(ys), "fixture is symmetric; the race has no smaller side"
+
+    rim = open_sink(G, start, 0.5, np.array([1.0, 0.0]))
+    rim_edges = {h for h in rim} | {h.rev for h in rim}
+
+    inverted = [h for h in G.halfedges if h[CREASE_ASSIGNMENT] == VALLEY and h not in rim_edges]
+    assert inverted, "nothing was inverted"
+    for h in inverted:
+        assert min(h.orig["pos"][1], h.dest["pos"][1]) >= cut - 1e-9
+
+
+def test_open_sink_never_inverts_a_paper_border_edge():
+    G = _grid()
+    _assign_all(G, MOUNTAIN)
+    start = _outgoing_towards(_interior_vertex(G), [0.0, 1.0])
+
+    open_sink(G, start, 0.5, np.array([1.0, 0.0]))
+
+    for h in G.halfedges:
+        if h.on_border() or h.rev.on_border():
+            assert h[CREASE_ASSIGNMENT] == MOUNTAIN
+
+
+def _square_cycle(G, half_side):
+    """The counter-clockwise cycle of existing grid half-edges around a square."""
+    s = float(half_side)
+    corners = [(-s, -s), (s, -s), (s, s), (-s, s)]
+    at = {tuple(np.round(w["pos"], 6)): w for w in G.vertices}
+    rim = []
+    for start, end in zip(corners, corners[1:] + corners[:1]):
+        step = np.sign(np.subtract(end, start))
+        p = np.array(start, dtype=float)
+        while not np.allclose(p, end):
+            q = p + step
+            a, b = at[tuple(np.round(p, 6))], at[tuple(np.round(q, 6))]
+            rim.append(next(h for h in a.outgoing_iter() if h.dest is b))
+            p = q
+    return rim
+
+
+def test_interior_of_a_closed_rim_is_exact_even_when_the_sink_swallows_the_sheet():
+    """A closed rim is resolved by orientation, never by which side is smaller.
+
+    Here the sink encloses 49 of the 81 faces, so racing the two flood fills --
+    which is the documented convention for an *open* rim, whose inside is not
+    otherwise defined -- would pick the 32 faces outside it.
+    """
+    G = from_tiles(platonic(n=4), rings=4)
+    G.recompute_lengths_and_angles()
+    rim = _square_cycle(G, 3.5)
+
+    interior = _interior_faces(rim, closed=True)
+
+    assert len(interior) == 49
+    assert len(interior) > len(G.faces) - len(interior), "fixture no longer has the bigger side inside"
+    assert len(_interior_faces(rim, closed=False)) == 32, "the race would take the other side"
+
+
+# ------------------------------------------------ bad rays ------------------------------------------------
+
+
+def test_open_sink_rejects_a_ray_that_hits_the_step_cap():
+    G = _grid()
+    _assign_all(G, MOUNTAIN)
+    start = _outgoing_towards(_interior_vertex(G), [0.0, 1.0])
+
+    with pytest.raises(InvalidSinkError, match="terminate"):
+        open_sink(G, start, 0.5, np.array([np.sqrt(0.5), np.sqrt(0.5)]), max_steps=3)
