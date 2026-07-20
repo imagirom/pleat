@@ -106,10 +106,17 @@ def _crimp_ok(angles: list[float], mv: list[int], tol: float) -> bool:
     """Return True if some sequence of crimps folds this vertex flat.
 
     ``angles[i]`` is the sector between creases ``mv[i]`` and ``mv[i + 1]``
-    cyclically.  Backtracks over every *weakly* minimal sector: with a tie,
-    big-little-big does not force the bounding creases to differ, so committing
-    to one candidate would reject valid assignments.  Degrees are at most about
-    twelve, so exhaustive backtracking is free.
+    cyclically.  Only *weakly* minimal sectors are crimped -- the big-little-big
+    lemma applies to a minimal sector, and crimping a larger one accepts
+    assignments that do not fold (see the unequal-sector test).  Weak rather
+    than strict minimality, and skipping candidates blocked by big-little-big,
+    are both required: with a tie the lemma does not force the bounding creases
+    to differ, so committing to one candidate would reject valid assignments.
+
+    The loop also *retries* after a failed recursive call.  No input is known
+    where that matters -- exhaustive enumeration over degree-6 and degree-8
+    vertices found none -- but degrees are at most about twelve, so the full
+    search is free and the enumeration is evidence rather than proof.
     """
     n = len(angles)
     if n <= 2:
@@ -123,10 +130,10 @@ def _crimp_ok(angles: list[float], mv: list[int], tol: float) -> bool:
             continue
         if mv[i] == mv[(i + 1) % n]:
             continue  # big-little-big: the bounding creases must differ
+        # The merged sector a_{i-1} - a_i + a_{i+1} is >= a_{i+1} - tol >= 0
+        # because a_i is weakly minimal, so it never needs a validity check or a
+        # clamp -- and not clamping keeps the alternating sum exact.
         new_angles, new_mv = _crimp(angles, mv, i)
-        if new_angles[0] < -tol:
-            continue  # the crimp would need more paper than there is
-        new_angles[0] = max(new_angles[0], 0.0)
         if _crimp_ok(new_angles, new_mv, tol):
             return True
     return False
@@ -138,8 +145,12 @@ def local_assignment_valid(v: Vertex, tol: float = 1e-9) -> tuple[bool, float]:
     Returns:
         ``(valid, margin)``.  *margin* is the smallest gap between distinct
         folded crease positions (see :func:`folded_crease_angles`); a margin near
-        *tol* means the vertex is symmetric enough that the verdict depends on
-        tie-breaking, not that it is wrong.
+        the effective tolerance means the vertex is symmetric enough that the
+        verdict depends on tie-breaking, not that it is wrong.
+
+    *tol* is floored at ``1e-8`` -- the angles come from coordinate arithmetic,
+    so a tighter tolerance is noise.  The same floored value clusters the folded
+    positions for *margin* and decides the verdict, so the two agree.
 
     Requires ``pleat.overlap.CREASE_ASSIGNMENT`` on every half-edge at *v*.
     """
@@ -156,9 +167,9 @@ def local_assignment_valid(v: Vertex, tol: float = 1e-9) -> tuple[bool, float]:
     angles = angles[1:] + angles[:1]
     mv = [h[CREASE_ASSIGNMENT] for h in incoming]
 
-    psi = folded_crease_angles(v)
-    margin = _cluster_margin(psi, tol)
     eff_tol = max(tol, 1e-8)
+    psi = folded_crease_angles(v)
+    margin = _cluster_margin(psi, eff_tol)
     if abs(psi[-1]) > eff_tol * len(angles):
         return False, margin  # Kawasaki: the cycle does not close
     return _crimp_ok(angles, mv, eff_tol), margin
@@ -192,7 +203,7 @@ def is_locally_flat_foldable(graph: HalfEdgeGraph, tol: float = 1e-8) -> tuple[b
             violations[v] = f"Kawasaki sum {ks:.3e} exceeds tolerance"
             continue
         if all(CREASE_ASSIGNMENT in h.attributes for h in v.outgoing_iter()):
-            valid, margin = local_assignment_valid(v)
+            valid, margin = local_assignment_valid(v, tol=tol)
             if not valid:
                 violations[v] = f"crease assignment does not fold flat (margin {margin:.3e})"
     return not violations, violations

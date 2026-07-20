@@ -9,6 +9,7 @@ from pleat.example_graphs import from_tiles, rosette
 from pleat.example_tilesets import platonic
 from pleat.flat_foldable import (
     _crimp,
+    _crimp_ok,
     folded_crease_angles,
     is_locally_flat_foldable,
     kawasaki_sum,
@@ -92,23 +93,97 @@ def test_symmetric_degree_4_vertex_rejects_a_2_to_2_assignment():
     assert not valid
 
 
-def test_symmetric_vertex_reports_a_small_margin():
+def test_symmetric_vertex_margin_is_the_gap_between_the_two_folded_clusters():
     G, v = _rosette_vertex(4)
     _assign(v, [VALLEY, MOUNTAIN, MOUNTAIN, MOUNTAIN])
     _, margin = local_assignment_valid(v)
-    # all four sectors are equal, so the folded creases collapse into two
-    # clusters -- the vertex is symmetric, and the margin says so
-    assert margin < np.pi
+    # all four sectors are pi/2, so psi = [pi/2, 0, pi/2, 0]: the four folded
+    # creases collapse into exactly two clusters, pi/2 apart
+    assert folded_crease_angles(v) == pytest.approx([np.pi / 2, 0.0, np.pi / 2, 0.0], abs=1e-12)
+    assert margin == pytest.approx(np.pi / 2, abs=1e-12)
 
 
-def test_tied_sectors_require_backtracking_over_weakly_minimal_choices():
+def test_only_a_weakly_minimal_sector_may_be_crimped():
+    """Crimping a non-minimal sector accepts assignments that do not fold.
+
+    Every vertex reachable from ``rosette`` has equal sectors, so "crimp the
+    *smallest*" is never exercised end-to-end.  Pin it on the helper directly.
+    These angles satisfy Kawasaki (2 - 2 + 3 - 3 + 1 - 1 == 0).  The only
+    minimal sectors are the two of size 1, and both are blocked by
+    big-little-big, so the assignment is invalid -- but dropping the minimality
+    filter finds a crimp among the larger sectors and wrongly accepts it.
+    """
+    angles = [2.0, 2.0, 3.0, 3.0, 1.0, 1.0]
+    assert not _crimp_ok(angles, [-1, 1, 1, -1, -1, -1], 1e-8)
+    # a control on the same sectors, so the test cannot pass by rejecting everything
+    assert _crimp_ok(angles, [-1, -1, -1, -1, 1, 1], 1e-8)
+
+
+def test_odd_degree_vertex_is_rejected_before_the_crimp_recursion():
+    """``local_assignment_valid`` is called directly by callers that never
+    screened for parity, and the crimp recursion cannot bottom out on an odd
+    number of creases.  The ``(False, 0.0)`` is the gate's own answer: without
+    it this vertex reaches the Kawasaki check and reports a nonzero margin.
+    """
+    G, v = _rosette_vertex(5)
+    assert v.order() == 5
+    _assign(v, [MOUNTAIN] * 5)
+    assert local_assignment_valid(v) == (False, 0.0)
+
+
+def _skewed_rosette_vertex():
+    """A degree-4 vertex with one rim corner pushed off the symmetric position.
+
+    Kawasaki is broken, and the four folded crease positions fall into three
+    distinct clusters rather than the two a symmetric rosette gives.
+    """
+    G, v = _rosette_vertex(4)
+    rim = next(iter(v.outgoing_iter())).dest
+    rim["pos"] = rim["pos"] + np.array([0.4, 0.3])
+    G.recompute_lengths_and_angles()
+    _assign(v, [VALLEY, MOUNTAIN, MOUNTAIN, MOUNTAIN])
+    return G, v
+
+
+def test_kawasaki_violating_vertex_is_rejected():
+    """The Kawasaki gate is load-bearing for direct callers: the crimp recursion
+    alone accepts this assignment, because a crimp only preserves the alternating
+    sum -- it never checks that the sum was zero to begin with.
+    """
+    G, v = _skewed_rosette_vertex()
+    assert abs(kawasaki_sum(v)) > 0.1
+    valid, margin = local_assignment_valid(v)
+    assert not valid
+    # three clusters, so margin is the *smallest* of two different gaps
+    psi = np.sort(folded_crease_angles(v))
+    assert np.diff(psi) == pytest.approx([0.0, 1.1377723167, 0.4330240101], abs=1e-9)
+    assert margin == pytest.approx(0.4330240101, abs=1e-9)
+
+
+def test_is_locally_flat_foldable_threads_tol_into_the_assignment_check():
+    """A tol loose enough to forgive this vertex's Kawasaki error must forgive it
+    in the assignment check too, or the graph-level verdict contradicts its own
+    tolerance.
+    """
+    G, v = _skewed_rosette_vertex()
+    assert is_locally_flat_foldable(G, tol=1e-8)[1], "sanity: strict tol still rejects"
+    ok, violations = is_locally_flat_foldable(G, tol=1.0)
+    assert ok, violations
+
+
+def test_tied_sectors_skip_crimps_blocked_by_big_little_big():
     """A valid assignment whose only workable crimps are late in index order.
 
     All six sectors of ``rosette(6)`` are equal, so every one of them is weakly
     minimal.  For ``MMMMVV`` the crimps at sectors 0, 1 and 2 are all blocked by
     big-little-big (equal bounding creases); only sector 3 onwards works.  An
-    implementation that commits to one weakly-minimal sector -- or that demands
-    a *strict* minimum, which does not exist here -- rejects this vertex.
+    implementation that commits to the *first* weakly-minimal sector -- or that
+    demands a *strict* minimum, which does not exist here -- rejects this vertex.
+
+    This does not pin the *retry after a failed recursive call*: committing to
+    the first big-little-big-admissible candidate passes every test here, and
+    exhaustive enumeration over degree-6 and degree-8 vertices found no
+    counterexample.  The retry is kept as cheap insurance, not as tested behaviour.
     """
     G, v = _rosette_vertex(6)
     assert v.order() == 6
