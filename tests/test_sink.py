@@ -10,13 +10,14 @@ import numpy as np
 import pytest
 
 from pleat.cutting import pointinpolygon
-from pleat.example_graphs import from_tiles
+from pleat.example_graphs import from_tiles, rosette
 from pleat.example_tilesets import platonic
-from pleat.flat_foldable import is_locally_flat_foldable, local_assignment_valid
+from pleat.flat_foldable import folded_crease_angles, is_locally_flat_foldable, local_assignment_valid
+from pleat.half import EuclideanPositionHEG
 from pleat.overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
 from pleat.ray_casting import RAY_CREASE, DegenerateRayError, add_ray_creases
 from pleat.shrink_rotate import assign_this_way_by_bfs, shrink_rotate_pattern
-from pleat.sink import InvalidSinkError, _interior_faces, _rim_is_ccw, open_sink
+from pleat.sink import InvalidSinkError, _interior_faces, _outer_creases, _rim_is_ccw, closed_sink, open_sink
 
 from .test_ray_casting import (
     START_T,
@@ -480,6 +481,245 @@ def test_open_sink_rejects_a_ray_that_hits_the_step_cap():
 
     with pytest.raises(InvalidSinkError, match="terminate"):
         open_sink(G, start, 0.5, np.array([np.sqrt(0.5), np.sqrt(0.5)]), max_steps=3)
+
+
+# ------------------------------------------------ closed sink ------------------------------------------------
+
+
+def _bearing(h):
+    """The compass bearing of *h* in degrees, in ``[0, 360)``."""
+    d = np.asarray(h.dest["pos"]) - np.asarray(h.orig["pos"])
+    return float(np.degrees(np.arctan2(d[1], d[0])) % 360.0)
+
+
+def _rosette_4():
+    G = EuclideanPositionHEG(other=rosette(n=4))
+    G.recompute_lengths_and_angles()
+    v = next(w for w in G.vertices if not w.on_border() and w.order() == 4)
+    return G, v, sorted(v.outgoing_iter(), key=_bearing)  # creases at 45, 135, 225, 315 degrees
+
+
+def _asymmetric_vertex():
+    """A degree-4 vertex with sectors 50/100/130/80 -- the generic case of design section 6.
+
+    Every sector differs, so ``psi = [130, 50, 100, 0]`` (starting at the crease
+    bearing 280) has a unique maximum and a unique minimum, and which two
+    creases end up outermost is forced by the geometry alone.
+    """
+    G, v, outs = _rosette_4()
+    for h, bearing in zip(outs, (0.0, 50.0, 150.0, 280.0)):
+        radians = np.radians(bearing)
+        h.dest["pos"] = np.asarray(v["pos"]) + [np.cos(radians), np.sin(radians)]
+    G.recompute_lengths_and_angles()
+    return G, v
+
+
+def _enclosed_vertex(rim):
+    """The single vertex strictly inside a closed *rim*."""
+    interior = _interior_faces(rim, closed=True)
+    inside = {w for f in interior for w in f.vertex_iter()} - {w for h in rim for w in (h.orig, h.dest)}
+    assert len(inside) == 1, f"{len(inside)} vertices inside the rim"
+    return inside.pop()
+
+
+def _reversed_creases(v):
+    """The creases at *v* whose inner half disagrees with its outer half.
+
+    The rim splits every radial crease into ``c_in`` (at *v*) and ``c_out``, and
+    a closed sink reverses exactly two of the ``c_in``.  So the two halves
+    disagree at exactly the reversed creases and nowhere else, which pins
+    *which* creases were reversed **by identity** -- something no validity
+    assertion can do, the local test being provably blind to a global M/V flip.
+    """
+    reversed_creases = set()
+    for h in list(v.outgoing_iter()):
+        c_out = next(g for g in list(h.dest.outgoing_iter()) if g is not h.rev and not g.get(RAY_CREASE))
+        if h[CREASE_ASSIGNMENT] != c_out[CREASE_ASSIGNMENT]:
+            reversed_creases.add(h)
+    return reversed_creases
+
+
+def _direction(angle):
+    return np.array([np.cos(np.radians(angle)), np.sin(np.radians(angle))])
+
+
+def test_outer_creases_are_the_extremes_of_the_folded_positions():
+    """Pins the ``psi``-to-crease correspondence by geometry, not by index.
+
+    ``folded_crease_angles`` indexes over ``v.incoming_iter()`` while
+    ``in_angle`` is the sector *clockwise* of its crease, so an off-by-one here
+    silently picks the wrong two creases and nothing downstream notices.  The
+    sectors of this vertex are all different, so each of the three candidate
+    alignments names a different pair: the true one gives ``{280, 150}``,
+    shifting one way gives ``{0, 280}`` and the other ``{150, 50}``.
+    """
+    G, v = _asymmetric_vertex()
+
+    psi = np.degrees(folded_crease_angles(v))
+    outermost, innermost = _outer_creases(v)
+
+    assert [round(_bearing(h)) for h in v.incoming_iter()] == [100, 180, 230, 330]  # incoming, so 180 off
+    np.testing.assert_allclose(psi, [130.0, 50.0, 100.0, 0.0], atol=1e-9)
+    assert [round(_bearing(h)) for h in outermost] == [280]
+    assert [round(_bearing(h)) for h in innermost] == [150]
+
+
+def test_outer_creases_report_every_tie_at_a_symmetric_vertex():
+    """A preliminary-base apex ties two creases at each extreme; all four are returned."""
+    G, v, _ = _rosette_4()
+
+    np.testing.assert_allclose(np.degrees(folded_crease_angles(v)), [90.0, 0.0, 90.0, 0.0], atol=1e-9)
+    outermost, innermost = _outer_creases(v)
+
+    assert len(outermost) == 2 and len(innermost) == 2
+    assert {round(_bearing(h)) for h in outermost + innermost} == {45, 135, 225, 315}
+
+
+def test_closed_sink_reverses_exactly_the_two_outermost_creases():
+    """The structural claim of design section 6, asserted by crease identity.
+
+    Reversing *every* interior crease instead is the open sink, and is caught
+    here and nowhere else: the result is a global complement at the sunk vertex,
+    which the local flat-foldability test cannot see.
+    """
+    G = _shrink_rotate_base()
+
+    rim = closed_sink(G, _central_start(G), 0.5, _direction(240.0))
+
+    G.check_consistency()
+    v = _enclosed_vertex(rim)
+    assert v.order() == 4
+    outermost, innermost = _outer_creases(v)
+    assert len(outermost) == 1 and len(innermost) == 1, "fixture is no longer the generic case"
+    assert _reversed_creases(v) == {outermost[0], innermost[0]}
+
+
+def test_closed_sink_rim_switches_at_every_node_except_the_two():
+    """The rim alternates around the loop, and skipping exactly two nodes is what closes it."""
+    G = _shrink_rotate_base()
+
+    rim = closed_sink(G, _central_start(G), 0.5, _direction(240.0))
+
+    v = _enclosed_vertex(rim)
+    reversed_creases = _reversed_creases(v)
+    assert len(reversed_creases) == 2
+    switches = 0
+    for a, b in zip(rim, rim[1:] + rim[:1]):
+        crease = next(h for h in list(v.outgoing_iter()) if h.dest is a.dest)
+        switched = a[CREASE_ASSIGNMENT] != b[CREASE_ASSIGNMENT]
+        assert switched == (crease not in reversed_creases), f"rim node at {a.dest['pos']}"
+        switches += switched
+    assert switches == len(rim) - 2  # even, so the loop closes on the value it started with
+
+
+@pytest.mark.parametrize("angle", [225.0, 240.0, 255.0])
+def test_closed_sink_leaves_a_flat_foldable_pattern_flat_foldable(angle):
+    G = _shrink_rotate_base()
+    assert is_locally_flat_foldable(G)[0], "fixture is not flat-foldable before the sink"
+
+    rim = closed_sink(G, _central_start(G), 0.5, _direction(angle))
+
+    G.check_consistency()
+    assert len(rim) == 4 and rim[-1].dest is rim[0].orig
+    ok, violations = is_locally_flat_foldable(G)
+    assert ok, {tuple(map(float, v["pos"])): msg for v, msg in violations.items()}
+
+
+def test_closed_sink_and_open_sink_disagree_on_the_same_rim():
+    """The two rules are the two ways to close one loop, and they are different rules."""
+    closed, open_ = _shrink_rotate_base(), _shrink_rotate_base()
+
+    closed_rim = closed_sink(closed, _central_start(closed), 0.5, _direction(240.0))
+    open_rim = open_sink(open_, _central_start(open_), 0.5, _direction(240.0))
+
+    assert len(_reversed_creases(_enclosed_vertex(closed_rim))) == 2
+    assert len(_reversed_creases(_enclosed_vertex(open_rim))) == 4
+    assert len({h[CREASE_ASSIGNMENT] for h in closed_rim}) == 2, "the closed rim is not uniform"
+    assert len({h[CREASE_ASSIGNMENT] for h in open_rim}) == 1, "the open rim is uniform"
+
+
+def test_closed_sink_tries_every_tied_candidate_and_says_the_choice_was_ambiguous(caplog):
+    """A preliminary-base apex ties both extremes, and the first tied pair does not work.
+
+    Sectors 90/90/90/90 put two creases at each end of the folded cone, so
+    ``psi`` alone does not name the pair.  With the valley crease placed here,
+    neither rim value works for the first candidate pair, so a implementation
+    that committed to it would raise.
+    """
+    G, v, outs = _rosette_4()
+    _assign_all(G, MOUNTAIN)
+    outs[2][CREASE_ASSIGNMENT] = outs[2].rev[CREASE_ASSIGNMENT] = VALLEY
+    outermost, innermost = _outer_creases(v)
+    assert len(outermost) == 2 and len(innermost) == 2
+
+    with caplog.at_level(logging.INFO, logger="pleat.sink"):
+        rim = closed_sink(G, outs[0], 0.5, np.array([-1.0, 0.0]))
+
+    G.check_consistency()
+    assert len(rim) == 4
+    assert "ambiguous" in caplog.text
+    chosen = _reversed_creases(_enclosed_vertex(rim))
+    assert len(chosen) == 2
+    assert chosen != {outermost[0], innermost[0]}, "the first tied pair works; this no longer pins the retry"
+    ok, violations = is_locally_flat_foldable(G)
+    assert ok, {tuple(map(float, w["pos"])): msg for w, msg in violations.items()}
+
+
+def test_closed_sink_checks_the_vertex_inside_the_rim():
+    """Every rim node folds flat here for several candidates; only the sunk vertex does not.
+
+    The degree-8 apex has eight mountains, so the sunk sum is ``8 - 2(m_p + m_q)
+    == 4, 8 or 12`` -- never ``+-2``.  Skipping the check at the enclosed vertex
+    therefore returns a rim that is locally valid everywhere it is looked at and
+    broken at the one place it is not.
+    """
+    G, v, start = _sink_fixture()
+
+    with pytest.raises(InvalidSinkError) as excinfo:
+        closed_sink(G, start, 0.5, np.array([-1.0, 0.0]))
+
+    # the sunk vertex is the *only* thing wrong with the best candidate, so
+    # dropping it from the validation makes this a silent success
+    assert str(tuple(map(float, v["pos"]))) in str(excinfo.value)
+    assert str(excinfo.value).count("margin") == 1
+
+
+def test_closed_sink_warns_instead_of_raising_when_not_strict(caplog):
+    G, v, start = _sink_fixture()
+
+    with caplog.at_level(logging.WARNING, logger="pleat.sink"):
+        rim = closed_sink(G, start, 0.5, np.array([-1.0, 0.0]), strict=False)
+
+    G.check_consistency()
+    assert "no rim assignment" in caplog.text
+    assert len(rim) == 8
+
+
+def test_closed_sink_refuses_a_border_to_border_rim():
+    """A closed sink needs a closed rim: ``("border", "border")`` is not good enough."""
+    G = _grid()
+    _assign_all(G, MOUNTAIN)
+    start = _outgoing_towards(_interior_vertex(G), [0.0, 1.0])
+
+    with pytest.raises(InvalidSinkError, match="terminate"):
+        closed_sink(G, start, 0.5, np.array([1.0, 0.0]))
+
+
+def test_closed_sink_refuses_a_rim_with_more_than_one_vertex_inside():
+    """This iteration is scoped to a single sunk vertex; two of them is not a sink it can do."""
+    G = from_tiles(platonic(n=6), rings=2)
+    assign_this_way_by_bfs(G, G.central_face())
+    G = shrink_rotate_pattern(G, simplify_boundary=True, alpha=np.radians(20.0), factor=0.3)
+
+    with pytest.raises(InvalidSinkError, match="exactly one vertex"):
+        closed_sink(G, _central_start(G), 0.5, _direction(180.0))
+
+
+def test_closed_sink_refuses_to_cast_one_way():
+    G, _, start = _sink_fixture()
+
+    with pytest.raises(TypeError, match="both ways"):
+        closed_sink(G, start, 0.5, np.array([-1.0, 0.0]), both_ways=False)
 
 
 def test_modules_are_importable_from_the_package():
