@@ -703,6 +703,105 @@ def test_the_along_the_start_edge_test_is_an_angle_and_not_a_distance():
     cast_ray(G, north, 0.5, along + 5e-11 * normal, both_ways=False, max_steps=1)
 
 
+#: Directions at a degree-4 node of the square grid, in degrees: the diagonals
+#: point strictly into one of the four sectors, the axes run along a crease.
+SECTOR_HEADINGS = [45, 135, 225, 315]
+CREASE_HEADINGS = [0, 90, 180, 270]
+
+
+def _heading(degrees):
+    return np.array([np.cos(np.radians(degrees)), np.sin(np.radians(degrees))])
+
+
+def _node_starts(G):
+    """Return an interior degree-4 node and every ``(halfedge, t)`` naming it.
+
+    Both senses of all four incident edges, so a cast can be made from the node
+    through any of the eight primitives that resolve to it.  The vertex is
+    picked by position: ``central_vertex`` is tied four ways on this grid.
+    """
+    v = _at(G, [0.5, 0.5])
+    incident = [_outgoing_towards(v, off) for off in ([0, 1], [1, 0], [0, -1], [-1, 0])]
+    return v, [(h, 0.0) for h in incident] + [(h.rev, 1.0) for h in incident]
+
+
+@pytest.mark.parametrize("degrees", SECTOR_HEADINGS)
+def test_cast_ray_from_a_node_sets_off_into_the_sector_that_holds_the_direction(degrees):
+    """A node start must serve every direction, not just the two sectors touching one edge.
+
+    Choosing the start face by the *side* of the start edge only distinguishes
+    the two sectors adjacent to it, so at a degree-4 node two of the four
+    diagonals used to leave the ray in a face it was pointing out of, with no
+    forward crossing to find: reported ``"stalled"`` after a single hit.
+    """
+    G = _grid()
+    v, starts = _node_starts(G)
+    north, t = starts[0]
+
+    path = cast_ray(G, north, t, _heading(degrees), both_ways=False)
+
+    assert path.hits[0].vertex is v
+    assert path.ends[1] == "closed", "the diagonal loop around an interior node closes"
+    np.testing.assert_allclose(path.hits[1].position - v["pos"], np.sqrt(2.0) * _heading(degrees), atol=1e-9)
+
+
+@pytest.mark.parametrize("degrees", SECTOR_HEADINGS)
+def test_cast_ray_from_a_node_does_not_depend_on_which_incident_halfedge_names_it(degrees):
+    """The node and the direction determine the ray; the primitive naming the node does not.
+
+    A caller holding a node has four edges to choose from and nothing tells them
+    which one works, so any of them has to give the same trace.  (One-way: the
+    backward heading is ``-transmit(d, E)``, which is a genuine function of the
+    start edge, so only the forward half is comparable.)
+    """
+    G = _grid()
+    _, starts = _node_starts(G)
+    traces = [
+        np.stack([hit.position for hit in cast_ray(G, h, t, _heading(degrees), both_ways=False).hits])
+        for h, t in starts
+    ]
+
+    for other in traces[1:]:
+        np.testing.assert_allclose(other, traces[0], atol=1e-9)
+
+
+@pytest.mark.parametrize("degrees", [10, 45, 80])
+def test_cast_ray_from_a_node_reads_the_sector_from_its_bounds_and_not_from_the_nearest_crease(degrees):
+    """Every direction strictly inside a sector is in it, including near its far bound.
+
+    A rule that takes the *nearest* incident crease instead of the nearest one
+    clockwise agrees on a direction bisecting its sector and disagrees on one
+    that leans: at 80 degrees the nearest crease is the sector's
+    counter-clockwise bound, and that crease's face is the next sector round.
+    """
+    G = _grid()
+    v, starts = _node_starts(G)
+    north_east = _outgoing_towards(v, [1, 0]).face  # `h.face` is left of `h`: the 0..90 sector
+
+    for h, t in starts:
+        path = cast_ray(G, h, t, _heading(degrees), both_ways=False)
+
+        assert path.hits[0].face is north_east
+        assert path.ends[1] in ("closed", "border")
+
+
+@pytest.mark.parametrize("degrees", CREASE_HEADINGS)
+def test_cast_ray_from_a_node_along_a_crease_is_degenerate_whichever_halfedge_names_it(degrees):
+    """Setting off along a crease is degenerate wherever that crease sits in the fan.
+
+    It used to be reported as one thing when the crease happened to be the start
+    edge ("along its own start edge") and as another, a step later and at a
+    different vertex, when it did not ("arrives at ... along a crease") -- for
+    the same geometry seen from a different primitive.
+    """
+    G = _grid()
+    _, starts = _node_starts(G)
+
+    for h, t in starts:
+        with pytest.raises(DegenerateRayError, match="sets off from .* along a crease"):
+            cast_ray(G, h, t, _heading(degrees), both_ways=False)
+
+
 def _diagonal_loop_grid(scale: float = 1.0):
     """Grid with all four diagonals at the central vertex.
 
@@ -777,8 +876,11 @@ def test_cast_ray_reports_a_stall_rather_than_calling_it_a_border():
     """
     G = _grid()
     _, north = _north_edge(G)
-    # a tolerance wider than the face swallows every candidate crossing
-    path = cast_ray(G, north, 0.5, np.array([1.0, 0.0]), both_ways=False, vertex_tol=10.0)
+    # A tolerance wider than the face swallows every candidate crossing.  It
+    # also snaps the start itself to `north.orig`, so the heading is taken off
+    # the axes: due east from a node runs along that node's east crease, which
+    # is a degenerate *start*, and the cast would raise before it could stall.
+    path = cast_ray(G, north, 0.5, np.array([1.0, 0.35]), both_ways=False, vertex_tol=10.0)
 
     assert path.ends[1] == "stalled"
     assert len(path.hits) == 1

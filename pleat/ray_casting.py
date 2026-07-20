@@ -154,6 +154,46 @@ def fan_at_vertex(
     return crossed, d, face
 
 
+def sector_at_vertex(v: Vertex, d: np.ndarray, angle_tol: float = 1e-9) -> Face | None:
+    """Return the face at *v* whose sector contains the direction *d*.
+
+    This resolves a ray *departing* from a vertex, the mirror of
+    :func:`fan_at_vertex`'s arrival: the sectors at *v* partition the
+    directions, and the one holding *d* is the face the ray sets off into.  It
+    is the sector, not the side of any one incident edge, that decides -- a node
+    of degree *n* has *n* sectors, and the side of one edge only tells the two
+    apart that touch it.
+
+    The face of a sector is read off its clockwise-most edge: ``h.face`` lies to
+    the left of ``h``, so it is the sector running counter-clockwise from *h*,
+    and the sector holding *d* is the one whose *h* is the smallest positive
+    turn away.  ``None`` when that face is off the paper, which is how a ray
+    aimed out through a border node reports "border" at once.
+
+    Args:
+        v: The vertex the ray sets off from.
+        d: Direction of travel; need not be normalised.
+        angle_tol: Radians; how close *d* may come to an incident crease before
+            it counts as running along it.
+
+    Raises:
+        DegenerateRayError: if *d* runs along an incident crease, where no
+            sector holds it and picking one of the two either side would send
+            the ray along an edge instead of across it.
+    """
+    best: Face | None = None
+    best_angle = np.inf
+    for h in v.outgoing_iter():
+        angle = signed_angle(halfedge_direction(h), d)
+        if abs(angle) < angle_tol:
+            raise DegenerateRayError(f"ray sets off from {tuple(map(float, v['pos']))} along a crease")
+        if angle < 0:
+            angle += 2 * np.pi
+        if angle < best_angle:
+            best, best_angle = h.face, angle
+    return best
+
+
 @dataclass
 class RayHit:
     """One point at which a ray meets the graph.
@@ -341,16 +381,8 @@ def _walk(start_he, start_t, direction, side, vertex_tol, max_steps, angle_tol):
     d = d / norm
     d0 = d
 
-    # `h.face` is the face to the left of `h`, so the ray sets off into
-    # `start_he.face` exactly when `d` points to the left of the start edge
     start_edge = halfedge_direction(start_he)
     edge_len = float(np.linalg.norm(start_edge))
-    towards_left = cross2(start_edge, d)
-    if abs(towards_left) < 1e-12 * edge_len:
-        # neither side is the one the ray goes into; picking one silently would
-        # send the ray along an edge it is supposed to be crossing
-        raise DegenerateRayError("ray sets off along its own start edge")
-    face = start_he.face if towards_left > 0 else start_he.rev.face
 
     # `t = 0` and `t = 1` are documented as meaning the endpoints, so the start
     # is snapped to a vertex on the same rule every other crossing is -- a
@@ -368,6 +400,23 @@ def _walk(start_he, start_t, direction, side, vertex_tol, max_steps, angle_tol):
     elif (1 - start_t) * edge_len <= vertex_tol:
         start_vertex = start_he.dest
     p = start = start_vertex["pos"] if start_vertex is not None else _point_on(start_he, start_t)
+
+    if start_vertex is not None:
+        # At a node the start edge is one of several, and which side of *it* `d`
+        # points only tells apart the two sectors touching it: every other
+        # direction would be sent into a face it points out of and stall.  The
+        # sector holding `d` is what decides, and it does not care which
+        # incident half-edge the caller named the node with.
+        face = sector_at_vertex(start_vertex, d, angle_tol)
+    else:
+        # `h.face` is the face to the left of `h`, so a ray from strictly inside
+        # the edge sets off into `start_he.face` exactly when `d` points left
+        towards_left = cross2(start_edge, d)
+        if abs(towards_left) < 1e-12 * edge_len:
+            # neither side is the one the ray goes into; picking one silently would
+            # send the ray along an edge it is supposed to be crossing
+            raise DegenerateRayError("ray sets off along its own start edge")
+        face = start_he.face if towards_left > 0 else start_he.rev.face
 
     yield RayHit(
         halfedges=[start_he],
@@ -472,10 +521,12 @@ def cast_ray(
         t: Parameter along *halfedge*; ``0`` and ``1`` mean its endpoints, and a
             *t* within ``vertex_tol`` of an end snaps to that vertex, so
             starting at a node is this same entry point rather than another one.
-            The ray still sets off into the face on the side of *halfedge* that
-            *direction* points to, so from a node of degree above two
-            *direction* has to point into that face's sector; aimed elsewhere,
-            the ray finds no exit and the end is reported ``"stalled"``.
+            From strictly inside the edge the ray sets off into the face on the
+            side of *halfedge* that *direction* points to; from a node it sets
+            off into the sector that holds *direction*
+            (:func:`sector_at_vertex`), which is every direction at the node and
+            not only the two sectors touching *halfedge* -- so which incident
+            half-edge names the node does not affect the ray.
         direction: Initial direction of travel.
         side: Which side of a vertex the ray passes when it hits one head-on.
         both_ways: Cast backwards too if the forward ray does not close.
@@ -493,10 +544,11 @@ def cast_ray(
         failure means ``not in ("closed", "border")``.
 
     Raises:
-        DegenerateRayError: if *direction* runs along *halfedge* or has zero
-            length, so that neither side of it is the one the ray sets off into,
-            or if the ray meets a vertex configuration :func:`fan_at_vertex`
-            cannot resolve.
+        DegenerateRayError: if *direction* has zero length; if it runs along
+            *halfedge* from strictly inside it, so that neither side is the one
+            the ray sets off into; if it runs along any incident crease of a
+            start node, so that no sector holds it; or if the ray meets a vertex
+            configuration :func:`fan_at_vertex` cannot resolve.
     """
     if vertex_tol is None:
         vertex_tol = default_vertex_tol(G)
