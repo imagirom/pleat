@@ -275,7 +275,7 @@ class TestGoldenAgainstCirclePack:
 
     @staticmethod
     def _load(name: str):
-        from pleat.io import parse_p_file, _build_heg_from_data
+        from pleat.io.circlepack import parse_p_file, _build_heg_from_data
 
         data = parse_p_file(str(FIXTURE_DIR / name))
         G, idx2v = _build_heg_from_data(data)

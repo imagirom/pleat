@@ -23,6 +23,18 @@ def invert_mapping(mapping: dict[K, V]) -> dict[V, K]:
     return {value: key for key, value in mapping.items()}
 
 
+def in_notebook() -> bool:
+    """True inside a Jupyter kernel (Notebook / Lab / VS Code); False in a terminal,
+    a plain script, or when IPython is not installed."""
+    try:
+        from IPython import get_ipython
+
+        ip = get_ipython()
+        return ip is not None and "IPKernelApp" in ip.config
+    except Exception:
+        return False
+
+
 def random_directed_set(edges: HalfEdgeGraph | Iterable[HalfEdge]) -> set[HalfEdge]:
     """Pick exactly one half-edge from each undirected pair.
 
