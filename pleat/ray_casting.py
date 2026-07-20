@@ -22,7 +22,17 @@ if TYPE_CHECKING:
 
 
 class DegenerateRayError(ValueError):
-    """The ray hit a configuration this module deliberately does not resolve."""
+    """The ray hit a configuration this module deliberately does not resolve.
+
+    This is raised for a *degenerate input or configuration*: a direction along
+    the start edge, a zero-length direction, an arrival along a crease, a fan
+    that wraps its vertex, a self-crossing trajectory.  It is **not** the
+    channel for a ray that merely stopped early -- that is reported in
+    :attr:`RayPath.ends`, whose non-terminal values are ``"stalled"`` and
+    ``"max_steps"``.  A cast that returns has raised nothing; a cast that raises
+    returns nothing.  The two never overlap, which is why the end value is
+    ``"stalled"`` rather than ``"degenerate"``.
+    """
 
 
 def cross2(a: np.ndarray, b: np.ndarray) -> float:
@@ -41,9 +51,16 @@ def transmit(d: np.ndarray, u: np.ndarray) -> np.ndarray:
     Keeps the component crossing the crease and flips the component along it.
     This is *not* the mirror image ``2(d.u)u - d``, which flips the crossing
     component and would send the ray back into the face it came from.
+
+    Raises:
+        DegenerateRayError: if *u* has zero length, which has no direction to
+            transmit across and would otherwise return ``nan`` silently.
     """
     u = np.asarray(u, dtype=float)
-    u = u / np.linalg.norm(u)
+    norm = float(np.linalg.norm(u))
+    if norm == 0.0:
+        raise DegenerateRayError("cannot transmit across a zero-length crease")
+    u = u / norm
     return np.asarray(d, dtype=float) - 2 * np.dot(d, u) * u
 
 
@@ -112,7 +129,7 @@ def fan_at_vertex(
     # threshold tracks `angle_tol` so there is no band in which a near-collinear
     # arrival is silently absorbed as a graze instead of raised.
     if abs(np.sin(theta)) < angle_tol:
-        raise DegenerateRayError(f"ray arrives at {v} along a crease")
+        raise DegenerateRayError(f"ray arrives at {tuple(map(float, v['pos']))} along a crease")
 
     d = np.asarray(d, dtype=float)
     crossed: list[HalfEdge] = []
@@ -122,7 +139,7 @@ def fan_at_vertex(
     while angle_tol < theta < np.pi - angle_tol:
         if len(crossed) >= degree:
             raise DegenerateRayError(
-                f"ray wraps the whole vertex {v}; resolving this needs the "
+                f"ray wraps the whole vertex at {tuple(map(float, v['pos']))}; resolving this needs the "
                 "holonomy of the full loop, which is out of scope"
             )
         d = transmit(d, halfedge_direction(g))
@@ -202,9 +219,17 @@ def first_crossing(
         ``(halfedge, s)`` where *s* is the parameter along the half-edge, or
         ``None`` if the ray leaves through no edge (which should not happen in
         a well-formed face).
+
+    Raises:
+        DegenerateRayError: if *d* has zero length.  Normalising it would warn
+            and then return ``nan``, and every comparison below would be False,
+            so the ray would silently report "no way out of this face".
     """
     d = np.asarray(d, dtype=float)
-    d = d / np.linalg.norm(d)
+    norm = float(np.linalg.norm(d))
+    if norm == 0.0:
+        raise DegenerateRayError("ray has no direction: |d| == 0")
+    d = d / norm
     best: tuple[HalfEdge, float] | None = None
     best_t = np.inf
     for h in face.halfedge_iter():
@@ -234,23 +259,22 @@ class RayPath:
     * ``"closed"`` -- the ray came back to its start on its original heading;
     * ``"border"`` -- it ran off the paper;
     * ``"max_steps"`` -- it was still going when the safety cap ran out;
-    * ``"degenerate"`` -- it stalled inside a face with no edge to leave
-      through (a malformed face, or a corner narrower than ``vertex_tol``);
+    * ``"stalled"`` -- it stopped inside a face with no edge to leave through
+      (a malformed face, or a corner narrower than ``vertex_tol``);
     * ``"start"`` -- ``ends[0]`` only: that end was never traced, because the
       cast was one-way.
 
     Only the first two mean the end was traced to completion, and more reasons
     may be added, so code that wants to know whether an end failed must test
     ``ends[i] not in ("closed", "border")`` rather than looking for
-    ``"max_steps"`` specifically.
+    ``"max_steps"`` specifically.  None of these is a
+    :class:`DegenerateRayError`: a stopped ray is returned, a degenerate one is
+    raised, and the two channels do not overlap.
 
-    ``closed`` is *not* implied by ``"closed"`` appearing in ``ends``.  The two
-    half-rays leave the start point into different faces, so the backward one
-    can loop back on itself while the forward one runs off the paper: a lasso, a
-    cycle with a tail, which is ``ends[0] == "closed"`` with ``closed=False``.
-    The start point then legitimately appears twice in ``hits``, once at each
-    end of the cycle.  ``closed`` is True only when the *forward* ray came back,
-    which is the case where the path really is one closed curve.
+    Because the backward half departs on ``transmit(-d, E)``, the two halves are
+    one reversible line: whichever end closes, the other has traced the same
+    curve, so ``ends`` is always ``("closed", "closed")`` or two non-closing
+    reasons.  ``closed`` and ``"closed" in ends`` therefore agree.
     """
 
     hits: list[RayHit]
@@ -300,36 +324,56 @@ def _closes(hit: RayHit, start: np.ndarray, d0: np.ndarray, vertex_tol: float) -
     )
 
 
-def _walk(start_he, start_t, direction, side, vertex_tol, max_steps):
+def _walk(start_he, start_t, direction, side, vertex_tol, max_steps, angle_tol):
     """Yield ``RayHit``s from the start point onwards, ending with a stop reason.
 
     The generator's return value (via ``StopIteration.value``) is the reason:
-    ``'closed'``, ``'border'``, ``'degenerate'``, or ``'max_steps'``.  A path
+    ``'closed'``, ``'border'``, ``'stalled'``, or ``'max_steps'``.  A path
     that finishes never reports ``'max_steps'``: the border test is made on
     entry and after every step, so it costs no iteration of its own.
     """
     d = np.asarray(direction, dtype=float)
+    norm = float(np.linalg.norm(d))
+    if norm == 0.0:
+        raise DegenerateRayError("ray has no direction: |d| == 0")
     # `_closes` reads the dot product of two of these as an angle, and
     # `first_crossing` reads the ray parameter as a distance: both need unit `d`
-    d = d / np.linalg.norm(d)
-    p = start = _point_on(start_he, start_t)
+    d = d / norm
     d0 = d
 
     # `h.face` is the face to the left of `h`, so the ray sets off into
     # `start_he.face` exactly when `d` points to the left of the start edge
     start_edge = halfedge_direction(start_he)
+    edge_len = float(np.linalg.norm(start_edge))
     towards_left = cross2(start_edge, d)
-    if abs(towards_left) < 1e-12 * np.linalg.norm(start_edge):
+    if abs(towards_left) < 1e-12 * edge_len:
         # neither side is the one the ray goes into; picking one silently would
         # send the ray along an edge it is supposed to be crossing
         raise DegenerateRayError("ray sets off along its own start edge")
     face = start_he.face if towards_left > 0 else start_he.rev.face
 
+    # `t = 0` and `t = 1` are documented as meaning the endpoints, so the start
+    # is snapped to a vertex on the same rule every other crossing is -- a
+    # *distance* of at most `vertex_tol` from an end.  Doing it here rather than
+    # in `add_ray_creases` is what keeps `RayHit.vertex` honest ("set iff the hit
+    # is exactly at a vertex"): the start hit is the one hit that never passes
+    # through `first_crossing`, so it is the one hit whose parameter is the
+    # caller's raw `t` and can land anywhere.  Without this the materializer
+    # inserts a *second* vertex on top of an existing one, giving a zero-length
+    # edge and two zero-area faces on a graph that still passes
+    # `check_consistency`.
+    start_vertex = None
+    if start_t * edge_len <= vertex_tol:
+        start_vertex = start_he.orig
+    elif (1 - start_t) * edge_len <= vertex_tol:
+        start_vertex = start_he.dest
+    p = start = start_vertex["pos"] if start_vertex is not None else _point_on(start_he, start_t)
+
     yield RayHit(
         halfedges=[start_he],
         t=start_t,
         position=p,
-        vertex=None,
+        vertex=start_vertex,
         direction_in=d,
         direction_out=d,
         face=face,
@@ -343,7 +387,7 @@ def _walk(start_he, start_t, direction, side, vertex_tol, max_steps):
         if found is None:
             # inside a face with no way out: not the paper's edge, but a
             # configuration this caster cannot step through
-            return "degenerate"
+            return "stalled"
         h, s = found
         d_in = d
         edge = halfedge_direction(h)
@@ -357,7 +401,7 @@ def _walk(start_he, start_t, direction, side, vertex_tol, max_steps):
 
         if vertex is not None:
             p = vertex["pos"]
-            crossed, d, face = fan_at_vertex(vertex, d, face, side=side)
+            crossed, d, face = fan_at_vertex(vertex, d, face, side=side, angle_tol=angle_tol)
         else:
             p = _point_on(h, s)
             crossed, d, face = [h], transmit(d, edge), h.rev.face
@@ -418,37 +462,48 @@ def cast_ray(
     both_ways: bool = True,
     vertex_tol: float | None = None,
     max_steps: int = 10_000,
+    angle_tol: float = 1e-9,
 ) -> RayPath:
     """Cast a ray from a point on an edge, transmitting at every crease it meets.
 
     Args:
         G: The crease pattern.
         halfedge: The edge the ray starts on.
-        t: Parameter along *halfedge*; ``0`` and ``1`` mean its endpoints.
+        t: Parameter along *halfedge*; ``0`` and ``1`` mean its endpoints, and a
+            *t* within ``vertex_tol`` of an end snaps to that vertex, so
+            starting at a node is this same entry point rather than another one.
+            The ray still sets off into the face on the side of *halfedge* that
+            *direction* points to, so from a node of degree above two
+            *direction* has to point into that face's sector; aimed elsewhere,
+            the ray finds no exit and the end is reported ``"stalled"``.
         direction: Initial direction of travel.
         side: Which side of a vertex the ray passes when it hits one head-on.
         both_ways: Cast backwards too if the forward ray does not close.
         vertex_tol: Distance below which a crossing snaps to a vertex.
         max_steps: Safety cap on the number of crossings per direction.
+        angle_tol: Radians; how close the fan walk's accumulated angle may come
+            to ``0`` or ``pi`` before the crease counts as not met (see
+            :func:`fan_at_vertex`).
 
     Returns:
         A :class:`RayPath` whose hits run from the backward end to the forward
         end.  Each entry of its ``ends`` is ``"closed"``, ``"border"``,
-        ``"max_steps"``, ``"degenerate"``, or -- for ``ends[0]`` on a one-way
+        ``"max_steps"``, ``"stalled"``, or -- for ``ends[0]`` on a one-way
         cast -- ``"start"``; see :class:`RayPath`, and note that testing for
         failure means ``not in ("closed", "border")``.
 
     Raises:
-        DegenerateRayError: if *direction* runs along *halfedge*, so that
-            neither side of it is the one the ray sets off into, or if the ray
-            meets a vertex configuration :func:`fan_at_vertex` cannot resolve.
+        DegenerateRayError: if *direction* runs along *halfedge* or has zero
+            length, so that neither side of it is the one the ray sets off into,
+            or if the ray meets a vertex configuration :func:`fan_at_vertex`
+            cannot resolve.
     """
     if vertex_tol is None:
         vertex_tol = default_vertex_tol(G)
 
     def run(d, side_):
         collected: list[RayHit] = []
-        walker = _walk(halfedge, t, d, side_, vertex_tol, max_steps)
+        walker = _walk(halfedge, t, d, side_, vertex_tol, max_steps, angle_tol)
         try:
             while True:
                 collected.append(next(walker))
@@ -484,12 +539,10 @@ def cast_ray(
     # start edge.  The rest of the backward hits are re-oriented as they are
     # spliced, so the whole list reads as one trajectory.
     spliced = [_reoriented(backward, k) for k in range(len(backward) - 1, 0, -1)]
-    # `backward_reason` may itself be `"closed"`: the ray sets off from a point
-    # on a crease, and the two half-rays leave into different faces, so one can
-    # loop back to the start while the other runs off to the border.  The result
-    # is a lasso -- a cycle with a tail -- not a closed curve, so `closed` stays
-    # False and only `ends[0]` records that that end came back.  The start point
-    # then legitimately appears twice in `hits`, once at each end of the cycle.
+    # `backward_reason` cannot be `"closed"` here: the two halves are one
+    # reversible line (that is what `transmit(-d, E)` above buys), so a backward
+    # pass that came round would mean the forward pass had too, and the early
+    # return above would already have fired.  Measured: 0 of 9975 casts.
     return RayPath(hits=spliced + forward, closed=False, ends=(backward_reason, forward_reason))
 
 
@@ -510,13 +563,18 @@ def _canonical(h: HalfEdge) -> HalfEdge:
 def _face_containing_segment(a: Vertex, b: Vertex) -> Face | None:
     """Return the face the segment ``a -> b`` runs through.
 
-    Usually there is exactly one common face.  When the ray traverses a face
-    more than once, an earlier split can leave two candidates, so the midpoint
-    decides between them.  That needs *a* and *b* both to sit on the boundary an
-    earlier segment of the same ray laid, with a third vertex between them; it
-    is rare enough that no sweep run against this module has produced it (0 of
-    ~19k segments across ~2200 casts), but it is not excluded by anything, so
-    the fallback stays.
+    Usually there is exactly one common face.  Two vertices bound two faces
+    exactly when they are a 2-cut of the subdivision -- two distinct boundary
+    paths between them, one on each side -- which a planar graph that is not
+    3-connected is free to contain, and which subdividing faces along ray chords
+    is free to create.  So the midpoint decides between them.
+
+    No sweep against this module has produced the case (0 of ~19k segments
+    across ~2200 casts), and the ``existing``-edge reuse in phase 2 intercepts
+    the *one-path* version of it, where the two vertices are adjacent.  Neither
+    is an argument that it cannot happen: reuse only fires when there is an edge
+    ``a -> b``, and a 2-cut joined by two paths of length above one has none.
+    Unobserved is not impossible, so the fallback stays.
     """
     candidates = list(a.common_faces_iter(b))
     if len(candidates) <= 1:
@@ -559,6 +617,15 @@ def _reject_self_crossing(path: RayPath, vertex_tol: float) -> None:
     # sweep is 6 -- so this is at worst tens of thousands of jitted intersection
     # tests against a cast that is itself O(n).  `get_potential_intersections`
     # in `pleat.overlap` is the sweep line to reach for if rims ever get long.
+    #
+    # The one input that makes n large is a path that ran to `max_steps`, where
+    # this becomes ~5e7 tests and presents as a hang rather than a failure.
+    # Rejecting a non-terminal `ends[1]` here would cap it, but `max_steps` is a
+    # documented truncation knob that several callers and tests use on purpose
+    # to keep a half-traced path in play, and `open_sink` -- the caller for which
+    # an incomplete rim is meaningless -- already rejects it right after the
+    # cast.  The loop tests carry a `timeout` marker so the regression fails
+    # instead of hanging.
     for i, s1 in enumerate(segments):
         for s2 in segments[i + 2 :]:
             for point in line_segment_intersections(s1, s2, vertex_tol):
@@ -580,6 +647,7 @@ def add_ray_creases(
     both_ways: bool = True,
     vertex_tol: float | None = None,
     max_steps: int = 10_000,
+    angle_tol: float = 1e-9,
 ) -> tuple[list[HalfEdge], RayPath]:
     """Cast a ray and add it to *G* as new vertices and creases.
 
@@ -602,6 +670,8 @@ def add_ray_creases(
         both_ways: Cast backwards too if the forward ray does not close.
         vertex_tol: Distance below which a crossing snaps to an existing vertex.
         max_steps: Safety cap on the number of crossings per direction.
+        angle_tol: Radians; the fan walk's angular tolerance, see
+            :func:`fan_at_vertex`.
 
     Returns:
         ``(rim, path)`` -- the new half-edges in traversal order, each tagged
@@ -629,6 +699,7 @@ def add_ray_creases(
         both_ways=both_ways,
         vertex_tol=vertex_tol,
         max_steps=max_steps,
+        angle_tol=angle_tol,
     )
     # Before anything is materialized: a self-crossing trajectory cannot be laid,
     # and finding that out mid-phase-2 would leave `G` half-modified.
@@ -641,25 +712,32 @@ def add_ray_creases(
         if hit.vertex is not None:
             vertices[i] = hit.vertex  # the ray landed on a vertex that exists already
             continue
-        if not hit.halfedges:  # a fan grazing a corner crosses nothing
-            continue
+        # `hit.halfedges` is non-empty here: a fan that crosses nothing is a
+        # graze, and a graze is a vertex hit, caught by the branch above.
         h = _canonical(hit.halfedges[0])
         # Order along the edge by distance from the canonical origin rather than
         # by `hit.t`: `t` is measured on whichever half the hit referenced, so
         # two hits recorded on opposite halves would otherwise be sorted against
         # each other backwards -- and the walk below depends on that order.
+        # Nothing observes this today, because every mixed-halves ray also
+        # crosses itself and `_reject_self_crossing` turns it away first.  It is
+        # correct by construction and free, and deferring "split the rim at its
+        # self-intersections instead of rejecting it" is what keeps it dormant:
+        # doing that work makes mixed-halves rays materializable and this key
+        # load-bearing again.
         by_edge.setdefault(h, []).append((float(np.linalg.norm(hit.position - h.orig["pos"])), i))
 
     for canonical, entries in by_edge.items():
         cur = canonical
         for _, i in sorted(entries):
             position = path.hits[i].position
-            # Only the `orig` end needs a snap.  `_walk` ran on the same
-            # `vertex_tol`, so anything that close to an endpoint of the
-            # *original* edge was already reported as a vertex hit; the only
-            # coincidence left is with a vertex this loop inserted itself, and
-            # since the loop walks forward along the edge that vertex is always
-            # `cur.orig`.
+            # Only the `orig` end needs a snap.  `_walk` snaps on the same
+            # `vertex_tol` -- the start hit included, which is the one hit whose
+            # parameter is the caller's and which used not to be snapped -- so
+            # anything that close to an endpoint of the *original* edge arrives
+            # here already reported as a vertex hit.  The only coincidence left
+            # is with a vertex this loop inserted itself, and since the loop
+            # walks forward along the edge that vertex is always `cur.orig`.
             if np.linalg.norm(position - cur.orig["pos"]) <= vertex_tol:
                 vertices[i] = cur.orig
                 continue

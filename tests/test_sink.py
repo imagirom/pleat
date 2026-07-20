@@ -9,13 +9,14 @@ import sys
 import numpy as np
 import pytest
 
+from pleat.cutting import pointinpolygon
 from pleat.example_graphs import from_tiles
 from pleat.example_tilesets import platonic
 from pleat.flat_foldable import is_locally_flat_foldable, local_assignment_valid
 from pleat.overlap import CREASE_ASSIGNMENT, MOUNTAIN, VALLEY
-from pleat.ray_casting import RAY_CREASE, add_ray_creases
+from pleat.ray_casting import RAY_CREASE, DegenerateRayError, add_ray_creases
 from pleat.shrink_rotate import assign_this_way_by_bfs, shrink_rotate_pattern
-from pleat.sink import InvalidSinkError, _interior_faces, open_sink
+from pleat.sink import InvalidSinkError, _interior_faces, _rim_is_ccw, open_sink
 
 from .test_ray_casting import (
     START_T,
@@ -345,6 +346,53 @@ def _central_start(G):
     return min(v.outgoing_iter(), key=lambda h: float(np.linalg.norm(np.asarray(h.dest["pos"]) - [0.3, -0.4])))
 
 
+def _rim_polygon(rim):
+    return np.stack([h.orig["pos"] for h in rim]).astype(float)
+
+
+def _faces_inside(G, polygon):
+    """The faces whose centroid lies inside *polygon*, by point-in-polygon.
+
+    An independent ground truth for ``_interior_faces``: a global containment
+    test, which is exactly what the flood fill exists to avoid, so the two
+    agreeing is evidence and not a tautology.  Every face here is convex, so its
+    centroid is inside it and containment of the centroid decides the face.
+    """
+    inside = set()
+    for f in G.faces:
+        centroid = np.mean(np.stack([w["pos"] for w in f.vertex_iter()]), axis=0)
+        if pointinpolygon(float(centroid[0]), float(centroid[1]), polygon):
+            inside.add(f)
+    return inside
+
+
+@pytest.mark.parametrize("angle, ccw", [(225.0, True), (255.0, False)])
+def test_interior_of_a_closed_rim_is_the_inside_whichever_way_it_runs(angle, ccw):
+    """``_rim_is_ccw`` decides which side of the rim the fill is seeded from.
+
+    Both of the existing structural checks use a counter-clockwise rim, so the
+    clockwise arm of that sign was defended by nothing but
+    ``is_locally_flat_foldable`` -- and the design records that the test is
+    *provably* blind to a global M/V flip, which is precisely what taking the
+    wrong side produces.  Mutating ``_rim_is_ccw`` to ``return True`` left the
+    whole suite green while inverting 308 of 360 half-edges instead of 4.
+
+    So both orientations are pinned here, against a containment test rather than
+    against a validity one.
+    """
+    G = _shrink_rotate_base()
+    d = np.array([np.cos(np.radians(angle)), np.sin(np.radians(angle))])
+    rim, path = add_ray_creases(G, _central_start(G), 0.5, d)
+
+    assert path.closed
+    assert _rim_is_ccw(rim) is ccw, "fixture no longer runs this way round; the parametrization is stale"
+
+    interior = _interior_faces(rim, closed=True)
+
+    assert interior == _faces_inside(G, _rim_polygon(rim))
+    assert 0 < len(interior) < len(G.faces), "the fill took everything or nothing"
+
+
 @pytest.mark.parametrize("angle", [225.0, 240.0, 255.0])
 def test_open_sink_leaves_a_flat_foldable_pattern_flat_foldable(angle):
     """The end-to-end origami claim: a successful sink yields a valid crease pattern.
@@ -407,6 +455,22 @@ def test_open_sink_rejects_an_untraced_rim_end(monkeypatch):
 
     with pytest.raises(InvalidSinkError, match="terminate"):
         open_sink(G, start, 0.5, np.array([1.0, 0.0]))
+
+
+def test_open_sink_forwards_angle_tol_to_the_cast():
+    """Both of the caster's tolerances have to be reachable from every entry point.
+
+    ``vertex_tol`` was already forwarded; ``angle_tol`` reached no public
+    signature at all, so its default was the only value any caller could ever
+    get.  Widened absurdly, the fan reads an ordinary arrival as being along a
+    crease, which nothing else can provoke.
+    """
+    G = _grid()
+    _assign_all(G, MOUNTAIN)
+    v, _, start, d = _aimed_near_an_interior_vertex(G)
+
+    with pytest.raises(DegenerateRayError, match="along a crease"):
+        open_sink(G, start, START_T, d, angle_tol=1.0)
 
 
 def test_open_sink_rejects_a_ray_that_hits_the_step_cap():

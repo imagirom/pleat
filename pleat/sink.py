@@ -157,7 +157,8 @@ def open_sink(
             this makes ``open_sink`` usable on a pattern whose creases have not
             been assigned yet.
         **cast_kwargs: Forwarded to :func:`pleat.ray_casting.add_ray_creases`
-            (``vertex_tol``, ``max_steps``).  ``both_ways`` is *not* accepted:
+            (``vertex_tol``, ``angle_tol``, ``max_steps``).  ``both_ways`` is
+            *not* accepted:
             a sink rim has to be traced in both directions or it does not
             separate the paper, so passing it raises ``TypeError``.
 
@@ -194,11 +195,18 @@ def open_sink(
         )
     rim, path = add_ray_creases(G, halfedge, t, direction, side=side, both_ways=True, **cast_kwargs)
     # Only `closed` and `border` are traced to completion.  Anything else
-    # (`max_steps`, `degenerate`, `start`) is a failure.  Testing for
+    # (`max_steps`, `stalled`, `start`) is a failure.  Testing for
     # `"max_steps"` specifically would let the others through as a success.
     bad = [reason for reason in path.ends if reason not in ("closed", "border")]
     if bad:
         raise InvalidSinkError(f"the sink rim did not terminate cleanly: {bad}")
+    # The two half-rays are one reversible line, so an end that closed means the
+    # whole trajectory closed.  A lasso -- a cycle with a tail, `"closed"` in
+    # `ends` without `closed` -- would slip past the check above and then be
+    # treated as an *open* rim below, where the race picks a "smaller side" of a
+    # curve that does not separate the paper.  It cannot happen; fail loudly if
+    # it ever does rather than inverting an arbitrary region.
+    assert path.closed or path.ends == ("border", "border"), f"cycle with a tail: {path.ends}"
 
     interior = _interior_faces(rim, path.closed)
     rim_edges = {h for h in rim} | {h.rev for h in rim}
