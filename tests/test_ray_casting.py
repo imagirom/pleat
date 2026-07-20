@@ -24,6 +24,7 @@ from pleat.ray_casting import (
     first_crossing,
     _point_on,
     halfedge_direction,
+    sector_at_vertex,
     signed_angle,
     transmit,
 )
@@ -1133,6 +1134,154 @@ def test_both_ways_crosses_the_start_edge_rather_than_kinking_at_it():
         assert a.dest is b.orig
 
 
+#: Directions at the degree-4 node whose forward half runs to the border rather
+#: than closing, so the backward half is really cast and really compared.
+OPEN_NODE_HEADINGS = [30, 110, 200, 300]
+
+
+def _assert_same_trace(paths):
+    """Assert every path in *paths* is the same trajectory: same ends, same hits."""
+    for other in paths[1:]:
+        assert other.ends == paths[0].ends
+        assert len(other.hits) == len(paths[0].hits)
+        np.testing.assert_allclose(_positions(other), _positions(paths[0]), atol=1e-9)
+
+
+@pytest.mark.parametrize("degrees", OPEN_NODE_HEADINGS)
+def test_both_ways_from_a_node_does_not_depend_on_which_incident_halfedge_names_it(degrees):
+    """At a node the backward half is a fan passage, and a fan has no start edge.
+
+    ``-transmit(d, E)`` is a genuine function of ``E``, so a node named by a
+    vertical edge and the same node named by a horizontal one used to send the
+    backward half two different ways -- one trajectory per primitive for the
+    same node and the same direction.  A ray through a vertex is the degenerate
+    case the fan rule exists for: it passes an infinitesimal distance to one
+    side, and reversing that passage is the fan applied to the reversed ray.
+    """
+    G = _grid()
+    _, starts = _node_starts(G)
+
+    paths = [cast_ray(G, h, t, _heading(degrees)) for h, t in starts]
+
+    assert paths[0].ends == ("border", "border"), "both halves must be traced for this to bite"
+    _assert_same_trace(paths)
+
+
+@pytest.mark.parametrize("degrees", SECTOR_HEADINGS)
+def test_both_ways_from_a_node_on_a_closing_heading_agrees_under_a_cap(degrees):
+    """The diagonals close, and a closed forward pass casts no backward half at all.
+
+    The cap keeps both halves in play so the diagonals -- 45 and 315 in
+    particular, where the two candidate backward headings are the two creases'
+    reflections of each other -- are covered too.
+    """
+    G = _grid()
+    _, starts = _node_starts(G)
+
+    paths = [cast_ray(G, h, t, _heading(degrees), max_steps=1) for h, t in starts]
+
+    assert len(paths[0].hits) == 3, "one hit per half plus the shared start"
+    _assert_same_trace(paths)
+
+
+def test_both_ways_from_a_node_reverses_the_fan_passage_through_it():
+    """The backward half retraces the arrival the fan pairs with this departure.
+
+    A ray that hits the node head-on with ``d_in`` and passes it on its
+    ``left`` leaves with ``d_out``.  Starting a cast at that node along
+    ``d_out`` is starting it in the middle of that trajectory, so its backward
+    half has to leave along ``-d_in``: the passage reversed.  Reversing it is
+    what mirrors the side -- ``+eps`` to the left travelling one way is
+    ``-eps``, on the right, travelling back -- and running the fan on the
+    unmirrored side instead picks the crease on the other side of the node and
+    a backward half that no forward ray ever produces.
+    """
+    G = _grid()
+    v, starts = _node_starts(G)
+    d_in = _unit([1.0, 0.35])  # oblique, so the two sides differ
+    _, d_out, _ = fan_at_vertex(v, d_in, sector_at_vertex(v, -d_in), side="left")
+
+    for h, t in starts:
+        path = cast_ray(G, h, t, d_out, side="left", max_steps=1)
+
+        assert len(path.hits) == 3  # one hit per half plus the shared start
+        np.testing.assert_allclose(path.hits[1].position, v["pos"], atol=1e-12)
+        backward = path.hits[0].position - v["pos"]
+        np.testing.assert_allclose(_unit(backward), -d_in, atol=1e-9)
+
+
+def test_both_ways_from_a_border_node_aimed_off_the_paper_stops_at_once():
+    """A node start whose direction leaves the paper has no passage to reverse.
+
+    The forward half is ``"border"`` at the start hit, and the reversed ray
+    would have to *arrive* at the node from off the paper, where there is no
+    face and no fan.  So the backward end is the border too, and the trace is
+    the single start hit -- the same answer from either edge naming the corner,
+    which is the whole point.  (A start strictly inside a border edge is a
+    different case: there the trajectory does cross the edge, and its backward
+    half runs into the paper.)
+    """
+    G = _grid()
+    v = _at(G, [2.5, 2.5])  # a corner of the sheet: degree 2, both edges on the border
+    outwards = _unit([1.0, 1.0])
+    assert sector_at_vertex(v, outwards) is None
+
+    for offset in ([-1.0, 0.0], [0.0, -1.0]):
+        path = cast_ray(G, _outgoing_towards(v, offset), 0.0, outwards)
+
+        assert path.ends == ("border", "border")
+        assert len(path.hits) == 1
+        assert path.hits[0].vertex is v
+
+
+def _pinned_north_edge(G):
+    """Return the north-pointing half-edge of the node at ``(0.5, 0.5)``.
+
+    Pinned by position rather than taken from ``central_vertex``, which is tied
+    four ways on this grid, so two grids built the same way can be compared.
+    """
+    return _outgoing_towards(_at(G, [0.5, 0.5]), [0.0, 1.0])
+
+
+def _subdivided_north_edge(G):
+    """Split that edge at its midpoint; return the degree-2 vertex and a half-edge naming it."""
+    north = _pinned_north_edge(G)
+    midpoint = _point_on(north, 0.5)
+    _, w = G.subdivide_edge(north)
+    w["pos"] = midpoint
+    G.recompute_lengths_and_angles()
+    assert w.order() == 2
+    return w, _outgoing_towards(w, [0.0, 1.0])
+
+
+def test_the_backward_fan_at_a_degree_2_node_reduces_to_transmitting_across_the_edge():
+    """A degree-2 node is a point mid-edge, so the two rules must give one answer.
+
+    This is the check that the node rule is the same rule as the interior-``t``
+    one and not a second one that happens to agree nowhere: at a vertex with
+    exactly two incident creases the fan crosses exactly one of them, and the
+    heading it comes back with is ``-transmit(d, E)`` -- what a start strictly
+    inside that same edge would have used.
+    """
+    G = _grid()
+    w, north = _subdivided_north_edge(G)
+    d = _unit([1.0, 0.35])  # oblique: perpendicular is the case where the rules cannot differ
+    assert not np.allclose(transmit(d, halfedge_direction(north)), d, atol=1e-6)
+
+    crossed, backward, face = fan_at_vertex(w, -d, sector_at_vertex(w, d), side="right")
+
+    assert len(crossed) == 1
+    np.testing.assert_allclose(backward, -transmit(d, halfedge_direction(north)), atol=1e-12)
+    assert face is not None
+
+    # and end to end: the same cast from the midpoint of the unsplit edge
+    unsplit = _grid()
+    plain = cast_ray(unsplit, _pinned_north_edge(unsplit), 0.5, d)
+    at_the_node = cast_ray(G, north, 0.0, d)
+    assert cast_ray(G, north, 0.0, d, both_ways=False).hits[0].vertex is w  # it really starts at the node
+    _assert_same_trace([plain, at_the_node])
+
+
 def _on_the_border(hit):
     """True if *hit* crossed a half-edge on the edge of the paper."""
     return any(h.face is None or h.rev.face is None for h in hit.halfedges)
@@ -1352,6 +1501,27 @@ def test_add_ray_creases_leaves_a_flat_foldable_vertex_at_an_oblique_start():
     (start,) = [w for w in G.vertices if np.allclose(w["pos"], start_pos, atol=1e-9)]
     assert start.order() == 4  # the two halves of the start edge, and two rim segments
     assert abs(kawasaki_sum(start)) < 1e-9
+
+
+@pytest.mark.parametrize("degrees", OPEN_NODE_HEADINGS)
+def test_add_ray_creases_leaves_a_flat_foldable_vertex_at_a_node_start(degrees):
+    """The node the ray starts from must still be locally flat-foldable afterwards.
+
+    The mirror of the oblique-start test above: there the start point becomes a
+    new degree-4 vertex, here it is an existing degree-4 node that the two rim
+    segments raise to degree 6.  The backward half is the reverse of the fan
+    passage the trajectory makes through the node, so the rim enters and leaves
+    on one fan passage rather than kinking there.
+    """
+    G = _grid()
+    v, starts = _node_starts(G)
+    north, t = starts[0]
+
+    _, path = add_ray_creases(G, north, t, _heading(degrees))
+
+    assert not path.closed  # a closed forward pass casts no backward half
+    assert v.order() == 6  # the four grid creases plus the two rim segments
+    assert abs(kawasaki_sum(v)) < 1e-9
 
 
 def _polyline(*points):

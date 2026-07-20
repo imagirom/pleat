@@ -311,10 +311,12 @@ class RayPath:
     :class:`DegenerateRayError`: a stopped ray is returned, a degenerate one is
     raised, and the two channels do not overlap.
 
-    Because the backward half departs on ``transmit(-d, E)``, the two halves are
-    one reversible line: whichever end closes, the other has traced the same
-    curve, so ``ends`` is always ``("closed", "closed")`` or two non-closing
-    reasons.  ``closed`` and ``"closed" in ends`` therefore agree.
+    Because the backward half retraces the trajectory's own crossing of the
+    start point -- ``transmit(-d, E)`` from inside an edge, the reversed fan
+    passage at a node -- the two halves are one reversible line: whichever end
+    closes, the other has traced the same curve, so ``ends`` is always
+    ``("closed", "closed")`` or two non-closing reasons.  ``closed`` and
+    ``"closed" in ends`` therefore agree.
     """
 
     hits: list[RayHit]
@@ -364,13 +366,46 @@ def _closes(hit: RayHit, start: np.ndarray, d0: np.ndarray, vertex_tol: float) -
     )
 
 
-def _walk(start_he, start_t, direction, side, vertex_tol, max_steps, angle_tol):
+def _start_vertex(start_he: HalfEdge, start_t: float, vertex_tol: float) -> Vertex | None:
+    """Return the endpoint of *start_he* the start point snaps to, or ``None``.
+
+    ``t = 0`` and ``t = 1`` are documented as meaning the endpoints, so the
+    start is snapped to a vertex on the same rule every other crossing is -- a
+    *distance* of at most ``vertex_tol`` from an end.  Doing it here rather
+    than in :func:`add_ray_creases` is what keeps ``RayHit.vertex`` honest
+    ("set iff the hit is exactly at a vertex"): the start hit is the one hit
+    that never passes through :func:`first_crossing`, so it is the one hit
+    whose parameter is the caller's raw ``t`` and can land anywhere.  Without
+    this the materializer inserts a *second* vertex on top of an existing one,
+    giving a zero-length edge and two zero-area faces on a graph that still
+    passes ``check_consistency``.
+    """
+    edge_len = float(np.linalg.norm(halfedge_direction(start_he)))
+    if start_t * edge_len <= vertex_tol:
+        return start_he.orig
+    if (1 - start_t) * edge_len <= vertex_tol:
+        return start_he.dest
+    return None
+
+
+#: `_walk` resolves the start face itself unless it is handed one; `None` is a
+#: meaningful face (off the paper), so "not given" needs a value of its own.
+_RESOLVE = object()
+
+
+def _walk(start_he, start_t, direction, side, vertex_tol, max_steps, angle_tol, start_face=_RESOLVE):
     """Yield ``RayHit``s from the start point onwards, ending with a stop reason.
 
     The generator's return value (via ``StopIteration.value``) is the reason:
     ``'closed'``, ``'border'``, ``'stalled'``, or ``'max_steps'``.  A path
     that finishes never reports ``'max_steps'``: the border test is made on
     entry and after every step, so it costs no iteration of its own.
+
+    ``start_face`` overrides the face the ray sets off into.  Only the backward
+    half of a node start passes it: there the departing direction and the face
+    both come out of one fan call, and re-deriving the face from the direction
+    would be a second, weaker answer to a question already settled (a fan that
+    grazes leaves along a direction its own exit sector does not contain).
     """
     d = np.asarray(direction, dtype=float)
     norm = float(np.linalg.norm(d))
@@ -384,24 +419,12 @@ def _walk(start_he, start_t, direction, side, vertex_tol, max_steps, angle_tol):
     start_edge = halfedge_direction(start_he)
     edge_len = float(np.linalg.norm(start_edge))
 
-    # `t = 0` and `t = 1` are documented as meaning the endpoints, so the start
-    # is snapped to a vertex on the same rule every other crossing is -- a
-    # *distance* of at most `vertex_tol` from an end.  Doing it here rather than
-    # in `add_ray_creases` is what keeps `RayHit.vertex` honest ("set iff the hit
-    # is exactly at a vertex"): the start hit is the one hit that never passes
-    # through `first_crossing`, so it is the one hit whose parameter is the
-    # caller's raw `t` and can land anywhere.  Without this the materializer
-    # inserts a *second* vertex on top of an existing one, giving a zero-length
-    # edge and two zero-area faces on a graph that still passes
-    # `check_consistency`.
-    start_vertex = None
-    if start_t * edge_len <= vertex_tol:
-        start_vertex = start_he.orig
-    elif (1 - start_t) * edge_len <= vertex_tol:
-        start_vertex = start_he.dest
+    start_vertex = _start_vertex(start_he, start_t, vertex_tol)
     p = start = start_vertex["pos"] if start_vertex is not None else _point_on(start_he, start_t)
 
-    if start_vertex is not None:
+    if start_face is not _RESOLVE:
+        face = start_face
+    elif start_vertex is not None:
         # At a node the start edge is one of several, and which side of *it* `d`
         # points only tells apart the two sectors touching it: every other
         # direction would be sent into a face it points out of and stall.  The
@@ -529,7 +552,18 @@ def cast_ray(
             half-edge names the node does not affect the ray.
         direction: Initial direction of travel.
         side: Which side of a vertex the ray passes when it hits one head-on.
-        both_ways: Cast backwards too if the forward ray does not close.
+        both_ways: Cast backwards too if the forward ray does not close.  The
+            backward half retraces the trajectory's crossing of the start
+            point, which is again the two cases above: from strictly inside
+            *halfedge* it departs along ``-transmit(direction, halfedge)``;
+            from a node it departs along the reverse of the fan passage through
+            that node -- the fan applied to the reversed ray, which mentions no
+            start edge, so this half too is the same whichever incident
+            half-edge names the node.  At a degree-2 node, a point that is
+            effectively mid-edge, the fan gives exactly
+            ``-transmit(direction, E)`` back and the two rules coincide.  A
+            direction that leaves the paper at a border node has no passage to
+            reverse, and that end reports ``"border"`` at once.
         vertex_tol: Distance below which a crossing snaps to a vertex.
         max_steps: Safety cap on the number of crossings per direction.
         angle_tol: Radians; how close the fan walk's accumulated angle may come
@@ -553,9 +587,9 @@ def cast_ray(
     if vertex_tol is None:
         vertex_tol = default_vertex_tol(G)
 
-    def run(d, side_):
+    def run(d, side_, start_face=_RESOLVE):
         collected: list[RayHit] = []
-        walker = _walk(halfedge, t, d, side_, vertex_tol, max_steps, angle_tol)
+        walker = _walk(halfedge, t, d, side_, vertex_tol, max_steps, angle_tol, start_face)
         try:
             while True:
                 collected.append(next(walker))
@@ -570,21 +604,52 @@ def cast_ray(
     if not both_ways:
         return RayPath(hits=forward, closed=False, ends=("start", forward_reason))
 
-    # The backward heading is `transmit(-d, E)`, not `-d`.  The start point lies
-    # *on* the start edge `E`, so the full trajectory crosses `E` there: it
-    # arrives from the far side along `transmit(d, E)` and departs along `d`.
-    # Retracing that arrival means leaving along `-transmit(d, E)`.  This is
-    # forced, not cosmetic: materializing makes the start point a degree-4
-    # vertex -- the two halves of `E` plus the two rim segments -- and only the
-    # transmitted heading makes that vertex satisfy Kawasaki.  It is also what
-    # makes the early return above correct: the two halves are then one line, so
-    # a forward pass that closed really has traced the whole trajectory.
-    #
-    # The side is mirrored as well, for a separate reason: the backward pass
-    # runs down the same offset line the other way round, so what was +eps to
-    # the left travelling forwards is -eps, on the right, travelling back.
-    back_direction = -transmit(np.asarray(direction, dtype=float), halfedge_direction(halfedge))
-    backward, backward_reason = run(back_direction, "right" if side == "left" else "left")
+    # The side is mirrored for both cases below: the backward pass runs down the
+    # same offset line the other way round, so what was +eps to the left
+    # travelling forwards is -eps, on the right, travelling back.
+    back_side = "right" if side == "left" else "left"
+    d = np.asarray(direction, dtype=float)
+    start_vertex = _start_vertex(halfedge, t, vertex_tol)
+
+    if start_vertex is None:
+        # From strictly inside the edge the backward heading is `transmit(-d, E)`,
+        # not `-d`.  The start point lies *on* the start edge `E`, so the full
+        # trajectory crosses `E` there: it arrives from the far side along
+        # `transmit(d, E)` and departs along `d`.  Retracing that arrival means
+        # leaving along `-transmit(d, E)`.  This is forced, not cosmetic:
+        # materializing makes the start point a degree-4 vertex -- the two halves
+        # of `E` plus the two rim segments -- and only the transmitted heading
+        # makes that vertex satisfy Kawasaki.  It is also what makes the early
+        # return above correct: the two halves are then one line, so a forward
+        # pass that closed really has traced the whole trajectory.
+        back_direction, back_face = -transmit(d, halfedge_direction(halfedge)), _RESOLVE
+    else:
+        # At a node there is no canonical `E` -- just whichever incident half-edge
+        # the caller named the node with -- and `transmit(., E)` would make the
+        # whole backward half depend on that arbitrary choice.  A ray through a
+        # vertex is instead the degenerate case the fan rule exists for: it passes
+        # an infinitesimal distance to one side, transmitting through a specific
+        # set of creases.  So the trajectory through the node is a fan passage,
+        # and retracing it is that same passage reversed: the reversed ray
+        # *arrives* at the node along `-d`, out of the sector holding `d` (since
+        # `-(-d) = d` points back into the face it came through), and the fan
+        # hands back the heading and face it leaves on.  No start edge anywhere in
+        # that, which is the point.  At a degree-2 node -- a point that is
+        # effectively mid-edge -- the fan crosses the one other crease and gives
+        # exactly `-transmit(d, E)` back, so this is the same rule as above and
+        # not a second one.
+        sector = sector_at_vertex(start_vertex, d, angle_tol)
+        if sector is None:
+            # `d` leaves the paper, so the forward half is already "border" at the
+            # start hit and the reversed ray would have to arrive from off the
+            # paper: there is no passage to reverse, and the backward end is the
+            # border too.  `_walk` reports that from `start_face=None` alone, so
+            # the heading below is never used for anything.
+            back_direction, back_face = -d, None
+        else:
+            _, back_direction, back_face = fan_at_vertex(start_vertex, -d, sector, back_side, angle_tol)
+
+    backward, backward_reason = run(back_direction, back_side, back_face)
     # Both passes emit the shared start point first.  Keep the *forward* copy:
     # its directions and its face are already in the trajectory's sense, while
     # the backward one's point the wrong way and sit on the wrong side of the
