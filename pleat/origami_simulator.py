@@ -24,13 +24,15 @@ import uuid
 import webbrowser
 
 from .io.fold import graph_to_fold
+from .utils import in_notebook
 
 __all__ = ["origami_simulator", "origami_simulator_button"]
 
+_OS_ORIGIN = "https://origamisimulator.org"
 # The empty ``?model=`` query is load-bearing: it makes Origami Simulator skip
 # loading its default demo (the waterbomb), which would otherwise finish loading
 # *after* our importFold and clobber it. This mirrors erikdemaine.org's maze tool.
-_OS_URL = "https://origamisimulator.org/?model="
+_OS_URL = _OS_ORIGIN + "/?model="
 
 
 def _fold_json(G) -> str:
@@ -54,9 +56,12 @@ def _page_html(G) -> str:
 <iframe id="os" src="{_OS_URL}"></iframe>
 <script>
   const FOLD = {fold_json};
-  function post(win){{ win.postMessage({{op:'importFold', fold: FOLD}}, '*'); }}
+  const OS_ORIGIN = "{_OS_ORIGIN}";
   window.addEventListener('message', function(e){{
-    if (e.data && e.data.from === 'OrigamiSimulator' && e.data.status === 'ready') post(e.source);
+    // Only answer the real Origami Simulator (checked by origin, which the browser
+    // sets and a page cannot forge), and hand the pattern only to that origin.
+    if (e.origin === OS_ORIGIN && e.data && e.data.from === 'OrigamiSimulator' && e.data.status === 'ready')
+      e.source.postMessage({{op:'importFold', fold: FOLD}}, OS_ORIGIN);
   }});
   document.getElementById('pop').addEventListener('click', function(){{
     // Enlarge via the Fullscreen API (Esc to exit). Unlike opening a popup, this
@@ -100,24 +105,12 @@ def _button_html(G, *, height: int = 600, title: str = "Load Origami Simulator")
 def _open_in_browser(G) -> str:
     """Write the page to a temp file and open it in the system browser."""
     fd, path = tempfile.mkstemp(prefix="pleat-os-", suffix=".html")
-    with os.fdopen(fd, "w") as fh:
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
         fh.write(_page_html(G))
     url = "file://" + path
     print(f"Opening Origami Simulator: {url}")
     webbrowser.open(url)
     return path
-
-
-def _in_notebook() -> bool:
-    """True inside a Jupyter kernel (Notebook / Lab / VS Code); False in a terminal
-    or plain script."""
-    try:
-        from IPython import get_ipython
-
-        ip = get_ipython()
-        return ip is not None and "IPKernelApp" in ip.config
-    except Exception:
-        return False
 
 
 def _display_html(markup: str) -> None:
@@ -138,7 +131,7 @@ def origami_simulator(G, *, height: int = 600, new_tab: bool = False) -> None:
     Pass ``new_tab=True`` to force the browser even from a notebook - useful in VS
     Code, where the inline Fullscreen button is blocked by the webview.
     """
-    if new_tab or not _in_notebook():
+    if new_tab or not in_notebook():
         _open_in_browser(G)
     else:
         _display_html(_iframe_html(G, height=height))

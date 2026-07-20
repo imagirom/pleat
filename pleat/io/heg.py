@@ -175,8 +175,8 @@ def save_graph(
     """
     if not filename.endswith(".heg"):
         filename += ".heg"
-    if not overwrite:
-        assert not os.path.exists(filename), f"File exists: {filename}. Set overwrite=True to overwrite."
+    if not overwrite and os.path.exists(filename):
+        raise FileExistsError(f"File exists: {filename}. Set overwrite=True to overwrite.")
     if extra_attributes_to_save is not None:
         if isinstance(extra_attributes_to_save, str):
             extra_attributes_to_save = (extra_attributes_to_save,)

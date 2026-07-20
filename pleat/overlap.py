@@ -27,6 +27,7 @@ from .base import orientation
 from .conversions import EHEG_from_nx
 from .layout import angle_to_height, min_edge_length, optimize_rotation, rotate_graph
 from .rendering import BORDER_COLOR, MOUNTAIN_COLOR, VALLEY_COLOR, CairoRenderer, SvgwriteRenderer, multi_show
+from .utils import in_notebook
 
 if TYPE_CHECKING:
     from .half import EuclideanPositionHEG, Face
@@ -947,7 +948,9 @@ class FoldResult(dict):
             **render_settings,
         )
 
-        if show_origami_simulator_button:
+        # the button needs IPython (notebook display); skip it in scripts so show()
+        # still works there via matplotlib
+        if show_origami_simulator_button and in_notebook():
             cp_to_simulate = self.CP_for_origami_simulator if self.CP_for_origami_simulator is not None else self.CP
             if cp_to_simulate is not None:
                 from pleat.origami_simulator import origami_simulator_button

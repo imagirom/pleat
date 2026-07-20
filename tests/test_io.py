@@ -47,10 +47,10 @@ def test_save_refuses_overwrite_by_default(tmp_path):
     save_graph(filename, G)
     try:
         save_graph(filename, G)
-    except AssertionError:
+    except FileExistsError:
         pass
     else:
-        raise AssertionError("expected AssertionError on second save without overwrite=True")
+        raise AssertionError("expected FileExistsError on second save without overwrite=True")
     save_graph(filename, G, overwrite=True)
 
 
