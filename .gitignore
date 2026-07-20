@@ -35,3 +35,6 @@ hydralance/
 *.log
 .claude/
 IMPROVEMENTS.md
+
+# Superpowers specs/plans (working docs, not shipped)
+.claude/superpowers/

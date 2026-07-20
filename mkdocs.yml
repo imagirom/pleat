@@ -94,6 +94,8 @@ nav:
           - Shrink-Rotate: notebooks/Shrink_Rotate_Tessellations.ipynb
           - Intersecting Cylinders: notebooks/Intersecting_Cylinders.ipynb
           - Alternating Flagstones: notebooks/Alternating_Flagstones.ipynb
+      - Manipulating crease patterns:
+          - Ray Casting and Sink Folds: notebooks/Ray_Casting_and_Sinks.ipynb
       # - 04 Folding and Overlap: notebooks/Folding_and_Overlap.ipynb #TODO: proper notebook walking through my layer-order algorithm: CP -> Overlap graph -> ILP -> layer-order -> top / bottom rendering
 
   - Architecture: concepts/architecture.md

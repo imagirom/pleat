@@ -42,7 +42,7 @@ threed = ["meshio"]
 torch = ["torch", "einops"]
 image = ["scikit-image", "mahotas"]
 intersecting_cylinders = ["rdp", "plotly"]
-dev = ["pytest", "pytest-cov", "black", "mypy", "pre-commit", "nbstripout", "rdp", "plotly"]
+dev = ["pytest", "pytest-cov", "pytest-timeout", "black", "mypy", "pre-commit", "nbstripout", "rdp", "plotly"]
 docs = [
     "mkdocs-materialx",
     "mkdocstrings[python]",
@@ -96,6 +96,9 @@ packages = ["pleat"]
 testpaths = ["tests"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    # Registered here as well so the mark is meaningful in the listing even
+    # when `pytest-timeout` (dev extra) is not installed, where it is a no-op.
+    "timeout: fail rather than hang -- the ray caster's loop guards regress as hangs, not as failures",
 ]
 
 [tool.coverage.run]
